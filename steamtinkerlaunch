@@ -9161,11 +9161,8 @@ function createShaderRepoList {
 		# Use MediaWiki API to fetch shader repository list
 		if [ -x "$(command -v "$JQ")" ]; then
 			"$WGET" -q "$SHADREPOURL" -O - 2> >(grep -v "SSL_INIT") | "$JQ" -r '.parse.text."*"' 2>/dev/null | sed -n '/Repository</,/table>/p' | grep "^<td>" | awk 'ORS=NR%3?FS:RS' | sed "s:<td><a rel=\"nofollow\" class=\"external text\" href=::; s:</a></td> <td>:;:; s:</td> <td>:;:; s:\">:\";:; s:<br />: :; s: ;:;:; s:/tree/master::; s:/reshade/Shaders::" > "$SHADREPOLIST"
-		elif [ -x "$(command -v python3)" ]; then
-			# Fallback: parse JSON using python3 with error handling
-			"$WGET" -q "$SHADREPOURL" -O - 2> >(grep -v "SSL_INIT") | python3 -c "import json, sys; data = json.load(sys.stdin); print(data['parse']['text']['*'])" 2>/dev/null | sed -n '/Repository</,/table>/p' | grep "^<td>" | awk 'ORS=NR%3?FS:RS' | sed "s:<td><a rel=\"nofollow\" class=\"external text\" href=::; s:</a></td> <td>:;:; s:</td> <td>:;:; s:\">:\";:; s:<br />: :; s: ;:;:; s:/tree/master::; s:/reshade/Shaders::" > "$SHADREPOLIST"
 		else
-			writelog "WARN" "${FUNCNAME[0]} - Neither jq nor python3 available for JSON parsing - Shader repository list cannot be fetched from API"
+			writelog "WARN" "${FUNCNAME[0]} - jq is not available for JSON parsing - Shader repository list cannot be fetched from API"
 		fi
 		
 		# If the fetch failed and the repo list is empty, ensure at least the custom list will be available
