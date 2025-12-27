@@ -3149,7 +3149,7 @@ function setDefaultCfgValues {
 		if [ -z "$ROBERTAARGS" ]						; then	ROBERTAARGS="--wait-before-run"; fi
 		if [ -z "$LUXTORPEDACMD" ]						; then	LUXTORPEDACMD="$STEAMCOMPATOOLS/luxtorpeda/luxtorpeda.sh"; fi
 		if [ -z "$LUXTORPEDAARGS" ]						; then	LUXTORPEDAARGS="wait-before-run"; fi
-		if [ -z "$RSVERS" ]								; then	RSVERS="5.9.1"; fi
+		if [ -z "$RSVERS" ]								; then	RSVERS="6.6.2"; fi
 		if [ -z "$USERSSPEKVERS" ]						; then  USERSSPEKVERS="1"; fi
 		if [ -z "$RSSPEKVERS" ]							; then  RSSPEKVERS="5.4.2"; fi
 		if [ -z "$AUTOBUMPRESHADE" ]					; then	AUTOBUMPRESHADE="0"; fi
