@@ -9154,12 +9154,17 @@ function SHADSRC {
 }
 
 function createShaderRepoList {
-	SHADREPOURL="https://www.pcgamingwiki.com/wiki/${RESH}"
+	SHADREPOURL="https://www.pcgamingwiki.com/w/api.php?action=parse&page=${RESH}&format=json&prop=text"
 	MAXAGE=1440
 
 	if [ ! -f "$SHADREPOLIST" ] || test "$(find "$SHADREPOLIST" -mmin +"$MAXAGE")"; then
-		# if this breaks, we'll use bundled static url list instead
-		"$WGET" -q "$SHADREPOURL" -O - 2> >(grep -v "SSL_INIT") | sed -n '/Repository</,/table>/p' | grep "^<td>" | awk 'ORS=NR%3?FS:RS' | grep -v "https://blues" | sed "s:<td><a rel=\"nofollow\" class=\"external text\" href=::; s:</a></td> <td>:;:; s:</td> <td>:;:; s:\">:\";:; s:<br />: :; s: ;:;:; s:/tree/master::; s:/reshade/Shaders::" > "$SHADREPOLIST"
+		# Use MediaWiki API to fetch shader repository list
+		if [ -x "$(command -v "$JQ")" ]; then
+			"$WGET" -q "$SHADREPOURL" -O - 2> >(grep -v "SSL_INIT") | "$JQ" -r '.parse.text."*"' | sed -n '/Repository</,/table>/p' | grep "^<td>" | awk 'ORS=NR%3?FS:RS' | sed "s:<td><a rel=\"nofollow\" class=\"external text\" href=::; s:</a></td> <td>:;:; s:</td> <td>:;:; s:\">:\";:; s:<br />: :; s: ;:;:; s:/tree/master::; s:/reshade/Shaders::" > "$SHADREPOLIST"
+		else
+			# Fallback: parse JSON without jq using sed
+			"$WGET" -q "$SHADREPOURL" -O - 2> >(grep -v "SSL_INIT") | sed 's/.*"text":{"\\*":"//' | sed 's/"}}}.*//' | sed 's/\\"/"/g; s/\\n/\n/g; s/\\\//\//g' | sed -n '/Repository</,/table>/p' | grep "^<td>" | awk 'ORS=NR%3?FS:RS' | sed "s:<td><a rel=\"nofollow\" class=\"external text\" href=::; s:</a></td> <td>:;:; s:</td> <td>:;:; s:\">:\";:; s:<br />: :; s: ;:;:; s:/tree/master::; s:/reshade/Shaders::" > "$SHADREPOLIST"
+		fi
 	fi
 
 	RCL="repocustomlist.txt"
