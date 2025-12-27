@@ -9188,6 +9188,7 @@ function createShaderRepoList {
 	fi
 
 	sed '/^$/d' -i "$SHADREPOLIST"
+	sed '/^#/d' -i "$SHADREPOLIST"
 }
 
 function unblockrssub {
