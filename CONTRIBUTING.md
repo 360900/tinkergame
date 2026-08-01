@@ -55,7 +55,7 @@ You are also free to translate the string, if you speak the language. But if not
 This section has some tips and guidance to help with writing code for TinkerGame.
 
 ### Use ShellCheck
-**Note**: ShellCheck v0.9.0 is **NOT** supported due to enforcing an extended data analysis engine. ShellCheck v0.10.0 allows this to be disabled, and TinkerGame automatically sets a directive to disable it. You can also disable it manually when running ShellCheck by using `shellcheck --extended-analysis=false tinkergame`.
+TinkerGame includes a ShellCheck directive for versions that support extended analysis. Run `shellcheck tinkergame` with the ShellCheck version provided by your distribution.
 
 There is an awesome utility called [ShellCheck](http://shellcheck.net/) which helps ensure shell code is bug-free. It is strongly recommended to use this when developing for TinkerGame, it's a good way to catch bugs and write well structured code.
 

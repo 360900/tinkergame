@@ -7,7 +7,7 @@ cd "$ROOT_DIR"
 bash -n tinkergame
 
 if command -v shellcheck >/dev/null 2>&1; then
-	 shellcheck --extended-analysis=false tinkergame
+	shellcheck tinkergame
 fi
 
 test -x tinkergame

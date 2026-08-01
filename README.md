@@ -102,7 +102,7 @@ log under `/dev/shm/tinkergame`. Run the following to verify the local script:
 
 ```sh
 bash -n tinkergame
-shellcheck --extended-analysis=false tinkergame
+shellcheck tinkergame
 ```
 
 When reporting a problem, include the TinkerGame version, distribution,
@@ -119,7 +119,7 @@ Run the local checks with:
 
 ```sh
 bash -n tinkergame
-shellcheck --extended-analysis=false tinkergame
+shellcheck tinkergame
 make -n install PREFIX="$HOME/.local"
 ```
 
