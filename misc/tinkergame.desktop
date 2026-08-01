@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=TinkerGame (Settings)
+Comment=tinkergame Settings menu
+Categories=Game;
+Exec=tinkergame settings
+Icon=tinkergame
+Terminal=false
+Type=Application

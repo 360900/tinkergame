@@ -5,15 +5,15 @@
 ### project ###
 
 PREFIX="/usr"
-PROGNAME="SteamTinkerLaunch"
-NICEPROGNAME="Steam Tinker Launch"
+PROGNAME="TinkerGame"
+NICEPROGNAME="TinkerGame"
 PROGVERS="v14.0.20260707"
 PROGCMD="${0##*/}"
-PROGINTERNALPROTNAME="Proton-stl"
-SHOSTL="stl"
+PROGINTERNALPROTNAME="Proton-tinkergame"
+SHOSTL="tg"
 GHURL="https://github.com"
 AGHURL="https://api.github.com"
-PROJECTPAGE="$GHURL/sonic2kk/${PROGNAME,,}"
+PROJECTPAGE="$GHURL/tinkergame/tinkergame"
 PPW="$PROJECTPAGE/wiki"
 CURWIKI="$PPW"
 STARTDEBUG=1
@@ -675,7 +675,7 @@ function setSteamPaths {
 				# This allows us to use the correct userdata folder for the currently logged in user by default when
 				# there are multiple Steam user accounts logged into the same machine
 				#
-				# See also: https://github.com/sonic2kk/steamtinkerlaunch/issues/1140
+				# See also: https://github.com/tinkergame/tinkergame/issues/1140
 				while read -r loginuser; do
 					LOGINUSERCSVSHORTAID="$( echo "${loginuser}" | cut -d ';' -f2  )"
 					LOGINUSERCSVMOSTRECENT="$( echo "${loginuser}" | cut -d ';' -f3  )"
@@ -702,7 +702,7 @@ function setSteamPaths {
 				elif [ ! -d "${STUIDPATH}" ]; then
 					# If we were able to get the Most Recent Steam user but the userdata path for this user with this UserID does not actually exist, something has gone horribly wrong!
 					# One possible but unlikely scenario is that the MostRecent user in LognUsersCSV file was removed from the Steam Client, so the userdata path would no longer exist
-					# Users should remove /dev/shm/steamtinkerlaunch if the accounts or Steam Client config changes in any way so this would only be a temporary issue
+					# Users should remove /dev/shm/tinkergame if the accounts or Steam Client config changes in any way so this would only be a temporary issue
 					writelog "WARN" "${FUNCNAME[0]} - Built Steam userdata path for User ID '${STEAMUSERID}' at path '${STUIDPATH}', but this path does not exist! This will probably cause problems!" "E"
 				fi
 			else
@@ -2590,11 +2590,15 @@ function setCustomGameVars {
 	fi
 }
 
+function yadSupportsOption {
+	grep -q -- "$1" <<< "$YADHELP"
+}
+
 function prepareGUI {
 	# Yad 15.0 dropped '--image-on-top' and '--decorated'. Yad refuses to start at
 	# all when it is handed an option it does not know, exiting with
 	# "Unable to parse command line: Unknown option ...", so passing these
-	# unconditionally makes every SteamTinkerLaunch window close the instant it is
+	# unconditionally makes every TinkerGame window close the instant it is
 	# opened on Yad 15.0 and newer.
 	#
 	# We ask Yad what it supports instead of comparing version strings, so this
@@ -2608,7 +2612,7 @@ function prepareGUI {
 	# empty positional argument, which it consumes as the first '--field' value
 	# and shifts every following field value by one.
 	YADIMGTOP=()
-	if grep -q -- "--image-on-top" <<< "$YADHELP"; then
+	if yadSupportsOption "--image-on-top"; then
 		YADIMGTOP=( "--image-on-top" )
 	else
 		writelog "INFO" "${FUNCNAME[0]} - Yad has no '--image-on-top' option (removed in Yad 15.0) - omitting it"
@@ -2617,7 +2621,7 @@ function prepareGUI {
 	WINDECO=( "--undecorated" )
 	if [ -n "$USEWINDECO" ]; then
 		if [ "$USEWINDECO" -eq 1 ]; then
-			if grep -q -- "--decorated" <<< "$YADHELP"; then
+			if yadSupportsOption "--decorated"; then
 				WINDECO=( "--decorated" )
 			else
 				# Decorated windows are the Yad 15.0 default, so passing no
@@ -2683,7 +2687,7 @@ function loadLangFile {
 			LOCALLANGFILE="$SCRIPTDIR/lang/${LANGFILENAME}.txt"
 
 			if [ -f "$LAFI" ]; then
-				# If langfile in ~/.config/steamtinkerlaunch/lang exists, and we have a langfile installed globally or in the scriptdir, update the user-installed langfile
+				# If langfile in ~/.config/tinkergame/lang exists, and we have a langfile installed globally or in the scriptdir, update the user-installed langfile
 				writelog "INFO" "${FUNCNAME[0]} - Found user-installed $LAFI, attempting to update it"
 				UPDATELANGFILEPATH=""
 				if [ -f "$SYSTEMSTLCFGDIR/lang/${LANGFILENAME}.txt" ]; then
@@ -2819,7 +2823,7 @@ function fillProtonCSV {
 ## TODO at some point maybe we should store this in the ProtonCSV as well? Then the format would be 'versionfilename;protonpath;internalname'
 function getProtonInternalName {
 	## Tools are not necessarily guaranteed to have this comment, but I checked several and they all had it:
-	## - SteamTinkerLaunch (naturally)
+	## - TinkerGame (naturally)
 	## - All GE-Proton8 releases
 	## - Standard Proton-tkg releases
 	## - Luxtorpeda
@@ -3112,10 +3116,10 @@ function getAvailableProtonVersions {
 function setDefaultCfgValues {
 
 	function setDefaultCfgValuesurl {
-		if [ -z "$PROJECTPAGE" ]						; then	PROJECTPAGE="$GHURL/sonic2kk/steamtinkerlaunch"; fi
+		if [ -z "$PROJECTPAGE" ]						; then	PROJECTPAGE="$GHURL/tinkergame/tinkergame"; fi
 		if [ -z "$CP_PROTONTKG" ]						; then	CP_PROTONTKG="$GHURL/Frogging-Family/wine-tkg-git"; fi
 		if [ -z "$CP_PROTONGE" ]						; then	CP_PROTONGE="$GHURL/GloriousEggroll/proton-ge-custom"; fi
-		if [ -z "$CP_PROTONSTL" ]						; then	CP_PROTONSTL="$GHURL/sonic2kk/steamtinkerlaunch-tweaks"; fi
+		if [ -z "$CP_PROTONSTL" ]						; then	CP_PROTONSTL="$GHURL/tinkergame/tinkergame-tweaks"; fi
 		if [ -z "$DL_D3D47_64" ]						; then	DL_D3D47_64="https://lutris.net/files/tools/dll/$D3D47"; fi
 		if [ -z "$DL_D3D47_32" ]						; then	DL_D3D47_32="http://dege.freeweb.hu/dgVoodoo2/bin/D3DCompiler_47.zip"; fi
 		if [ -z "$RESHADEDLURL" ]						; then	RESHADEDLURL="https://reshade.me/downloads"; fi
@@ -3143,7 +3147,7 @@ function setDefaultCfgValues {
 		if [ -z "$SPEKGHURL" ]							; then	SPEKGHURL="$GHURL/${SPEK}O/${SPEK}/releases";fi
 		if [ -z "$SPEKCOMPURL" ]						; then	SPEKCOMPURL="https://www.pcgamingwiki.com/wiki/List_of_games_compatible_with_Special_K#Compatibility_list";fi
 		if [ -z "$FWSURL" ]								; then	FWSURL="https://www.${FWS,,}.org/fws";fi
-		if [ -z "$YAIURL" ]								; then	YAIURL="$GHURL/sonic2kk/steamtinkerlaunch-tweaks/releases/download"; fi
+		if [ -z "$YAIURL" ]								; then	YAIURL="$GHURL/tinkergame/tinkergame-tweaks/releases/download"; fi
 		if [ -z "$WINERELOADURL" ]						; then	WINERELOADURL="https://gist.githubusercontent.com/rbernon/cdbdc1b0e892f91e7449fcf3dda80bb7/raw/d8cf549bf751d99ed0fe515e36f99ff5c01b7287"; fi
 		if [ -z "$GEOELFURL" ]							; then	GEOELFURL="http://helixmod.blogspot.com/2022/06/announcing-new-geo-11-3d-driver.html"; fi
 		if [ -z "$WDIBURL" ]							; then	WDIBURL="$AGHURL/repos/0e4ef622/$WDIB/releases/latest"; fi
@@ -7030,7 +7034,7 @@ function getSeasonalGreeting {
 }
 
 function migrateCfgOption {
-	# temporary function to update specific configuration options - will vary depending on the current steamtinkerlaunch version and mostly won't be used at all
+	# temporary function to update specific configuration options - will vary depending on the current tinkergame version and mostly won't be used at all
 	if [ "$1" == "$STLGAMECFG" ]; then
 		# update dxvk config handling:
 		if grep -q "^#STLDXVKCFG" "$STLGAMECFG" && ! grep -q "^STLDXVKCFG" "$STLGAMECFG"; then
@@ -7921,10 +7925,10 @@ function pickGameWindowNameMeta {
 	fi
 }
 
-# General function for the "steamtinkerlaunch list <arg> function"
+# General function for the "tinkergame list <arg> function"
 # Can take two types of commands:
-# - `steamtinkerlaunch list owned/installed/non-steam` - Returns "Game Name (AppID)"
-# - `steamtinkerlaunch list owned/installed/non-steam id/name/path/full` - Returns either AppID, Game Name, Game Paths, or all in the format "Game Name (AppID) -> /path/to/game"
+# - `tinkergame list owned/installed/non-steam` - Returns "Game Name (AppID)"
+# - `tinkergame list owned/installed/non-steam id/name/path/full` - Returns either AppID, Game Name, Game Paths, or all in the format "Game Name (AppID) -> /path/to/game"
 #
 # This function is not very efficient, Non-Steam Games in particular are inefficient because we read shortcuts.vdf each time we want to parse info
 # We parse it once to get the IDs, then again in each `getTitleFromID` and `getGameDir` call. This makes it pretty slow
@@ -8126,7 +8130,7 @@ function getGameExe {
 
 	INAID="$1"
 	EXE=""
-	NOTFOUNDSTR="No Executable or SteamTinkerLaunch file found for '$1'"
+	NOTFOUNDSTR="No Executable or TinkerGame file found for '$1'"
 
 	# Try to get appid from game name -- If multiple values, just pick first one
 	if ! [ "$INAID" -eq "$INAID" ] 2>/dev/null; then
@@ -8178,7 +8182,7 @@ function getCompatData {
 		return 1
 	fi
 
-	# SteamTinkerLaunch stores a symlinkk to the prefix of each game launched with it,
+	# TinkerGame stores a symlinkk to the prefix of each game launched with it,
 	# so if we have this folder we can try to find if we have a symlink to the desired game's prefix as it may be faster
 	if [ -d "$STLCOMPDAT" ]; then
 		# Skips games which have ';' in the name (i.e. "ROBOTICS;NOTES"), as this throws off the 'cut' command, and instead we fall back to the getGameDir check
@@ -9194,7 +9198,7 @@ function createShaderRepoList {
 		else
 			writelog "WARN" "${FUNCNAME[0]} - jq is not available for JSON parsing - Shader repository list cannot be fetched from API"
 		fi
-		
+
 		# If the fetch failed and the repo list is empty, ensure at least the custom list will be available
 		if [ ! -s "$SHADREPOLIST" ]; then
 			touch "$SHADREPOLIST"
@@ -9712,7 +9716,7 @@ function appendToRSTXT {
 }
 
 # $2 used to specify NOD3D9 wehn we copied both DXGI and D3D9 DLLs, but we no longer do that, so $2 is unused
-# Last refactored for: https://github.com/sonic2kk/steamtinkerlaunch/pull/881
+# Last refactored for: https://github.com/tinkergame/tinkergame/pull/881
 function installRSdll {
 	RSDLLNAMECONFLICTFOUND=0
 
@@ -10073,7 +10077,7 @@ function checkReshade {
 			writelog "WARN" "${FUNCNAME[0]} - Both '$SPEK' and '$RESH' are enabled." "E"
 			writelog "WARN" "${FUNCNAME[0]} - This has historically caused crashes, but has been experimentally re-enabled!"
 			writelog "WARN" "${FUNCNAME[0]} - Manual intervention may be required to fix crashes, such as renaming the SpecialK DLL to fix the SpecialK UI, or running dos2unix on INI files to fix crashes"
-			writelog "WARN" "${FUNCNAME[0]} - For more information, see: https://github.com/sonic2kk/steamtinkerlaunch/issues/894"
+			writelog "WARN" "${FUNCNAME[0]} - For more information, see: https://github.com/tinkergame/tinkergame/issues/894"
 
 			writelog "INFO" "${FUNCNAME[0]} - Using ${RESH} and $SPEK together"
 			mkProjDir "$SHADDESTDIR"
@@ -11377,7 +11381,7 @@ function setGameScopeVars {
 			# anything and we cannot/should not try to assume what is valid for them in this way.
 			# This logic only exists to filter out non-numerical values for flags which expect to be given a numerical argument
 			#
-			# For more background, see: https://github.com/sonic2kk/steamtinkerlaunch/pull/1152#issuecomment-2316286429
+			# For more background, see: https://github.com/tinkergame/tinkergame/pull/1152#issuecomment-2316286429
 			GSPARSEDARGNUMVAL="$( echo "${GSPARSEDARGVAL}" | grep -P "^([\d]+)(?:\.([\d]{1,2}?))?$" )"
 			if [ -n "${GSPARSEDARGNUMVAL}" ]; then
 				echo "$GSPARSEDARGNUMVAL"
@@ -13008,7 +13012,7 @@ function launchCustomProg {
 				# Force custom command to use Wine/Proton, even if we do not detect it as a valid Windows binary
 				writelog "INFO" "${FUNCNAME[0]} - CUSTOMCMDFORCEWIN is '$CUSTOMCMDFORCEWIN' - User wants to force this custom command as a Windows program"
 				if [ "$(file "$CUSTCOM" | grep -c "PE32")" -eq 0 ]; then
-					writelog "WARN" "${FUNCNAME[0]} - Custom command does not appear to be a Windows program by normal SteamTinkerLaunch checks, but CUSTOMCMDFORCEWIN was enabled, so using Proton anyway"
+					writelog "WARN" "${FUNCNAME[0]} - Custom command does not appear to be a Windows program by normal TinkerGame checks, but CUSTOMCMDFORCEWIN was enabled, so using Proton anyway"
 				else
 					writelog "INFO" "${FUNCNAME[0]} - Custom command seems to be a Windows program anyway even though CUSTOMCMDFORCEWIN was enabled"
 				fi
@@ -13219,19 +13223,19 @@ function setGameFilesArray {
 		GamFiles+=("$MAHUCID/${AID}.conf")
 	fi
 
-	# Open /dev/shm/steamtinkerlaunch directory
+	# Open /dev/shm/tinkergame directory
 	if [ -d "$STLSHM" ]; then
 		GamDesc+=("$GUI_STLSHMDIR")
 		GamFiles+=("$STLSHM")
 	fi
 
-	# Open logfile at /dev/shm/steamtinkerlaunch/steamtinkerlaunch.log
+	# Open logfile at /dev/shm/tinkergame/tinkergame.log
 	if [ -f "$TEMPLOG" ]; then
 		GamDesc+=("$GUI_STLSHMLOG")
 		GamFiles+=("$TEMPLOG")
 	fi
 
-	# Open game logging directory at, by default, STLCFGDIR/logs/steamtinkerlaunch
+	# Open game logging directory at, by default, STLCFGDIR/logs/tinkergame
 	if [ -d "$LOGDIR" ]; then
 		GamDesc+=("$GUI_STLPERGAMELOGSDIR")
 		GamFiles+=("$LOGDIR")
@@ -15922,10 +15926,10 @@ function createHMMDesktopFile {
 		echo "Type=Application"
 		echo "Categories=Game;"
 		echo "Name=${HMMNICE}"
-		echo "Comment=A mod manager for Hedgehog Engine games on PC (Installed by SteamTinkerLaunch)"
+		echo "Comment=A mod manager for Hedgehog Engine games on PC (Installed by TinkerGame)"
 		echo "MimeType=x-scheme-handler/hedgemm"
 		if [ "$INFLATPAK" -eq 1 ]; then
-			echo "Exec=/usr/bin/flatpak run --command=steamtinkerlaunch $FLATPAK_ID ${HMM,,} start ${HMMAUTO} \"%u\""  # "hmm start" takes dl channel as argument, next arg is the URL
+			echo "Exec=/usr/bin/flatpak run --command=tinkergame $FLATPAK_ID ${HMM,,} start ${HMMAUTO} \"%u\""  # "hmm start" takes dl channel as argument, next arg is the URL
 		else
 			echo "Exec=$(realpath "$0") ${HMM,,} start ${HMMAUTO} \"%u\""  # "hmm start" takes dl channel as argument, next arg is the URL
 		fi
@@ -15961,7 +15965,7 @@ function createHMMDesktopFile {
 		echo "X-KeepTerminal=false"
 		echo "Path=$HMMDLDIR"
 		if [ "$INFLATPAK" -eq 1 ]; then
-			echo "Exec=/usr/bin/flatpak run --command=steamtinkerlaunch $FLATPAK_ID ${HMM,,} u %u"  # "hmm start" takes dl channel as argument, next arg is the URL
+			echo "Exec=/usr/bin/flatpak run --command=tinkergame $FLATPAK_ID ${HMM,,} u %u"  # "hmm start" takes dl channel as argument, next arg is the URL
 		else
 			echo "Exec=$(realpath "$0") ${HMM,,} u %u"  # "hmm start" takes dl channel as argument, next arg is the URL
 		fi
@@ -16056,7 +16060,7 @@ function wineVortexRun {
 	sleep 1  # required!
 
 	## Only use SLR is available and (if user explicitly wants to run Vortex with dotnet OR if dotnet6 is not already installed), because the SLR can cause hardlink deployment to fail
-	## See also: https://github.com/sonic2kk/steamtinkerlaunch/issues/828
+	## See also: https://github.com/tinkergame/tinkergame/issues/828
 
 	writelog "INFO" "${FUNCNAME[0]} - Vortex logs will be stored at '${VWRUN}'"
 	writelog "INFO" "${FUNCNAME[0]} - Vortex installation location is '${VORTEXEXE}'"
@@ -16099,7 +16103,7 @@ function setVortexDLMime {
 		echo "X-KeepTerminal=false"
 		echo "Path=$(dirname "$VORTEXEXE")"
 		if [ "$INFLATPAK" -eq 1 ]; then
-			echo "Exec=/usr/bin/flatpak run --command=steamtinkerlaunch $FLATPAK_ID $VTX u %u"
+			echo "Exec=/usr/bin/flatpak run --command=tinkergame $FLATPAK_ID $VTX u %u"
 		else
 			echo "Exec=$(realpath "$0") $VTX u %u"
 		fi
@@ -17189,7 +17193,7 @@ function setVortexSLR {
 	## Both of the SLR options for Vortex assume a valid Vortex Proton version.
 	## otherwise the SLR won't be used.
 
-	# Use SLR to install Vortex -- Recommended, see https://github.com/sonic2kk/steamtinkerlaunch/issues/806
+	# Use SLR to install Vortex -- Recommended, see https://github.com/tinkergame/tinkergame/issues/806
 	if [ "$VORTEXUSESLR" -eq 1 ]; then
 		writelog "INFO" "${FUNCNAME[0]} - VORTEXUSESLR is '$VORTEXUSESLR', using Steam Linux Runtime to install Vortex"
 		setNonGameSLRReap "1" "$USEVORTEXPROTON"  # Force the requested SLR for Vortex Proton version if we enable SLR option
@@ -17197,7 +17201,7 @@ function setVortexSLR {
 		writelog "INFO" "${FUNCNAME[0]} - Vortex will run WITHOUT the Steam Linux Runtime"
 	fi
 
-	## Use SLR for Vortex in general - Not recommended, see https://github.com/sonic2kk/steamtinkerlaunch/issues/828
+	## Use SLR for Vortex in general - Not recommended, see https://github.com/tinkergame/tinkergame/issues/828
 	if [ "$VORTEXUSESLRPOSTINSTALL" -eq 1 ]; then
 		writelog "WARN" "${FUNCNAME[0]} - WARNING: VORTEXUSESLRPOSTINSTALL is '$VORTEXUSESLRPOSTINSTALL', Vortex will be launched with the Steam Linux Runtime -- This may cause problems with mod deployment!"
 		setNonGameSLRReap "1" "$USEVORTEXPROTON"
@@ -17236,7 +17240,7 @@ function installVortex {
 				## some winetricks components, and then removed afterwards, but this would be a separate feature.
 				## Removing this line should helph get Vortex working on SteamOS for now, until they break it again.
 				##
-				## For context, see https://github.com/sonic2kk/steamtinkerlaunch/issues/806#issuecomment-1565759961
+				## For context, see https://github.com/tinkergame/tinkergame/issues/806#issuecomment-1565759961
 
 				# Vortex 1.8.0+ only requires DotNet6 (only need to pass desktop6, as installDotNet will append dotnet)
 				# writelog "INFO" "${FUNCNAME[0]} - Installing .NET 6 for Vortex Mod Manager"
@@ -17428,7 +17432,7 @@ function fallbackIfNoRunProton {
 
 function warnInvalidModToolLaunch {
 	MODTOOLNAME="$1"
-	"$YAD" --title="SteamTinkerLaunch - $MODTOOLNAME Invalid Usage" --text="$( strFix "$GUI_MODTOOLINVALIDUSAGE" "$MODTOOLNAME")" --button="OK"
+	"$YAD" --title="TinkerGame - $MODTOOLNAME Invalid Usage" --text="$( strFix "$GUI_MODTOOLINVALIDUSAGE" "$MODTOOLNAME")" --button="OK"
 }
 
 #### MO2 MOD ORGANIZER START: ####
@@ -18059,7 +18063,7 @@ function setMO2DLMime {
 		echo "X-KeepTerminal=false"
 		echo "Path=$(dirname "$MO2EXE")"
 		if [ "$INFLATPAK" -eq 1 ]; then
-			echo "Exec=/usr/bin/flatpak run --command=steamtinkerlaunch $FLATPAK_ID mo2 u %u"
+			echo "Exec=/usr/bin/flatpak run --command=tinkergame $FLATPAK_ID mo2 u %u"
 		else
 			echo "Exec=$(realpath "$0") mo2 u %u"
 		fi
@@ -18574,7 +18578,7 @@ function setYadBin {
 				export ONSTEAMDECK=1
 				YADAIDLDIR="$STLSDPATH"
 				YAIDST="$YADAIDLDIR/$YADAPPIMAGE"
-				YAIURL="$GHURL/sonic2kk/steamtinkerlaunch-tweaks/releases/download"
+				YAIURL="$GHURL/tinkergame/tinkergame-tweaks/releases/download"
 				YAIDL="$YAIURL/$YADSTLIMAGE/$YADSTLIMAGE"
 				YADAPPIMAGE="$YADSTLIMAGE"
 
@@ -18586,7 +18590,7 @@ function setYadBin {
 					YADINSTLDEPS="$( findYad "$STLDEPS" )"
 
 					if [ -f "$STLDLDIR/yadappimage/$YADAPPIMAGE" ]; then
-						# Yad in $HOME/.config/steamtinkerlaunch/downloads with full matching name
+						# Yad in $HOME/.config/tinkergame/downloads with full matching name
 						writelog "INFO" "${FUNCNAME[0]} - Found local Yad AppImage in '$STLDLDIR/yadappimage/$YADAPPIMAGE'"
 						echo "Found local Yad AppImage in '$STLDLDIR/yadappimage/$YADAPPIMAGE'!"
 						mv "$STLDLDIR/yadappimage/$YADAPPIMAGE" "$YAIDST" || steamDeckInstallFail
@@ -21003,7 +21007,7 @@ function standaloneDesktopFile {
 				echo "Name=${GAMENAME//\"/}"
 				echo "Comment=$(strFix "$DF_SLCOMMENT" "${GAMENAME//\"/}" "$PROGNAME")"
 				if [ "$INFLATPAK" -eq 1 ]; then
-					echo "Exec=/usr/bin/flatpak run --command=steamtinkerlaunch $FLATPAK_ID play $AID"
+					echo "Exec=/usr/bin/flatpak run --command=tinkergame $FLATPAK_ID play $AID"
 				else
 					echo "Exec=$(realpath "$0") play $AID"
 				fi
@@ -21563,8 +21567,8 @@ function setSLRReap {
 		# HAVESLR controls whether we Have an SLR coming from the incoming command line options, which is nowadays only really the case for native titles with a Compat Tool forced/selected by Valve Testing
 		elif [ "$HAVESLRCT" -eq 1 ] && [ "$USESLR" -eq 1 ] && [ "$IGNORECOMPATSLR" -eq 1 ]; then
 			writelog "INFO" "${FUNCNAME[0]} - ## SLR was found in incoming Start Command, likely from a compatibility tool, but 'IGNORECOMPATSLR' is '${IGNORECOMPATSLR}'"
-			writelog "INFO" "${FUNCNAME[0]} - ## Ignoring this incoming SLR from the selected Steam Linux Runtime Compatibility Tool and instead letting SteamTinkerLaunch find the Steam Linux Runtime instead"
-			writelog "WARN" "${FUNCNAME[0]} - ## Note that some games require a specific Steam Linux Runtime version, and if a given Steam Linux Runtime version that SteamTinkerLaunch looks for is not found, or if the version found does not match what a game might require, launching may fail"
+			writelog "INFO" "${FUNCNAME[0]} - ## Ignoring this incoming SLR from the selected Steam Linux Runtime Compatibility Tool and instead letting TinkerGame find the Steam Linux Runtime instead"
+			writelog "WARN" "${FUNCNAME[0]} - ## Note that some games require a specific Steam Linux Runtime version, and if a given Steam Linux Runtime version that TinkerGame looks for is not found, or if the version found does not match what a game might require, launching may fail"
 
 			HAVESLR=0
 		fi
@@ -21661,7 +21665,7 @@ function setSLRReap {
 		# ---------------
 
 		# Reaper is started *by Steam now for Proton games* after a game launch (i.e. after %command% but *not* before) so if reaper is disabled we have to check for and kill it
-		# Doesn't apply to native games because we use 'steamtinkerlaunch %command%', and reaper is started as part of '%command%'.
+		# Doesn't apply to native games because we use 'tinkergame %command%', and reaper is started as part of '%command%'.
 		if [ "$USEREAP" -eq 0 ]; then
 			if "$PGREP" -x "reaper"; then
 				writelog "INFO" "${FUNCNAME[0]} - USEREAP is '$USEREAP' and found reaper process, killing it!"
@@ -22463,7 +22467,7 @@ function howto {
 	echo "    compat <cmd>                     Will (add|del|get) ${PROGNAME,,} as"
 	echo "                                       Steam compatibility tool"
 	echo "                                       under 'STEAMCOMPATOOLS'"
-	echo "    configdir                        Open the SteamTinkerLaunch config directory with xdg-open"
+	echo "    configdir                        Open the TinkerGame config directory with xdg-open"
 	echo "    createappinfo|cai <id|i|o>       Create raw appinfo for <id>"
 	echo "                                      or for 'installed|i' or 'owned|o' games"
 	echo "                                      Append any arg to update the raw file"
@@ -22508,7 +22512,7 @@ function howto {
 	echo "                  only                 Only display install directory"
 	echo "    getid|gi|gid <gametitle>         Print the SteamAppId for <gametitle>"
 	echo "    getsteamgriddbid|sgdbid <title>  Get SteamGridDB Game ID for <title>"
-	echo "    getslr <gameid>                  Fetch the required Steam Linux Runtime for <gameid>'s SteamTinkerLaunch Proton version"
+	echo "    getslr <gameid>                  Fetch the required Steam Linux Runtime for <gameid>'s TinkerGame Proton version"
 	echo "               native                  (optional) get the native Steam Linux Runtime"
 	echo "    gettitle|gt <gameid>             Print the Game Title for <gameid>"
 	echo "    hedgemodmanager|hmm              HedgeModManager"
@@ -22541,7 +22545,7 @@ function howto {
 	echo "                                        each game's <id|name|path|count|full>"
 	echo "                                       NOTE: Non-Steam Games will NOT be included in <installed,owned>,"
 	echo "                                        they will only show up for <non-steam|nsg>"
-	echo "    listproton|lp                    List name and path of all Proton versions known to SteamTinkerLaunch"
+	echo "    listproton|lp                    List name and path of all Proton versions known to TinkerGame"
 	echo "         name|n                        Only list the Proton version names"
 	echo "         path|p                        Only list paths to the Proton versions"
 	echo "    meta                             Generates/Updates metadata"
@@ -22567,11 +22571,11 @@ function howto {
 	echo "                                       such as Proton version where possible."
 	echo "         <args>:"
 	echo "         --exe=                        Absolute path to the One-Time executable (can be Windows or Linux executable)"
-	echo "         --proton=                     Name of the Proton version to use (see steamtinkerlaunch lp). Defaults to Per-Game Proton version ('USEPROTON'), ignored if not Windows executable"
+	echo "         --proton=                     Name of the Proton version to use (see tinkergame lp). Defaults to Per-Game Proton version ('USEPROTON'), ignored if not Windows executable"
 	echo "         --workingdir=                 Working directory to launch the executable from"
 	echo "         --useexedir                   Use the same directory as the executable as the working directory (overrides --workingdir)"
 	echo "         --args=                       Arguments to append to the end of the executable launch"
-	echo "         --forceproton                 Use Proton to run executable even if SteamTinkerLaunch detects doesn't detect it as a Windows executable"
+	echo "         --forceproton                 Use Proton to run executable even if TinkerGame detects doesn't detect it as a Windows executable"
 	echo "         --useslr                      Use the Steam Linux Runtime to run the application, if available (uses SLR specified by Proton version or native Linux Steam Linux Runtime)"
 	echo "         --save                        Save given configuration for use in the One-Time Run GUI for this game in future"
 	echo "         --default                     Restore all saved One-Time Run values to default"
@@ -22617,8 +22621,8 @@ function howto {
 	echo "      --filename-appid=                Steam AppID to use when naming the file, only required when searching on Game ID or Game Name so the artwork is applied to the correct Shortcut"
 	echo "      --steam                          The Search ID passed is for a Steam AppID (default)"
 	echo "      --nonsteam                       The Search ID passed is for a SteamGridDB Game ID"
-	echo "      --apply                          Apply the downloaded game artwork to the Steam game (if not set, artwork will be downloaded to SteamTinkerLaunch Grid directory only)"
-	echo "      --no-apply                       Don't apply the downloaded game artwork (artwork will be downloaded to SteamTinkerLaunch Grid directory only)"
+	echo "      --apply                          Apply the downloaded game artwork to the Steam game (if not set, artwork will be downloaded to TinkerGame Grid directory only)"
+	echo "      --no-apply                       Don't apply the downloaded game artwork (artwork will be downloaded to TinkerGame Grid directory only)"
 	echo "      --skip-existing                  Skip setting artwork for this game if it already has custom artwork"
 	echo "      --replace-existing               Replace existing artwork files for this game -- they cannot be recovered later"
 	echo "      --backup-existing                Backup existing artwork files for this game before replacing them, so they can be restored"
@@ -22656,7 +22660,7 @@ function howto {
 	echo "    ${VTX} <value>                   ${VTX^} commandline options"
 	echo "                                      ${VTX} download, install, and start can optionally take"
 	echo "                                       a version tag to download."
-	echo "                                      Ex: steamtinkerlaunch vortex start v1.8.0"
+	echo "                                      Ex: tinkergame vortex start v1.8.0"
 	echo "           getprefix|gp                Output path to Vortex prefix"
 	echo "           install                     Installs ${VTX^}"
 	echo "           list-supported|ls           List all ${VTX^}-supported Steam Game IDs"
@@ -23043,7 +23047,7 @@ function commandline {
 				installHMM
 			elif [ "$2" == "start" ] || [ "$2" == "s" ]; then
 				if [ "$4" == "--force" ] || [ "$4" == "-f" ]; then
-					# This will force dotnet48 to be reinstalled for each installed 64bit HMM game if `--force` or `-f` is passed to `steamtinkerlaunch hmm start`
+					# This will force dotnet48 to be reinstalled for each installed 64bit HMM game if `--force` or `-f` is passed to `tinkergame hmm start`
 					startHMM "$CMDHMMDLVER" "X"
 				else
 					startHMM "$CMDHMMDLVER"
@@ -23121,7 +23125,7 @@ function commandline {
 
 		if [ "${#DECKCOMPATARR[@]}" -eq "0" ]; then
 			echo "Could not get Steam Deck compatibility information got AppID '$2' - Is this definitely correct?"
-			echo "You can check get the AppID for a game by running 'steamtinkerlaunch getid <name>'"
+			echo "You can check get the AppID for a game by running 'tinkergame getid <name>'"
 		else
 			echo "Valve's testing indicates that this game is ${DECKCOMPATARR[0]} on Steam Deck"
 			if ! [ "${#DECKCOMPATARR[@]}" -eq "1" ]; then  # Only take a newline if there is compatibility information to show
@@ -23241,17 +23245,17 @@ function commandline {
 
 		# No arguments passed, skip
 		if [ -z "$2" ]; then
-			echo "Need to pass arguments to SteamGridDB command, see 'steamtinkerlaunch help' for usage."
+			echo "Need to pass arguments to SteamGridDB command, see 'tinkergame help' for usage."
 			return
 		fi
 
 		if [ -z "$3" ]; then
 			# TODO ensure this new path does not break 'commandlineGetSteamGridDBArtwork' usage in any way!
-			## Show GUI if only 3rd argument given (assume is AppID), i.e if user just entered "steamtinkerlaunch sgdb <appid>"
+			## Show GUI if only 3rd argument given (assume is AppID), i.e if user just entered "tinkergame sgdb <appid>"
 			getSteamGridDBArtworkGUI "$2"
 		else
 			# TODO if search ID is not provided but the first argument is an integer, assume it is the AppID
-			## Will allow for usage like `steamtinkerlaunch sgdb 730 --apply` which is very clean
+			## Will allow for usage like `tinkergame sgdb 730 --apply` which is very clean
 			commandlineGetSteamGridDBArtwork "$@"
 		fi
 	elif [ "$1" == "getsteamgriddbid" ] || [ "$1" == "sgdbid" ]; then
@@ -24039,8 +24043,8 @@ function injectGdb {
 ### BEGIN TEXT-BASED VDF INTERACTION FUNCTIONS
 ##
 ## This was written for Blush (https://github.com/sonic2kk/blush/) as part of the research on how to implement #905
-## The code is pretty much the same but with variable names adapted to the SteamTinkerLaunch "convention"
-## The code on Blush exists so this code can be used by others outside of SteamTinkerLaunch more easily
+## The code is pretty much the same but with variable names adapted to the TinkerGame "convention"
+## The code on Blush exists so this code can be used by others outside of TinkerGame more easily
 
 function backupVdfFile {
 	ORGVDFNAME="$1"
@@ -24050,7 +24054,7 @@ function backupVdfFile {
 
 	VDFNAME="${VDFBASENAME%%.*}"
 	VDFEXT="${VDFBASENAME##*.}"
-	BACKUPVDFNAME="${VDFDIRNAME}/${VDFNAME}_steamtinkerlaunch.${VDFEXT}"
+	BACKUPVDFNAME="${VDFDIRNAME}/${VDFNAME}_tinkergame.${VDFEXT}"
 	if [ -f "$ORGVDFNAME" ]; then
 		SHOULDBACKUPVDF=1
 		if [ -f "$BACKUPVDFNAME" ]; then
@@ -24706,7 +24710,7 @@ function addNonSteamGameGui {
 	TITLE="${PROGNAME}-$NSGA"
 	pollWinRes "$TITLE"
 
-	# Generate list of Proton versions excluding Proton versions only available to SteamTinkerLaunch
+	# Generate list of Proton versions excluding Proton versions only available to TinkerGame
 	# May cause problems with symlinked Proton versions, unsure, unusual case anyway
 	NSGPROTLIST=( "$NON" "default" )
 	for STLKNOWNPROT in "${ProtonCSV[@]}"; do
@@ -24715,11 +24719,11 @@ function addNonSteamGameGui {
 
 		STLKNOWNPROTDIR="$( dirname "$STLKNOWNPROTPATH" )"
 		if [[ $STLKNOWNPROTDIR = $STLCFGDIR* ]]; then
-			writelog "SKIP" "${FUNCNAME[0]} - Proton version '$STLKNOWNPROTNAM' is in SteamTinkerLaunch config directory at '$STLKNOWNPROTPATH' -- This is not known by Steam, so skipping"
+			writelog "SKIP" "${FUNCNAME[0]} - Proton version '$STLKNOWNPROTNAM' is in TinkerGame config directory at '$STLKNOWNPROTPATH' -- This is not known by Steam, so skipping"
 		elif [[ $STLKNOWNPROTDIR = $CUSTPROTEXTDIR* ]] && [[ $CUSTPROTEXTDIR != "$STEAMCOMPATOOLS" ]]; then
-			writelog "INFO" "${FUNCNAME[0]} - Proton version '$STLKNOWNPROTNAM' is in SteamTinkerLaunch Custom Proton dir '$CUSTPROTEXTDIR' on path '$STLKNOWNPROTPATH' -- This path is not the Steam Compatibility Tool directory and so is not known by Steam, so skipping"
+			writelog "INFO" "${FUNCNAME[0]} - Proton version '$STLKNOWNPROTNAM' is in TinkerGame Custom Proton dir '$CUSTPROTEXTDIR' on path '$STLKNOWNPROTPATH' -- This path is not the Steam Compatibility Tool directory and so is not known by Steam, so skipping"
 		else
-			writelog "INFO" "${FUNCNAME[0]} - Proton version '$STLKNOWNPROTNAM' looks like it should be known by Steam as it is not in any SteamTinkerLaunch-specific folders on path '$STLKNOWNPROTPATH'"
+			writelog "INFO" "${FUNCNAME[0]} - Proton version '$STLKNOWNPROTNAM' looks like it should be known by Steam as it is not in any TinkerGame-specific folders on path '$STLKNOWNPROTPATH'"
 			NSGPROTLIST+=("$STLKNOWNPROTNAM")
 		fi
 	done
@@ -24980,7 +24984,7 @@ function addNonSteamGame {
 						if [ -n "$NOSTCOMPATTOOLPATH" ]; then
 							NOSTCOMPATTOOL="$( getProtonInternalName "${NOSTCOMPATTOOLNAME};${NOSTCOMPATTOOLPATH}" )"
 						else  # i.e. if 'luxtorpeda' was passed, we don't have a path for this, so simply trust the user
-							writelog "SKIP" "${FUNCNAME[0]} - Could not get Proton path for given Compatibility Tool '$NOSTCOMPATTOOLNAME' from ProtonCSV -- Simply assuming this internal name is valid and not known to SteamTinkerLaunch"
+							writelog "SKIP" "${FUNCNAME[0]} - Could not get Proton path for given Compatibility Tool '$NOSTCOMPATTOOLNAME' from ProtonCSV -- Simply assuming this internal name is valid and not known to TinkerGame"
 							NOSTCOMPATTOOL="$NOSTCOMPATTOOLNAME"
 						fi
 					fi
@@ -26369,7 +26373,7 @@ function steamdeckControl {
 			fi
 
 			if [ -f "${STLCNTRLF}_ORG" ] && [ ! -f "$STLCNTRLF" ]; then
-				SRCCTRLF="${PREFIX}/misc/stl-steamdeck-control.vdf"
+				SRCCTRLF="${PREFIX}/misc/tinkergame-steamdeck-control.vdf"
 				mkProjDir "$STLCNTRLD"
 				writelog "INFO" "${FUNCNAME[0]} - Copying $NICEPROGNAME '$SRCCTRLF' to '$STLCNTRLF'"
 				cp "$SRCCTRLF" "$STLCNTRLF"
@@ -26496,11 +26500,11 @@ function fetchAndExtractDependency {
 						echo "Could not get version from archive - This dependency version may not work if is newer than '$STLVERS'!"
 					else
 						if [ "$LOCALVERS" = "$STLVERS" ]; then  # Version match
-							writelog "INFO" "${FUNCNAME[0]} - Archive version appears to be the same version that SteamTinkerLaunch asked for - Should be ok to install this version"
+							writelog "INFO" "${FUNCNAME[0]} - Archive version appears to be the same version that TinkerGame asked for - Should be ok to install this version"
 							echo "Dependency version looks ok"
 						else  # Version newer/older (might still work, but warn the user anyway)
-							writelog "WARN" "${FUNCNAME[0]} - Archive version '${LOCALVERS}' does not match the version that SteamTinkerLaunch asked for ('$STLVERS') - This may cause problems with the installation!"
-							echo "Dependency version does not match what SteamTinkerLaunch was looking for - This may cause problems with your installation!"
+							writelog "WARN" "${FUNCNAME[0]} - Archive version '${LOCALVERS}' does not match the version that TinkerGame asked for ('$STLVERS') - This may cause problems with the installation!"
+							echo "Dependency version does not match what TinkerGame was looking for - This may cause problems with your installation!"
 						fi
 					fi
 
@@ -26549,7 +26553,7 @@ function checkSteamDeckDependencies {
 		# The check now says, don't update dependencies if all of these conditions are true:
 		#  1. The dependency file exists
 		#  2. The dependency can actually be ran, confirming it is a valid file
-		#  3. SteamTinkerLaunch has not updated or autoupdater isn't enabled, so there would be no change in dependency version and thus no need to update
+		#  3. TinkerGame has not updated or autoupdater isn't enabled, so there would be no change in dependency version and thus no need to update
 		# If any of these are false, we need to check our dependencies (if a file is missing we would need to update, or if it cannot be used we need to update, and also if STL updated we may need a newer version, so update).
 		if [[ -f "$(command -v "$DEPCMD")" && "$CHECKCMD" = "OK" ]] \
 		&& ! ( [ "$STEAMDECK_AUTOUP" -eq 1 ] && checkSteamDeckSTLUpdated ); then
@@ -26657,23 +26661,23 @@ function installFilesSteamDeck {
 
 		# Offline installation of STL was previously installed/attempted - With check to try and ensure scriptdir is a valid STL install and not a standalone script
 		if ! [ -d "$SCRIPTDIR/lang" ] && ! [ -d "$SCRIPTDIR/misc" ] && ! [ -d "$SCRIPTDIR/guicfgs" ]; then
-			writelog "WARN" "${FUNCNAME[0]} - Script dir '$SCRIPTDIR' does not look like a valid SteamTinkerLaunch installation directory! Not copying files in case this script is not in a proper STL folder"
-			echo "WARNING: Not updating offline filees - It looks like you're trying to install SteamTinkerLaunch as a standalone script outside of its downloaded files."
-		elif [ -f "$PREFIX/steamtinkerlaunch" ]; then
-			writelog "INFO" "${FUNCNAME[0]} - Found existing SteamTinkerLaunch files at '$PREFIX', checking if we need to update"
-			INSTALLEDPROGVERS="$( grep -i "^PROGVERS=.*." "$PREFIX/steamtinkerlaunch" | cut -d '"' -f 2 )"
+			writelog "WARN" "${FUNCNAME[0]} - Script dir '$SCRIPTDIR' does not look like a valid TinkerGame installation directory! Not copying files in case this script is not in a proper STL folder"
+			echo "WARNING: Not updating offline filees - It looks like you're trying to install TinkerGame as a standalone script outside of its downloaded files."
+		elif [ -f "$PREFIX/tinkergame" ]; then
+			writelog "INFO" "${FUNCNAME[0]} - Found existing TinkerGame files at '$PREFIX', checking if we need to update"
+			INSTALLEDPROGVERS="$( grep -i "^PROGVERS=.*." "$PREFIX/tinkergame" | cut -d '"' -f 2 )"
 			writelog "INFO" "${FUNCNAME[0]} - Currently installed STL version: $INSTALLEDPROGVERS"
 			writelog "INFO" "${FUNCNAME[0]} - This script's STL version: $PROGVERS"
 			# Check if we actually need to update (running script ver > currently installed script ver)
 			# Not a fool-proof test, sometimes PROGVERS isn't bumped, but a user can always manually copy the files if they want to - We'll assume they downloaded the latest version ahead of time and want to manually install that
 			if [[ "$PROGVERS" > "$INSTALLEDPROGVERS" ]]; then
-				writelog "INFO" "${FUNCNAME[0]} - Existing SteamTinkerLaunch installation is older than current version - Installation will continue by copying downloaded files at '$SCRIPTDIR' to '$PREFIX'"
-				echo "Updating SteamTinkerLaunch to '$PROGVERS' by copying installation files to '$PREFIX' for offline installation..."
+				writelog "INFO" "${FUNCNAME[0]} - Existing TinkerGame installation is older than current version - Installation will continue by copying downloaded files at '$SCRIPTDIR' to '$PREFIX'"
+				echo "Updating TinkerGame to '$PROGVERS' by copying installation files to '$PREFIX' for offline installation..."
 				cp -R "$SCRIPTDIR"/* "$PREFIX"
 				STEAMDECKWASUPDATE=1
 			else
-				writelog "INFO" "${FUNCNAME[0]} - Existing SteamTinkerLaunch installation is newer than or same as current version - No code to update"
-				echo "Existing SteamTinkerLaunch install is up-to-date, verifying dependencies..."
+				writelog "INFO" "${FUNCNAME[0]} - Existing TinkerGame installation is newer than or same as current version - No code to update"
+				echo "Existing TinkerGame install is up-to-date, verifying dependencies..."
 				STEAMDECKDIDINSTALL=0
 			fi
 		else
@@ -26711,7 +26715,7 @@ function steamdedeckt {
 		if ! [ -f "$STLICON" ]; then
 			SCRIPTDIR="$( realpath "$0" )"
 			SCRIPTDIR="${SCRIPTDIR%/*}"
-			STLICON="$SCRIPTDIR/misc/steamtinkerlaunch.svg"
+			STLICON="$SCRIPTDIR/misc/tinkergame.svg"
 		fi
 		export NOTYARGS="-i $STLICON -a $PROGNAME"
 
@@ -26735,7 +26739,7 @@ function steamdedeckt {
 		# - We already have an STL installation (assume install if script in prefix)
 		# - The AppID is a placeholder ID (not running a game)
 		# - The script is running from CompatibilityTools.d
-		if [ -f "$PREFIX/steamtinkerlaunch" ] && [ "$AID" = "$PLACEHOLDERAID" ] && [[ ${0^^} == *"${CTD^^}"* ]]; then
+		if [ -f "$PREFIX/tinkergame" ] && [ "$AID" = "$PLACEHOLDERAID" ] && [[ ${0^^} == *"${CTD^^}"* ]]; then
 			writelog "INFO" "${FUNCNAME[0]} - Looks like we're running through Steam on a Steam Deck, we don't want to do any updating here!"
 			STEAMDECKSTEAMRUN=1
 		elif [[ ${0^^} == *"${PREFIX^^}"* ]] && ! [ "$AID" = "$PLACEHOLDERAID" ]; then
@@ -26751,7 +26755,7 @@ function steamdedeckt {
 
 			if ! (ping -q -c1 archlinux.org &>/dev/null || ping -q -c1 google.com &>/dev/null); then
 				INTERNETCONNECTION=0
-				writelog "WARN" "${FUNCNAME[0]} - No Internet Connection detected, attempting to install SteamTinkerLaunch offline - This may not succeed!"
+				writelog "WARN" "${FUNCNAME[0]} - No Internet Connection detected, attempting to install TinkerGame offline - This may not succeed!"
 				writelog "WARN" "${FUNCNAME[0]} - Make sure you have either manually installed all dependencies, or added all manual dependency archives to '$STLDEPS'"
 				notiShow "$NOTY_STEAMDECK_NOINTERNET" "X"
 				echo "$NOTY_STEAMDECK_NOINTERNET"
@@ -26949,7 +26953,7 @@ function getSteamDeckCompatInfo {
         COMPATINFO+="${COMPATTEXT};"
 
 		writelog "INFO" "${FUNCNAME[0]} - Successfully retrieved Steam Deck compatibility rating of '$COMPATTEXT' for '$AID'"
-		writelog "INFO" "${FUNCNAME[0]} - Converting language tokens for Steam Deck compatibility criteria into SteamTinkerLaunch translated strings"
+		writelog "INFO" "${FUNCNAME[0]} - Converting language tokens for Steam Deck compatibility criteria into TinkerGame translated strings"
 
 		# Turn language tokens like '#SteamDeckVerified_TestResult_blah' into an actual translated string from the translation files -- Language strings credited to: https://github.com/SteamDatabase/SteamTracking
         for LANGTOKEN in $( "$JQ" -r '.results.resolved_items[].loc_token' "$COMPATFILE" ); do
@@ -26997,15 +27001,15 @@ function checkSteamDeckSTLUpdated {
 	# This is how updateCfgFile gets the config file version, so re-use it
 	CHECKLASTVERSSTEAMDECK="$( cat "$STLSTEAMDECKLASTVERS" )"
 	if [ "$CHECKLASTVERSSTEAMDECK" = "$PROGVERS" ]; then
-		writelog "INFO" "${FUNCNAME[0]} - Last known SteamTinkerLaunch install version ('$CHECKLASTVERSSTEAMDECK') and the current version ('$PROGVERS') match -- There has been no update since last launch"
+		writelog "INFO" "${FUNCNAME[0]} - Last known TinkerGame install version ('$CHECKLASTVERSSTEAMDECK') and the current version ('$PROGVERS') match -- There has been no update since last launch"
 		return 1
 	else
-		writelog "INFO" "${FUNCNAME[0]} - Last known SteamTinkerLaunch install version ('$CHECKLASTVERSSTEAMDECK') and the current version ('$PROGVERS') do NOT match -- It seems there has been an update!"
+		writelog "INFO" "${FUNCNAME[0]} - Last known TinkerGame install version ('$CHECKLASTVERSSTEAMDECK') and the current version ('$PROGVERS') do NOT match -- It seems there has been an update!"
 		return 0
 	fi
 }
 
-# Clear dependencies in /home/deck/stl/deps so that they can be redownloaded the next time SteamTinkerLaunch is ran on Steam Deck
+# Clear dependencies in /home/deck/stl/deps so that they can be redownloaded the next time TinkerGame is ran on Steam Deck
 # This also serves as a quickfix for #719, as dependencies an be quickly removed and then re-downloaded to ensure better compatibility with SteamOS updates
 # In future, STL should auto-bump these somehow
 function clearDeckDeps {
@@ -27095,7 +27099,7 @@ function removeEmptyFiles {
 #   - This option is still passed even if the Steam Overlay is disabled
 # - Therefore if SteamAppId and SteamOverlayGameId don't match, we can assume we have a Non-Steam Game
 #   - There is a chance these values could match if a user somehow manages to accidentally (or purposefully) set the values to be the same, but in 99% of cases this should be sufficient
-# - When launching games with SteamTinkerLaunch from the commandline, SteamOverlayGameId probably won't be set
+# - When launching games with TinkerGame from the commandline, SteamOverlayGameId probably won't be set
 function haveNonSteamGame {
 	# shellcheck disable=SC2154		# SteamOverlayGameId comes from Steam
 	if [ -z "$SteamOverlayGameId" ]; then
@@ -27141,7 +27145,7 @@ function main {
 	ORG_LD_PRELOAD="${ORG_LD_PRELOAD-${LD_PRELOAD-}}"
 	LD_PRELOAD=""
 
-	writelog "INFO" "${FUNCNAME[0]} - Current SteamTinkerLaunch working directory is '$( pwd )'"
+	writelog "INFO" "${FUNCNAME[0]} - Current TinkerGame working directory is '$( pwd )'"
 
 	# Respect language choice asap in running (uses correct language during Steam Deck install)
 	# Try and load either from langfile directory or `lang=` argument (prioritising lang arguments) - Default if we don't get a valid `$STLLANG`
@@ -27174,7 +27178,7 @@ function main {
 	if [ "$ONSTEAMDECK" -eq 1 ] && [ "$STEAMDECKSTEAMRUN" -eq 0 ]; then
 		printf '\n'
 		if [ "$STEAMDECKDIDINSTALL" -eq 1 ]; then
-			INSTALLEDPROGVERS="$( grep -i "^PROGVERS=.*." "$PREFIX/steamtinkerlaunch" | cut -d '"' -f 2 )"
+			INSTALLEDPROGVERS="$( grep -i "^PROGVERS=.*." "$PREFIX/tinkergame" | cut -d '"' -f 2 )"
 			if [ "$STEAMDECKWASUPDATE" -eq 1 ]; then
 				strFix "$NOTY_STEAMDECK_UPDATE_SUCCESS!" "$INSTALLEDPROGVERS"  # Update success w/ version
 				notiShow "$(strFix "$NOTY_STEAMDECK_UPDATE_SUCCESS" "$INSTALLEDPROGVERS")" "X"
@@ -27217,7 +27221,7 @@ function main {
 	setInitWinXY
 
 	GREETING="$( getSeasonalGreeting )"
-	writelog "INFO" "${FUNCNAME[0]} - ${GREETING:-Welcome to SteamTinkerLaunch}"
+	writelog "INFO" "${FUNCNAME[0]} - ${GREETING:-Welcome to TinkerGame}"
 
 	removeEmptyFiles "$STLAPPINFOIDDIR"  # Remove appinfo files that are 0 bytes (i.e. Non-Steam Games)
 	removeEmptyFiles "$STLGHEADD"  # Remove appinfo files that are 0 bytes (i.e. Non-Steam Games)
@@ -27249,7 +27253,7 @@ function main {
 			# But if $1 is a known command in this list, explicitly pass it to 'commandline' as we know it is NOT a game command
 			# This prevents commands which contain 'steamapps/common' ANYWHERE in their command (including as paths as parameters to other flags) from being interpreted as a game launch
 			#
-			# If $1 is a known steamtinkerlaunch command (with 'steamtinkerlaunch otr', $1 would be 'otr') then intervene and force this to the 'commandline' function as it is a known steamtinkerlaunch command
+			# If $1 is a known tinkergame command (with 'tinkergame otr', $1 would be 'otr') then intervene and force this to the 'commandline' function as it is a known tinkergame command
 			STLINCOMINGSKIPCOMMANDS="otr|onetimerun"
 
 			if grep -q "update" <<< "$@" || grep -q "^play" <<< "$@" ; then
@@ -27258,7 +27262,7 @@ function main {
 			#       As a workaround, skip interpreting a hardcoded set of commands as start parameters and pass directly to commandline (i.e. if we have 'otr' as our first option, pass down to commandline function and run otr)
 			#
 			#       We also check to make sure the first argument doesn't contain any slashes (i.e. game start commands' first argument could be a path, so it would contain a slash)
-			#       This allows us to distinguish between '/home/otr' which could be a game launch command, and the 'steamtinkerlaunch otr' command (where $1 is 'otr')
+			#       This allows us to distinguish between '/home/otr' which could be a game launch command, and the 'tinkergame otr' command (where $1 is 'otr')
 			elif grep -qwE "${STLINCOMINGSKIPCOMMANDS}" <<< "${1}" && [[ "${1}" != *"/"* ]]; then
 				commandline "$@"
 			else

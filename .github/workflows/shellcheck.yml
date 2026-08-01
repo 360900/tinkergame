@@ -1,25 +1,18 @@
 on:
   push:
-    paths:
-      - 'steamtinkerlaunch'
   pull_request:
     types: [opened, reopened, synchronize]
-    paths:
-      - 'steamtinkerlaunch'
 
-name: "ShellCheck"
+name: "TinkerGame checks"
 permissions: {}
 
 jobs:
-  shellcheck:
-    name: ShellCheck
+  checks:
+    name: Bash and ShellCheck
     runs-on: ubuntu-latest
-    # Source: https://stackoverflow.com/a/65946732/1952066
-    # a push event from the origin repo, or a PR from external repo
-    if: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.full_name != 'sonic2kk/steamtinkerlaunch' }}
     steps:
       - uses: actions/checkout@v4
-      - name: Run ShellCheck
-        uses: ludeeus/action-shellcheck@master
-        with:
-          version: v0.10.0
+      - name: Install ShellCheck
+        run: sudo apt-get update && sudo apt-get install --yes shellcheck
+      - name: Run smoke checks
+        run: ./tests/smoke.sh

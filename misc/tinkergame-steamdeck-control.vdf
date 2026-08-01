@@ -2,8 +2,8 @@
 {
 	"version"		"3"
 	"revision"		"1"
-	"title"		"Steam Tinker Launch control"
-	"description"		"#Steam Deck controller settings for Steam Tinker Launch"
+	"title"		"TinkerGame control"
+	"description"		"#Steam Deck controller settings for TinkerGame"
 	"author"	"frostworx"
 	"url"		"autosave:///home/deck/.local/share/Steam/steamapps/common/Steam Controller Configs/XXXXXX/config/YYYYYY/controller_neptune.vdf"
 	"export_type"		"unknown"
