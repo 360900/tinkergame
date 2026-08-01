@@ -42,6 +42,16 @@ make PREFIX="$HOME/.local"
 make PREFIX="$HOME/.local" install
 ```
 
+For distribution packaging, `DESTDIR` stages files without changing the
+runtime prefix embedded in the installed scripts:
+
+```sh
+make PREFIX=/usr DESTDIR="$PWD/pkg" install
+```
+
+An Arch Linux package recipe is provided at
+[`packaging/arch/PKGBUILD`](packaging/arch/PKGBUILD).
+
 To uninstall an installation, run the installed uninstaller:
 
 ```sh

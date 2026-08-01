@@ -2,6 +2,8 @@ ifeq ($(PREFIX),)
     PREFIX := /usr
 endif
 
+DESTDIR ?=
+
 .PHONY: build check install uninstall
 
 build:
@@ -12,18 +14,18 @@ check:
 install:
 	@tmp="$$(mktemp)"; trap 'rm -f "$$tmp"' EXIT; \
 		sed "s:^PREFIX=\"/usr\":PREFIX=\"$(PREFIX)\":" tinkergame > "$$tmp"; \
-		install -Dm755 "$$tmp" "$(PREFIX)/bin/tinkergame"
+		install -Dm755 "$$tmp" "$(DESTDIR)$(PREFIX)/bin/tinkergame"
 	@tmp="$$(mktemp)"; trap 'rm -f "$$tmp"' EXIT; \
 		sed "s:^INSTALL_PREFIX=\"/usr\":INSTALL_PREFIX=\"$(PREFIX)\":" uninstall.sh > "$$tmp"; \
-		install -Dm755 "$$tmp" "$(PREFIX)/bin/tinkergame-uninstall"
+		install -Dm755 "$$tmp" "$(DESTDIR)$(PREFIX)/bin/tinkergame-uninstall"
 
-	install -d "$(PREFIX)/share/tinkergame"
-	cp -r collections eval guicfgs lang misc "$(PREFIX)/share/tinkergame"
+	install -d "$(DESTDIR)$(PREFIX)/share/tinkergame"
+	cp -r collections eval guicfgs lang misc "$(DESTDIR)$(PREFIX)/share/tinkergame"
 
-	install -Dm644 README.md -t "$(PREFIX)/share/doc/tinkergame"
-	install -Dm644 MIGRATION.md -t "$(PREFIX)/share/doc/tinkergame"
-	install -Dm644 "misc/tinkergame.desktop" -t "$(PREFIX)/share/applications"
-	install -Dm644 "misc/tinkergame.svg" -t "$(PREFIX)/share/icons/hicolor/scalable/apps"
+	install -Dm644 README.md -t "$(DESTDIR)$(PREFIX)/share/doc/tinkergame"
+	install -Dm644 MIGRATION.md -t "$(DESTDIR)$(PREFIX)/share/doc/tinkergame"
+	install -Dm644 "misc/tinkergame.desktop" -t "$(DESTDIR)$(PREFIX)/share/applications"
+	install -Dm644 "misc/tinkergame.svg" -t "$(DESTDIR)$(PREFIX)/share/icons/hicolor/scalable/apps"
 
 uninstall:
 	rm -f "${PREFIX}/bin/tinkergame-uninstall"

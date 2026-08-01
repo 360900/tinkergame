@@ -24,5 +24,10 @@ if grep -R -n --exclude=MIGRATION.md --exclude=LICENSE \
 fi
 
 make -n install PREFIX="$ROOT_DIR/.test-prefix" >/dev/null
+make -n install PREFIX=/usr DESTDIR="$ROOT_DIR/.test-package" >/dev/null
+
+if [ -f packaging/arch/PKGBUILD ]; then
+	bash -n packaging/arch/PKGBUILD
+fi
 
 printf '%s\n' 'TinkerGame smoke checks passed.'
