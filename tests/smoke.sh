@@ -7,10 +7,11 @@ cd "$ROOT_DIR"
 bash -n tinkergame
 
 if [ "${TINKERGAME_SKIP_SHELLCHECK:-0}" != 1 ] && command -v shellcheck >/dev/null 2>&1; then
-	shellcheck ${SHELLCHECK_OPTIONS:-} tinkergame
+	shellcheck ${SHELLCHECK_OPTIONS:-} tinkergame uninstall.sh
 fi
 
 test -x tinkergame
+test -x uninstall.sh
 test -f misc/tinkergame.desktop
 test -f misc/tinkergame.svg
 test -f MIGRATION.md

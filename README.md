@@ -42,6 +42,24 @@ make PREFIX="$HOME/.local"
 make PREFIX="$HOME/.local" install
 ```
 
+To uninstall an installation, run the installed uninstaller:
+
+```sh
+# System installation
+sudo tinkergame-uninstall
+
+# User-local installation
+tinkergame-uninstall
+```
+
+The default keeps your settings, cache, downloaded tools, and game data. Add
+`--purge` to remove those files and the TinkerGame Steam compatibility-tool
+registration as well. Add `--yes` to skip the confirmation prompt.
+
+```sh
+sudo tinkergame-uninstall --purge
+```
+
 The install requires Bash, YAD, Git, Wget, Tar, Unzip, and the other tools
 listed by the installation checks. Optional integrations add their own
 dependencies. `jq` is required for custom Proton and shader repository data.
