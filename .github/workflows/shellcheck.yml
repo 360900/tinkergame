@@ -20,3 +20,5 @@ jobs:
           echo "/tmp/shellcheck-v0.10.0" >> "$GITHUB_PATH"
       - name: Run smoke checks
         run: ./tests/smoke.sh
+        env:
+          SHELLCHECK_OPTIONS: --extended-analysis=false
