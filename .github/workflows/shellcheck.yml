@@ -12,7 +12,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - name: Install ShellCheck
-        run: sudo apt-get update && sudo apt-get install --yes shellcheck
+      - name: Run ShellCheck
+        uses: ludeeus/action-shellcheck@master
+        with:
+          version: v0.10.0
       - name: Run smoke checks
         run: ./tests/smoke.sh
+        env:
+          TINKERGAME_SKIP_SHELLCHECK: "1"

@@ -6,7 +6,7 @@ cd "$ROOT_DIR"
 
 bash -n tinkergame
 
-if command -v shellcheck >/dev/null 2>&1; then
+if [ "${TINKERGAME_SKIP_SHELLCHECK:-0}" != 1 ] && command -v shellcheck >/dev/null 2>&1; then
 	shellcheck tinkergame
 fi
 
