@@ -16141,7 +16141,9 @@ function setVortexDLMime {
 	else
 		if grep -q "$VORTEXPFX" "$FVD"; then
 			writelog "INFO" "${FUNCNAME[0]} - Desktopfile $FVD seems to be up2date"
-			return
+			# Do NOT return here: the xdg-mime default association still needs to be
+			# (re)applied every run, otherwise a missing or stale mimeapps.list entry
+			# silently breaks nxm:// link handling while the desktop file stays intact.
 		else
 			writelog "INFO" "${FUNCNAME[0]} - Renaming desktopfile $FVD and creating a new one for ${PROGNAME,,}"
 			mv "$FVD" "$FVD-old"
@@ -18187,7 +18189,8 @@ function setMO2DLMime {
 	else
 		if grep -q "$MO2PFX" "$FMO2D"; then
 			writelog "INFO" "${FUNCNAME[0]} - Desktopfile '$FMO2D' looks to be up2date"
-			return
+			# Do NOT return here: re-(re)apply the xdg-mime default association
+			# every run so a stale mimeapps.list cannot silently break nxm:// handling.
 		else
 			writelog "INFO" "${FUNCNAME[0]} - Renaming desktopfile '$FMO2D' and creating a new one for ${PROGNAME,,}"
 			mv "$FMO2D" "$FMO2D-old"
