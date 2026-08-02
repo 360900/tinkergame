@@ -16163,7 +16163,7 @@ function getLatestVortVer {
 	# Cache the latest-version lookup in $VTST so GUI windows open instantly
 	# instead of blocking on the network every time they are rendered.
 	if [ -f "$VTST" ] && grep -q "^VORTEXSETUP=" "$VTST" 2>/dev/null; then
-		VTSAGE="$(expr "$(date +%s)" - "$(stat -c %Y "$VTST")" 2>/dev/null)"
+		VTSAGE="$(( $(date +%s) - $(stat -c %Y "$VTST") ))"
 		if [ -n "$VTSAGE" ] && [ "$VTSAGE" -lt 86400 ]; then
 			loadCfg "$VTST" X
 			writelog "INFO" "${FUNCNAME[0]} - Using cached '$VORTEXSETUP' from '$VTST'"
@@ -16915,7 +16915,7 @@ function startVortex {
 			if [ -f "$VORTEXEXE" ] && [ "$VORTEXEXE" != "$NON" ]; then
 				INSTVTXVER="$(getInstVtxVers)"
 				getLatestVortVer
-				LATESTVTXVER="${VORTEXSETUP#${VTX}-setup-}"
+				LATESTVTXVER="${VORTEXSETUP#"${VTX}"-setup-}"
 				LATESTVTXVER="${LATESTVTXVER//.exe}"
 				if [ -n "$INSTVTXVER" ] && [ -n "$LATESTVTXVER" ] && [ "$LATESTVTXVER" != "$INSTVTXVER" ] && [ "$(printf '%s\n' "$INSTVTXVER" "$LATESTVTXVER" | sort -V | head -n1)" == "$INSTVTXVER" ]; then
 					writelog "INFO" "${FUNCNAME[0]} - Installed ${VTX^} '$INSTVTXVER' is older than latest '$LATESTVTXVER' - updating before launch"

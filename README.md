@@ -148,6 +148,21 @@ When reporting a problem, include the TinkerGame version, distribution,
 desktop or game mode, display server, YAD version, game AppID, and relevant log
 sections. Remove personal paths and tokens first.
 
+## Credits
+
+TinkerGame is a rename and continuation of
+[SteamTinkerLaunch](https://github.com/sonic2kk/steamtinkerlaunch) and builds
+on the work of its many contributors. The original project was created by
+[`frostworx`](https://github.com/frostworx) and long maintained by its current
+upstream maintainer, [`sonic2kk`](https://github.com/sonic2kk), with help from
+the broader [SteamTinkerLaunch](https://github.com/sonic2kk/steamtinkerlaunch)
+community over the years.
+
+The complete history of the code remains available through this repository's
+git log. This project is licensed under the GPLv3, as was its upstream
+[SteamTinkerLaunch](https://github.com/sonic2kk/steamtinkerlaunch); see
+[LICENSE](LICENSE).
+
 ## Development
 
 TinkerGame is primarily Bash. The main script remains intentionally portable,
