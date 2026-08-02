@@ -3228,6 +3228,7 @@ function setDefaultCfgValues {
 		if [ -z "$VORTEXCUSTOMVER" ]					; then	VORTEXCUSTOMVER="$NON"; fi
 		if [ -z "$VORTEXDEVICESCALEFACTOR" ]			; then  VORTEXDEVICESCALEFACTOR="1"; fi
 		if [ -z "$VORTEXARGS" ]							; then	VORTEXARGS="$NON"; fi
+		if [ -z "$VORTEXNODECORATION" ]					; then	VORTEXNODECORATION="0"; fi
 		if [ -z "$DISABLE_AUTOSTAGES" ]					; then	DISABLE_AUTOSTAGES="0"; fi
 		if [ -z "$NOSTEAMSTLDEF" ]						; then	NOSTEAMSTLDEF="0"; fi
 		if [ -z "$SGDBAPIKEY" ]							; then	SGDBAPIKEY="$NON"; fi
@@ -3748,6 +3749,8 @@ function saveCfg {
 			echo "VORTEXDEVICESCALEFACTOR=\"$VORTEXDEVICESCALEFACTOR\""
 			echo "## $DESC_VORTEXARGS"
 			echo "VORTEXARGS=\"$VORTEXARGS\""
+			echo "## $DESC_VORTEXNODECORATION"
+			echo "VORTEXNODECORATION=\"$VORTEXNODECORATION\""
 			echo "## $(strFix "$DESC_DISABLE_AUTOSTAGES" "$PROGNAME")"
 			echo "DISABLE_AUTOSTAGES=\"$DISABLE_AUTOSTAGES\""
 			echo "## $DESC_NOSTEAMSTLDEF"
@@ -6031,6 +6034,7 @@ function AllSettingsEntriesDummyFunction {
 --field="     $GUI_USEVORTEX!$DESC_USEVORTEX ('USEVORTEX')":CHK "${USEVORTEX/#-/ -}" `#CAT_Vortex` `#MENU_GAME` \
 --field="     $GUI_VORTEXDEVICESCALEFACTOR!$DESC_VORTEXDEVICESCALEFACTOR ('VORTEXDEVICESCALEFACTOR')" "${VORTEXDEVICESCALEFACTOR/#-/ -}" `#CAT_Vortex` `#MENU_GLOBAL` \
 --field="     $GUI_VORTEXARGS!$DESC_VORTEXARGS ('VORTEXARGS')" "${VORTEXARGS/#-/ -}" `#CAT_Vortex` `#MENU_GLOBAL` \
+--field="     $GUI_VORTEXNODECORATION!$DESC_VORTEXNODECORATION ('VORTEXNODECORATION')":CHK "${VORTEXNODECORATION/#-/ -}" `#CAT_Vortex` `#MENU_GLOBAL` \
 --field="     $GUI_WAITVORTEX!$DESC_WAITVORTEX ('WAITVORTEX')":NUM "${WAITVORTEX/#-/ -}" `#CAT_Vortex` `#MENU_GAME` \
 --field="     $GUI_RUN_VORTEX_WINETRICKS!$DESC_RUN_VORTEX_WINETRICKS ('RUN_VORTEX_WINETRICKS')":CHK "${RUN_VORTEX_WINETRICKS/#-/ -}" `#CAT_Vortex` `#MENU_GAME` \
 --field="     $GUI_RUN_VORTEX_WINECFG!$DESC_RUN_VORTEX_WINECFG ('RUN_VORTEX_WINECFG')":CHK "${RUN_VORTEX_WINECFG/#-/ -}" `#CAT_Vortex` `#MENU_GAME` \
@@ -16824,6 +16828,16 @@ function prepareAllInstalledVortexGames {
 	writelog "INFO" "${FUNCNAME[0]} - Symlinks, registry entries and $VTX settings for all found supported games should be ready at this point for ${VTX^}" "E"
 }
 
+function setVortexNoDecoration {
+	if [ "$VORTEXNODECORATION" -eq 1 ]; then
+		writelog "INFO" "${FUNCNAME[0]} - VORTEXNODECORATION is 1 - setting Wine X11 Driver 'Decorated' to 'N' in the ${VTX^} prefix so no WM/DE window title bar is drawn for ${VTX^}"
+		wineVortexRun "$VORTEXWINE" reg ADD "HKCU\Software\Wine\X11 Driver" /v Decorated /t REG_SZ /d N /f >/dev/null 2>&1
+	else
+		writelog "INFO" "${FUNCNAME[0]} - VORTEXNODECORATION is 0 - leaving the default window title bar for ${VTX^}"
+		wineVortexRun "$VORTEXWINE" reg ADD "HKCU\Software\Wine\X11 Driver" /v Decorated /t REG_SZ /d Y /f >/dev/null 2>&1
+	fi
+}
+
 function setVortexConfigVdf {
 	mkdir -p "$VORTEXPFX/$DRC/$PFX86S/config"
 	mkdir -p "$VORTEXPFX/$DRC/$PFX86S/$SAC"
@@ -16928,6 +16942,7 @@ function startVortex {
 			setVortexDLPath
 			setVortexConfigVdf
 			setVortexReleaseChannel
+			setVortexNoDecoration
 
 			if [ -n "$2" ] && [ "$2" -eq "$2" ] 2>/dev/null; then
 				StatusWindow "${VTX^}" "prepareVortexGame $2" "PrepareVortexGameStatus"
