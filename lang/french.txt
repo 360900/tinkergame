@@ -1295,3 +1295,5 @@ GUI_MO2SILENTMODEEXEOVERRIDE="Override ModOrganizer 2 Silent Mode Executable Con
 DESC_MO2SILENTMODEEXEOVERRIDE="use a different executable configuration in Silent Mode (i.e. launch 'SKSE64' instead of 'Skyrim Special Edition') -- When 'none' by default, ModOrganizer 2 will launch the configuation matching the name of the INI (i.e. Skyrim Special Edition)"
 GUI_GSBACKEND="Rendering Backend"
 DESC_GSBACKEND="rendering backend for GameScope to use -- Defaults to 'auto' which selects based on environment (e.g., 'sdl' on X11, 'wayland' on Wayland)"
+GUI_NOVORTEXPROTON="Selected Vortex Proton not found - please install it first"
+GUI_EMPTYDLIST="Download list is empty - make sure internet access and jq are available, then try again"

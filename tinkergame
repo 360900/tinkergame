@@ -4593,6 +4593,11 @@ function dlCustomProtonGUI {
 		DLPROTON="${ProtonDLDispList[0]}"
 	fi
 
+	if [ -z "$DLPROTLIST" ]; then
+		writelog "ERROR" "${FUNCNAME[0]} - Empty download list - is '$JQ' installed and are we online?"
+		notiShow "$GUI_EMPTYDLIST" "X"
+	fi
+
 	DLDISPCUSTPROT="$("$YAD" --f1-action="$F1ACTION" --window-icon="$STLICON" --form --center --on-top "${WINDECO[@]}" \
 	--title="$TITLE" \
 	--text="$(spanFont "$GUI_DLCUSTPROTTEXT" "H")" \
@@ -17275,9 +17280,11 @@ function installVortex {
 		setVortexSLR
 		if [ -f "$VORTEXEXE" ]; then
 			writelog "SKIP" "${FUNCNAME[0]} - '$VORTEXEXE' does already exists - nothing to install - skipping" "E"
+			notiShow "$(strFix "$NOTY_INSTSTOP" "${VTX^}")" "X"
 		else
 			if [ ! -f "$VORTEXPROTON" ]; then
 				writelog "SKIP" "${FUNCNAME[0]} - VORTEXPROTON '$VORTEXPROTON' not found - can't continue" "E"
+				notiShow "$GUI_NOVORTEXPROTON" "X"
 			else
 				writelog "INFO" "${FUNCNAME[0]} - Using '$VORTEXPROTON' for installation" "E"
 				mkProjDir "$VORTEXCOMPDATA"
@@ -21264,6 +21271,11 @@ function dlWineGUI {
 
 	if [ -z "$DLWINE" ]; then
 		DLWINE="${WineDLDispList[0]}"
+	fi
+
+	if [ -z "$DLWINELIST" ]; then
+		writelog "ERROR" "${FUNCNAME[0]} - Empty download list - is '$JQ' installed and are we online?"
+		notiShow "$GUI_EMPTYDLIST" "X"
 	fi
 
 	DLDISPWINE="$("$YAD" --f1-action="$F1ACTION" --window-icon="$STLICON" --form --center --on-top "${WINDECO[@]}" \
