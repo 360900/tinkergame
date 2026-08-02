@@ -3447,7 +3447,7 @@ function setDefaultCfgValues {
 		if [ -z "$USERSTOP" ]							; then	USERSTOP="$DUMMYBIN"; fi
 		if [ -z "$AUTOCONTY" ]							; then	AUTOCONTY="0"; fi
 		if [ -z "$USECONTY" ]							; then	USECONTY="0"; fi
-		if [ -z "$CRASHGUESS" ]							; then	CRASHGUESS="60"; fi
+		if [ -z "$CRASHGUESS" ]							; then	CRASHGUESS="15"; fi
 		if [ -z "$ONLYWICO" ]							; then	ONLYWICO="0"; fi
 		if [ -z "$GAMESCREENRES" ]						; then	GAMESCREENRES="$NON"; fi
 		if [ -z "$FIXSYMLINKS" ]						; then	FIXSYMLINKS="0"; fi
