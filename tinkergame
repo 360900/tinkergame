@@ -10659,8 +10659,8 @@ function setInitWinXY {
 		else
 			SCRW="$(getScreenRes w)"
 			SCRH="$(getScreenRes h)"
-			WINX=$(( SCRW * 4 / 5))
-			WINY=$(( SCRH * 9 / 10))
+			WINX=$(( SCRW / 2))
+			WINY=$(( SCRH / 2))
 		fi
 
 		{
@@ -16140,6 +16140,17 @@ function setVortexDLMime {
 }
 
 function getLatestVortVer {
+	# Cache the latest-version lookup in $VTST so GUI windows open instantly
+	# instead of blocking on the network every time they are rendered.
+	if [ -f "$VTST" ] && grep -q "^VORTEXSETUP=" "$VTST" 2>/dev/null; then
+		VTSAGE="$(expr "$(date +%s)" - "$(stat -c %Y "$VTST")" 2>/dev/null)"
+		if [ -n "$VTSAGE" ] && [ "$VTSAGE" -lt 86400 ]; then
+			loadCfg "$VTST" X
+			writelog "INFO" "${FUNCNAME[0]} - Using cached '$VORTEXSETUP' from '$VTST'"
+			return
+		fi
+	fi
+
 	VSET="$VTX-setup"
 	if [ "$USEVORTEXPRERELEASE" -eq 1 ]; then
 		writelog "INFO" "${FUNCNAME[0]} - Search for latest ${VTX^} Beta Release, if one is available (will fall back to Stable by default)"
@@ -16410,7 +16421,8 @@ function getVortexSupportedNames {
 	VOSTINFOJSON="info.json"
 
 	VORTEXPFX="${VORTEXCOMPDATA//\"/}/pfx"
-	VORTEXINSTDIR="$VORTEXPFX/$BTVP"
+	setVortexVars
+	VORTEXINSTDIR="${VORTEXINSTDIR:-$VORTEXPFX/$BTVP}"
 	VORTEXEXE="$VORTEXINSTDIR/${VTX^}.exe"
 
 	if [ ! -f "$VORTEXEXE" ]; then
@@ -17011,8 +17023,17 @@ function VortexOptions {
 
 	VTXHEAD="${VTX^} Options"
 
+	setVortexInstallDirs
+
 	if [ -n "${VORTEXCOMPDATA}" ]; then
 		TT_CODA="${VTX^} $CODA: $VORTEXCOMPDATA"
+	fi
+
+	if [ -f "${VORTEXINSTDIR}/${VTXRAA}" ]; then
+		TT_CODA="$(printf '%s\n%s\n' "${TT_CODA}" "Version installed: $(getInstVtxVers)")"
+		VTXISINSTALLED="1"
+	else
+		VTXISINSTALLED="0"
 	fi
 
 	if [ -f "${VORTEXSTAGELIST}" ]; then
@@ -17043,14 +17064,24 @@ function VortexOptions {
 		INVTX="$(realpath "$0") $VTX install gui"
 	fi
 
+	# Only present the actions that make sense for the current install state:
+	# 'Install/Update' when not installed, 'Start Vortex' when installed, and
+	# 'Games'/'Symlinks' only once an installation exists.
+	unset VTXFIELDS
+	if [ "$VTXISINSTALLED" -eq 0 ]; then
+		VTXFIELDS+=( --field="$FBUT_GUISET_VTXINST!$TT_CODA":FBTN "$INVTX" )
+	else
+		VTXFIELDS+=( --field="$FBUT_GUISET_VTXSTART":FBTN "$(realpath "$0") $VTX start" )
+		VTXFIELDS+=( --field="$FBUT_GUISET_VTXINST!$TT_CODA":FBTN "$INVTX" )
+		VTXFIELDS+=( --field="$FBUT_GUISET_VTXGAMES":FBTN "$(realpath "$0") $VTX games" )
+		VTXFIELDS+=( --field="$FBUT_GUISET_VTXSYMS":FBTN "$(realpath "$0") $VTX symlinks" )
+	fi
+	VTXFIELDS+=( --field="$FBUT_GUISET_VTXSTAGE!$TT_STAGES":FBTN "$(realpath "$0") $VTX stage" )
+	VTXFIELDS+=( --field="$FBUT_GUISET_VTXDL!$TT_DL":FBTN "$(realpath "$0") $VTX download" )
+
 	"$YAD" --image "$SHOWPIC" "${YADIMGTOP[@]}" --center --window-icon="$STLICON" --form "${WINDECO[@]}" --title="$TITLE" \
 	--text="$VTXHEAD" --columns="$COLCOUNT" --f1-action="$F1ACTIONCG" --separator="" \
-	--field="$FBUT_GUISET_VTXINST!$TT_CODA":FBTN "$INVTX" \
-	--field="$FBUT_GUISET_VTXSTART":FBTN "$(realpath "$0") $VTX start" \
-	--field="$FBUT_GUISET_VTXSTAGE!$TT_STAGES":FBTN "$(realpath "$0") $VTX stage" \
-	--field="$FBUT_GUISET_VTXGAMES":FBTN "$(realpath "$0") $VTX games" \
-	--field="$FBUT_GUISET_VTXSYMS":FBTN "$(realpath "$0") $VTX symlinks" \
-	--field="$FBUT_GUISET_VTXDL!$TT_DL":FBTN "$(realpath "$0") $VTX download" \
+	"${VTXFIELDS[@]}" \
 	--button="$BUT_DONE:0" "$GEOM"
 
 	writelog "INFO" "${FUNCNAME[0]} - Selected '$BUT_DONE' - Closing Menu"
@@ -17139,12 +17170,30 @@ function setNonGameSLRReap {
 	setSLRReap "1" "$FORCESLRTYPE" "$SLRPROTONNAME"  # Get SLRCMD, optionally enforcing Proton (so we don't fall back to native Linux) and setting the Proton version to fetch the SLR info from (e.g. whether to use soldier, sniper, etc)
 }
 
-function setVortexVars {
-	VORTEXPFX="${VORTEXCOMPDATA//\"/}/pfx"
-	if [ -z "$VORTEXEXE" ]; then
-		VORTEXINSTDIR="$VORTEXPFX/$BTVP"
+# Resolve the Vortex install directory and executable based on what is actually
+# installed. Vortex changed its install location over the years: older releases
+# install to 'Program Files/Black Tree Gaming Ltd/Vortex', newer ones to
+# 'Program Files/Vortex'. The VORTEXEXE variable is used as a cache so a caller
+# that already resolved a valid path (e.g. after installation) keeps it.
+function setVortexInstallDirs {
+	if [ -z "$VORTEXEXE" ] || ! grep -q "exe" <<< "$VORTEXEXE"; then
+		VORTEXINSTDIR=""
+		for VDIR in "$VORTEXPFX/$BTVP" "$VORTEXPFX/$DRC/Program Files/${VTX^}"; do
+			if [ -f "$VDIR/${VTX^}.exe" ]; then
+				VORTEXINSTDIR="$VDIR"
+				break
+			fi
+		done
+		if [ -z "$VORTEXINSTDIR" ]; then
+			VORTEXINSTDIR="$VORTEXPFX/$BTVP"  # fall back to the original default
+		fi
 		VORTEXEXE="$VORTEXINSTDIR/${VTX^}.exe"
 	fi
+}
+
+function setVortexVars {
+	VORTEXPFX="${VORTEXCOMPDATA//\"/}/pfx"
+	setVortexInstallDirs
 
 	if [ "$USEVORTEXPROTON" == "$NON" ]; then
 		if [ ! -f "$PROTONCSV" ]; then
@@ -17324,13 +17373,18 @@ function installVortexGui {
 					writelog "INFO" "${FUNCNAME[0]} - Selected '$BUT_CAN' - Exiting"
 				}
 			;;
-			2)	{
-					mapfile -d "|" -t -O "${#VTARR[@]}" VTARR < <(printf '%s' "$VTXINSTARGS")
-					USEVORTEXPROTON="${VTARR[0]}"
-					StatusWindow "$(strFix "$NOTY_DLCUSTOMPROTON" "${VTX^}")" "dlLatestVortex S" "DownloadVortexStatus"
-					StatusWindow "$(strFix "$NOTY_INSTSTART" "${VTX^}")" "installVortex" "InstallVortexStatus"
-				}
-			;;
+		2)	{
+				mapfile -d "|" -t -O "${#VTARR[@]}" VTARR < <(printf '%s' "$VTXINSTARGS")
+				USEVORTEXPROTON="${VTARR[0]}"
+				if [ "$USEVORTEXPROTON" != "$NON" ]; then
+					touch "$FUPDATE"
+					updateConfigEntry "USEVORTEXPROTON" "$USEVORTEXPROTON" "$STLDEFGLOBALCFG"
+					writelog "INFO" "${FUNCNAME[0]} - Saved 'USEVORTEXPROTON'='$USEVORTEXPROTON' for $VTX in the Global Config"
+				fi
+				StatusWindow "$(strFix "$NOTY_DLCUSTOMPROTON" "${VTX^}")" "dlLatestVortex S" "DownloadVortexStatus"
+				StatusWindow "$(strFix "$NOTY_INSTSTART" "${VTX^}")" "installVortex" "InstallVortexStatus"
+			}
+		;;
 		esac
 }
 
