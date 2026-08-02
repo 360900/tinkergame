@@ -6600,7 +6600,7 @@ function MainMenu {
 	--field="$FBUT_GUISET_SORTCAT!$TT_SORTCAT":FBTN "$(realpath "$0") sort" \
 	--field="$FBUT_GUISET_OPURL!$TT_OPENURL":FBTN "$(realpath "$0") hu \"$AID\" X" \
 	--field="$FBUT_GUISET_GASCO!$TT_GASCO":FBTN "$(realpath "$0") gs \"$AID\" \"$GN\"" \
-	--field="$FBUT_GUISET_VORTEX!$TT_VORTEX":FBTN "$(realpath "$0") vortex gui" \
+	--field="$FBUT_GUISET_VORTEX!$TT_VORTEX":FBTN "$(realpath "$0") $VTX start" \
 	--field="$FBUT_GUISET_MO!$TT_MO":FBTN "$(realpath "$0") mo2 start" \
 	--field="$FBUT_GUISET_GETSLR!$TT_GETSLR":FBTN "$(realpath "$0") getslrbtn \"$AID\"" \
 	--field="$GUI_GAFI!$TT_GAFI":FBTN "$(realpath "$0") gf \"$AID\"" \
@@ -15975,7 +15975,7 @@ function createHMMDesktopFile {
 		else
 			echo "Exec=$(realpath "$0") ${HMM,,} u %u"  # "hmm start" takes dl channel as argument, next arg is the URL
 		fi
-		echo "NoDisplay=false"
+		echo "NoDisplay=true"
 		echo "Hidden=false"
 	} >> "$HMMDFDLPA"
 
@@ -16113,7 +16113,7 @@ function setVortexDLMime {
 		else
 			echo "Exec=$(realpath "$0") $VTX u %u"
 		fi
-		echo "NoDisplay=false"
+		echo "NoDisplay=true"
 		echo "Hidden=false"
 		} >> "$FVD"
 
@@ -16863,10 +16863,27 @@ function startVortex {
 	setVortexSLR
 	askVortex "$1"
 	if [ "$USEVORTEX" -eq 1 ]; then
+		unset VORTEXFORCEUPDATE
 		if [ ! -f "$VORTEXEXE" ]; then
 			writelog "WARN" "${FUNCNAME[0]} - VORTEXEXE '$VORTEXEXE' does not exist - installing now"
 			StatusWindow "$(strFix "$NOTY_DLCUSTOMPROTON" "${VTX^}")" "dlLatestVortex S" "DownloadVortexStatus"
 			StatusWindow "$(strFix "$NOTY_INSTSTART" "${VTX^}")" "installVortex" "InstallVortexStatus"
+		elif [ -n "$DISABLEVORTEXAUTOUPDATE" ] && [ "$DISABLEVORTEXAUTOUPDATE" -eq 0 ]; then
+			# A Vortex install exists - check whether an update is available before launching,
+			# so a single "Start" action keeps Vortex up-to-date instead of needing a separate
+			# download/install menu. Updated but Vortex is already installed.
+			if [ -f "$VORTEXEXE" ] && [ "$VORTEXEXE" != "$NON" ]; then
+				INSTVTXVER="$(getInstVtxVers)"
+				getLatestVortVer
+				LATESTVTXVER="${VORTEXSETUP#${VTX}-setup-}"
+				LATESTVTXVER="${LATESTVTXVER//.exe}"
+				if [ -n "$INSTVTXVER" ] && [ -n "$LATESTVTXVER" ] && [ "$LATESTVTXVER" != "$INSTVTXVER" ] && [ "$(printf '%s\n' "$INSTVTXVER" "$LATESTVTXVER" | sort -V | head -n1)" == "$INSTVTXVER" ]; then
+					writelog "INFO" "${FUNCNAME[0]} - Installed ${VTX^} '$INSTVTXVER' is older than latest '$LATESTVTXVER' - updating before launch"
+					VORTEXFORCEUPDATE=1
+					StatusWindow "$(strFix "$NOTY_DLCUSTOMPROTON" "${VTX^}")" "dlLatestVortex S" "DownloadVortexStatus"
+					StatusWindow "$(strFix "$NOTY_INSTSTART" "${VTX^}")" "installVortex" "InstallVortexStatus"
+				fi
+			fi
 		fi
 
 		if [ "$RUN_VORTEX_WINETRICKS" -eq 1 ]; then
@@ -17048,20 +17065,6 @@ function VortexOptions {
 	if [ -f "${VORTEXINSTDIR}/${VTXRAA}" ]; then
 		TT_CODA="$(printf '%s\n%s\n' "${TT_CODA}" "Version installed: $(getInstVtxVers)")"
 	fi
-	mkProjDir "$VORTEXDLDIR"
-	VTXDLV="$(find "${VORTEXDLDIR}" -name "${VTX}-setup*" | sort -V | tail -n1 | awk -F'${VTX}-setup' '{print $NF}')"
-	if [ -n "$VTXDLV" ]; then
-		VSD1="${VTXDLV//${VORTEXDLDIR}\/${VTX}-setup-}"
-		VSD="${VSD1//.exe}"
-		TT_DL="Newest setup downloaded: ${VSD}"
-	fi
-
-	getLatestVortVer
-	if [ -n "$VORTEXSETUP" ]; then
-		VSO1="${VORTEXSETUP//${VTX}-setup-}"
-		VSO="${VSO1//.exe}"
-		TT_DL="$(printf '%s\n%s\n' "$TT_DL" "Newest setup online: ${VSO}")"
-	fi
 
 	if [ "$ONSTEAMDECK" -eq 1 ]; then
 		INVTX="$(realpath "$0") $VTX install"
@@ -17070,8 +17073,10 @@ function VortexOptions {
 	fi
 
 	# Only present the actions that make sense for the current install state:
-	# 'Install/Update' when not installed, 'Start Vortex' when installed, and
-	# 'Games'/'Symlinks' only once an installation exists.
+	# 'Install' when not installed, 'Start Vortex' when installed, and
+	# 'Games'/'Symlinks' only once an installation exists. A standalone
+	# 'Download' button is omitted because Install/Start already fetch the
+	# latest setup when needed.
 	unset VTXFIELDS
 	if [ "$VTXISINSTALLED" -eq 0 ]; then
 		VTXFIELDS+=( --field="$FBUT_GUISET_VTXINST!$TT_CODA":FBTN "$INVTX" )
@@ -17082,7 +17087,6 @@ function VortexOptions {
 		VTXFIELDS+=( --field="$FBUT_GUISET_VTXSYMS":FBTN "$(realpath "$0") $VTX symlinks" )
 	fi
 	VTXFIELDS+=( --field="$FBUT_GUISET_VTXSTAGE!$TT_STAGES":FBTN "$(realpath "$0") $VTX stage" )
-	VTXFIELDS+=( --field="$FBUT_GUISET_VTXDL!$TT_DL":FBTN "$(realpath "$0") $VTX download" )
 
 	"$YAD" --image "$SHOWPIC" "${YADIMGTOP[@]}" --center --window-icon="$STLICON" --form "${WINDECO[@]}" --title="$TITLE" \
 	--text="$VTXHEAD" --columns="$COLCOUNT" --f1-action="$F1ACTIONCG" --separator="" \
@@ -17278,7 +17282,7 @@ function installVortex {
 	if [ -f "$VSPATH" ]; then
 		setVortexVars
 		setVortexSLR
-		if [ -f "$VORTEXEXE" ]; then
+		if [ -f "$VORTEXEXE" ] && { [ -z "$VORTEXFORCEUPDATE" ] || [ "$VORTEXFORCEUPDATE" -eq 0 ]; }; then
 			writelog "SKIP" "${FUNCNAME[0]} - '$VORTEXEXE' does already exists - nothing to install - skipping" "E"
 			notiShow "$(strFix "$NOTY_INSTSTOP" "${VTX^}")" "X"
 		else
@@ -18129,7 +18133,7 @@ function setMO2DLMime {
 		else
 			echo "Exec=$(realpath "$0") mo2 u %u"
 		fi
-		echo "NoDisplay=false"
+		echo "NoDisplay=true"
 		echo "Hidden=false"
 		} >> "$FMO2D"
 
