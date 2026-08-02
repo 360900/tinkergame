@@ -3227,6 +3227,7 @@ function setDefaultCfgValues {
 		if [ -z "$USEVORTEXCUSTOMVER" ]					; then	USEVORTEXCUSTOMVER="0"; fi
 		if [ -z "$VORTEXCUSTOMVER" ]					; then	VORTEXCUSTOMVER="$NON"; fi
 		if [ -z "$VORTEXDEVICESCALEFACTOR" ]			; then  VORTEXDEVICESCALEFACTOR="1"; fi
+		if [ -z "$VORTEXARGS" ]							; then	VORTEXARGS="$NON"; fi
 		if [ -z "$DISABLE_AUTOSTAGES" ]					; then	DISABLE_AUTOSTAGES="0"; fi
 		if [ -z "$NOSTEAMSTLDEF" ]						; then	NOSTEAMSTLDEF="0"; fi
 		if [ -z "$SGDBAPIKEY" ]							; then	SGDBAPIKEY="$NON"; fi
@@ -3745,6 +3746,8 @@ function saveCfg {
 			echo "VORTEXCUSTOMVER=\"$VORTEXCUSTOMVER\""
 			echo "## $DESC_VORTEXDEVICESCALEFACTOR"
 			echo "VORTEXDEVICESCALEFACTOR=\"$VORTEXDEVICESCALEFACTOR\""
+			echo "## $DESC_VORTEXARGS"
+			echo "VORTEXARGS=\"$VORTEXARGS\""
 			echo "## $(strFix "$DESC_DISABLE_AUTOSTAGES" "$PROGNAME")"
 			echo "DISABLE_AUTOSTAGES=\"$DISABLE_AUTOSTAGES\""
 			echo "## $DESC_NOSTEAMSTLDEF"
@@ -6027,6 +6030,7 @@ function AllSettingsEntriesDummyFunction {
 --field="$(spanFont "$GUI_OPTSVORTEX" "H")":LBL "SKIP" `#CAT_Vortex` `#HEAD_Vortex` `#MENU_GAME` `#MENU_GLOBAL` \
 --field="     $GUI_USEVORTEX!$DESC_USEVORTEX ('USEVORTEX')":CHK "${USEVORTEX/#-/ -}" `#CAT_Vortex` `#MENU_GAME` \
 --field="     $GUI_VORTEXDEVICESCALEFACTOR!$DESC_VORTEXDEVICESCALEFACTOR ('VORTEXDEVICESCALEFACTOR')" "${VORTEXDEVICESCALEFACTOR/#-/ -}" `#CAT_Vortex` `#MENU_GLOBAL` \
+--field="     $GUI_VORTEXARGS!$DESC_VORTEXARGS ('VORTEXARGS')" "${VORTEXARGS/#-/ -}" `#CAT_Vortex` `#MENU_GLOBAL` \
 --field="     $GUI_WAITVORTEX!$DESC_WAITVORTEX ('WAITVORTEX')":NUM "${WAITVORTEX/#-/ -}" `#CAT_Vortex` `#MENU_GAME` \
 --field="     $GUI_RUN_VORTEX_WINETRICKS!$DESC_RUN_VORTEX_WINETRICKS ('RUN_VORTEX_WINETRICKS')":CHK "${RUN_VORTEX_WINETRICKS/#-/ -}" `#CAT_Vortex` `#MENU_GAME` \
 --field="     $GUI_RUN_VORTEX_WINECFG!$DESC_RUN_VORTEX_WINECFG ('RUN_VORTEX_WINECFG')":CHK "${RUN_VORTEX_WINECFG/#-/ -}" `#CAT_Vortex` `#MENU_GAME` \
@@ -15275,23 +15279,30 @@ function setModGameSyms {
 }
 
 function listWinSteamLibraries {
-	COUNTER=1
-	SL1="${SROOT%*/}"
-	echo "\"$COUNTER\" \"Z:${SL1//\//\\\\}\""
-
 	listSteamLibraries
 
 	unset SLARR
+	SL1="${SROOT%*/}"
 	mapfile -t -O "${#SLARR[@]}" SLARR <<< "$SL1"
 
 	while read -r line; do
-		COUNTER=$((COUNTER+1))
-		W1="${line//\"}"
 		W1="${line//\/steamapps/}"
 		mapfile -t -O "${#SLARR[@]}" SLARR <<< "$W1"
+	done < "$STELILIST"
+
+	unset SLARRU
+	while IFS= read -r SLC; do
+		if ! grep -qx "$SLC" <<< "$(printf "%s\n" "${SLARRU[@]-}")"; then
+			mapfile -t -O "${#SLARRU[@]}" SLARRU <<< "$SLC"
+		fi
+	done <<< "$(printf "%s\n" "${SLARR[@]-}")"
+
+	COUNTER=1
+	for W1 in "${SLARRU[@]}"; do
 		W2="${W1//\//\\\\}"
 		echo "\"$COUNTER\" \"Z:$W2\""
-	done < "$STELILIST"
+		COUNTER=$((COUNTER+1))
+	done
 }
 
 function installDotNet {
@@ -16526,7 +16537,11 @@ function setVortSet {
 
 function runVortex {
 	cd "$VORTEXINSTDIR" >/dev/null || return
-	wineVortexRun "$VORTEXWINE" "${VTX^}.exe" "--force-device-scale-factor=${VORTEXDEVICESCALEFACTOR}" "$@"
+	if [ -n "$VORTEXARGS" ] && [ "$VORTEXARGS" != "$NON" ]; then
+		wineVortexRun "$VORTEXWINE" "${VTX^}.exe" "--force-device-scale-factor=${VORTEXDEVICESCALEFACTOR}" "$VORTEXARGS" "$@"
+	else
+		wineVortexRun "$VORTEXWINE" "${VTX^}.exe" "--force-device-scale-factor=${VORTEXDEVICESCALEFACTOR}" "$@"
+	fi
 	cd - >/dev/null || return
 }
 
@@ -16820,6 +16835,17 @@ function setVortexConfigVdf {
 		BIF="${BIF//\"}"
 		sed "s:$BIF:Z\:$BIF:" -i "$VTXSTCFG"
 	done <<< "$(grep "BaseInstallFolder" "$VTXSTCFG")"
+
+	VTXSTEAMDIR="$VORTEXPFX/$DRC/$PFX86S/config"
+	VTXLFVD="$VTXSTEAMDIR/$LIFOVDF"
+	writelog "INFO" "${FUNCNAME[0]} - Updating '$LIFOVDF' in the ${VTX^} pfx, so ${VTX^} can find the Steam game libraries"
+	rm "$VTXLFVD" 2>/dev/null
+	{
+		echo "\"LibraryFolders\""
+		echo "{"
+		listWinSteamLibraries
+		echo "}"
+	} >> "$VTXLFVD"
 }
 
 function resetVortexSettings {
