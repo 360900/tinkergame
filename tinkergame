@@ -2096,8 +2096,8 @@ function pollWinRes {
 			echo "WINY=\"$WINY\"" >> "$GAMEGUICFG"
 
 			if [ -z "$GEOM" ]; then
-				writelog "INFO" "${FUNCNAME[0]} - Using harmless '--center' as variable 'GEOM', because there are multiple side-effects in yad if the string is empty"
-				GEOM="--center"
+				setGeom
+				writelog "INFO" "${FUNCNAME[0]} - Setting '$GEOM' as initial window geometry"
 			fi
 
 			writelog "INFO" "${FUNCNAME[0]} - Creating initial '$GAMEGUICFG' with unused default values" "$WINRESLOG"
@@ -10659,8 +10659,8 @@ function setInitWinXY {
 		else
 			SCRW="$(getScreenRes w)"
 			SCRH="$(getScreenRes h)"
-			WINX=$(( SCRW * 3 / 4))
-			WINY=$(( SCRH * 3 / 4))
+			WINX=$(( SCRW * 9 / 10))
+			WINY=$(( SCRH * 9 / 10))
 		fi
 
 		{
