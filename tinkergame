@@ -6,13 +6,15 @@
 PREFIX="/usr"
 PROGNAME="TinkerGame"
 NICEPROGNAME="TinkerGame"
-PROGVERS="v14.0.20260707"
+PROGVERS="v14.0.20260801"
 PROGCMD="${0##*/}"
-PROGINTERNALPROTNAME="Proton-tinkergame"
 SHOSTL="tg"
+# Must match the internal name written into 'compatibilitytool.vdf' ('Proton-tg'),
+# otherwise non-Steam shortcuts assigned to this tool get an unresolvable name.
+PROGINTERNALPROTNAME="Proton-${SHOSTL}"
 GHURL="https://github.com"
 AGHURL="https://api.github.com"
-PROJECTPAGE="$GHURL/tinkergame/tinkergame"
+PROJECTPAGE="$GHURL/360900/tinkergame"
 PPW="$PROJECTPAGE/wiki"
 CURWIKI="$PPW"
 STARTDEBUG=1
@@ -674,7 +676,7 @@ function setSteamPaths {
 				# This allows us to use the correct userdata folder for the currently logged in user by default when
 				# there are multiple Steam user accounts logged into the same machine
 				#
-				# See also: https://github.com/tinkergame/tinkergame/issues/1140
+				# See also: https://github.com/sonic2kk/steamtinkerlaunch/issues/1140
 				while read -r loginuser; do
 					LOGINUSERCSVSHORTAID="$( echo "${loginuser}" | cut -d ';' -f2  )"
 					LOGINUSERCSVMOSTRECENT="$( echo "${loginuser}" | cut -d ';' -f3  )"
@@ -3115,17 +3117,17 @@ function getAvailableProtonVersions {
 function setDefaultCfgValues {
 
 	function setDefaultCfgValuesurl {
-		if [ -z "$PROJECTPAGE" ]						; then	PROJECTPAGE="$GHURL/tinkergame/tinkergame"; fi
+		if [ -z "$PROJECTPAGE" ]						; then	PROJECTPAGE="$GHURL/360900/tinkergame"; fi
 		if [ -z "$CP_PROTONTKG" ]						; then	CP_PROTONTKG="$GHURL/Frogging-Family/wine-tkg-git"; fi
 		if [ -z "$CP_PROTONGE" ]						; then	CP_PROTONGE="$GHURL/GloriousEggroll/proton-ge-custom"; fi
-		if [ -z "$CP_PROTONSTL" ]						; then	CP_PROTONSTL="$GHURL/tinkergame/tinkergame-tweaks"; fi
+		if [ -z "$CP_PROTONSTL" ]						; then	CP_PROTONSTL="$GHURL/sonic2kk/steamtinkerlaunch-tweaks"; fi
 		if [ -z "$DL_D3D47_64" ]						; then	DL_D3D47_64="https://lutris.net/files/tools/dll/$D3D47"; fi
 		if [ -z "$DL_D3D47_32" ]						; then	DL_D3D47_32="http://dege.freeweb.hu/dgVoodoo2/bin/D3DCompiler_47.zip"; fi
 		if [ -z "$RESHADEDLURL" ]						; then	RESHADEDLURL="https://reshade.me/downloads"; fi
 		if [ -z "$RESHADEPROJURL" ]						; then	RESHADEPROJURL="https://github.com/crosire/reshade"; fi
 		if [ -z "$VORTEXPROJURL" ]						; then  VORTEXPROJURL="$GHURL/Nexus-Mods/${VTX^}"; fi
 		if [ -z "$DXVKURL" ]							; then	DXVKURL="$GHURL/doitsujin/dxvk"; fi
-		if [ -z "$XLIVEURL" ]							; then	XLIVEURL="$GHURL/ThirteenAG/Ultimate-ASI-Loader/releases/download/v4.61/Ultimate-ASI-Loader.zip"; fi
+		if [ -z "$XLIVEURL" ]							; then	XLIVEURL="$GHURL/ThirteenAG/Ultimate-ASI-Loader/releases/latest/download/Ultimate-ASI-Loader.zip"; fi
 		if [ -z "$STASSURL" ]							; then	STASSURL="https://steamcdn-a.akamaihd.net/steam/apps"; fi
 		if [ -z "$WINETRICKSURL" ]						; then	WINETRICKSURL="$GHURL/Winetricks/winetricks"; fi
 		if [ -z "$X64DBGURL" ]							; then	X64DBGURL="$GHURL/x64dbg/x64dbg/releases/tag/snapshot";fi
@@ -3146,7 +3148,7 @@ function setDefaultCfgValues {
 		if [ -z "$SPEKGHURL" ]							; then	SPEKGHURL="$GHURL/${SPEK}O/${SPEK}/releases";fi
 		if [ -z "$SPEKCOMPURL" ]						; then	SPEKCOMPURL="https://www.pcgamingwiki.com/wiki/List_of_games_compatible_with_Special_K#Compatibility_list";fi
 		if [ -z "$FWSURL" ]								; then	FWSURL="https://www.${FWS,,}.org/fws";fi
-		if [ -z "$YAIURL" ]								; then	YAIURL="$GHURL/tinkergame/tinkergame-tweaks/releases/download"; fi
+		if [ -z "$YAIURL" ]								; then	YAIURL="$GHURL/sonic2kk/steamtinkerlaunch-tweaks/releases/download"; fi
 		if [ -z "$WINERELOADURL" ]						; then	WINERELOADURL="https://gist.githubusercontent.com/rbernon/cdbdc1b0e892f91e7449fcf3dda80bb7/raw/d8cf549bf751d99ed0fe515e36f99ff5c01b7287"; fi
 		if [ -z "$GEOELFURL" ]							; then	GEOELFURL="http://helixmod.blogspot.com/2022/06/announcing-new-geo-11-3d-driver.html"; fi
 		if [ -z "$WDIBURL" ]							; then	WDIBURL="$AGHURL/repos/0e4ef622/$WDIB/releases/latest"; fi
@@ -6574,7 +6576,7 @@ function MainMenu {
 
 	createProtonList X
 
-	"$YAD" --f1-action="$F1ACTION" --image "$SHOWPIC" "${YADIMGTOP[@]}" --scroll --center --window-icon="$STLICON" --form --center "${WINDECO[@]}" --title="$TITLE" \
+	"$YAD" --image "$SHOWPIC" "${YADIMGTOP[@]}" --scroll --center --window-icon="$STLICON" --form "${WINDECO[@]}" --title="$TITLE" \
 	--text="$SETHEAD" \
 	--columns="$COLCOUNT" --f1-action="$F1ACTIONCG" --separator="" \
 	--field="$FBUT_GUISET_DCP":FBTN "$(realpath "$0") dcp" \
@@ -9715,7 +9717,7 @@ function appendToRSTXT {
 }
 
 # $2 used to specify NOD3D9 wehn we copied both DXGI and D3D9 DLLs, but we no longer do that, so $2 is unused
-# Last refactored for: https://github.com/tinkergame/tinkergame/pull/881
+# Last refactored for: https://github.com/sonic2kk/steamtinkerlaunch/pull/881
 function installRSdll {
 	RSDLLNAMECONFLICTFOUND=0
 
@@ -10076,7 +10078,7 @@ function checkReshade {
 			writelog "WARN" "${FUNCNAME[0]} - Both '$SPEK' and '$RESH' are enabled." "E"
 			writelog "WARN" "${FUNCNAME[0]} - This has historically caused crashes, but has been experimentally re-enabled!"
 			writelog "WARN" "${FUNCNAME[0]} - Manual intervention may be required to fix crashes, such as renaming the SpecialK DLL to fix the SpecialK UI, or running dos2unix on INI files to fix crashes"
-			writelog "WARN" "${FUNCNAME[0]} - For more information, see: https://github.com/tinkergame/tinkergame/issues/894"
+			writelog "WARN" "${FUNCNAME[0]} - For more information, see: https://github.com/sonic2kk/steamtinkerlaunch/issues/894"
 
 			writelog "INFO" "${FUNCNAME[0]} - Using ${RESH} and $SPEK together"
 			mkProjDir "$SHADDESTDIR"
@@ -11380,7 +11382,7 @@ function setGameScopeVars {
 			# anything and we cannot/should not try to assume what is valid for them in this way.
 			# This logic only exists to filter out non-numerical values for flags which expect to be given a numerical argument
 			#
-			# For more background, see: https://github.com/tinkergame/tinkergame/pull/1152#issuecomment-2316286429
+			# For more background, see: https://github.com/sonic2kk/steamtinkerlaunch/pull/1152#issuecomment-2316286429
 			GSPARSEDARGNUMVAL="$( echo "${GSPARSEDARGVAL}" | grep -P "^([\d]+)(?:\.([\d]{1,2}?))?$" )"
 			if [ -n "${GSPARSEDARGNUMVAL}" ]; then
 				echo "$GSPARSEDARGNUMVAL"
@@ -12188,7 +12190,7 @@ function StandaloneProtonGame {
 						fi
 						if [ -n "$SAPRUN" ];then
 							touch "$FUPDATE"
-							updateConfigEntry "SAPARGS" "$SAPARGS" "$SAPCFG"
+							updateConfigEntry "SAPRUN" "$SAPRUN" "$SAPCFG"
 						fi
 					fi
 					SapRun
@@ -12658,7 +12660,7 @@ function OneTimeRunGui {
 				OTEXE="${OTARR[1]}"
 				OTARGS="${OTARR[2]}"
 				OTFORCEPROTON="${OTARR[3]}"
-				# OTARR[4] and OTARR[8] are the WINECFG and WINETRICKS buttons
+				# OTARR[4] and OTARR[9] are the WINECFG and WINETRICKS buttons
 				OTCUSTWORKDIR="${OTARR[5]}"
 				OTUSEEXEDIR="${OTARR[6]}"
 				OTSAVE="${OTARR[7]}"
@@ -16059,7 +16061,7 @@ function wineVortexRun {
 	sleep 1  # required!
 
 	## Only use SLR is available and (if user explicitly wants to run Vortex with dotnet OR if dotnet6 is not already installed), because the SLR can cause hardlink deployment to fail
-	## See also: https://github.com/tinkergame/tinkergame/issues/828
+	## See also: https://github.com/sonic2kk/steamtinkerlaunch/issues/828
 
 	writelog "INFO" "${FUNCNAME[0]} - Vortex logs will be stored at '${VWRUN}'"
 	writelog "INFO" "${FUNCNAME[0]} - Vortex installation location is '${VORTEXEXE}'"
@@ -16377,7 +16379,7 @@ function VortexSymDialog {
 		setShowPic
 
 		cd "$VPDRC" >/dev/null || return
-		find . -type l -printf '%p\n%l\n' | "$YAD" --f1-action="$F1ACTION" --image "$SHOWPIC" "${YADIMGTOP[@]}" --window-icon="$STLICON" --center "${WINDECO[@]}" --list --column="Symlink in '${VPDRC}/'" --column="Points to Game WinePrefix" --print-column="3" \
+		find . -type l -printf '%p\n%l\n' | "$YAD" --f1-action="$F1ACTION" --image "$SHOWPIC" "${YADIMGTOP[@]}" --window-icon="$STLICON" --center "${WINDECO[@]}" --list --column="Symlink in '${VPDRC}/'" --column="Points to Game WinePrefix" --print-column="1" \
 		--text="$(spanFont "$GUI_VOSY" "H")\n" --title="$TITLE" "$GEOM"
 		cd - >/dev/null || return
 	else
@@ -17041,7 +17043,7 @@ function VortexOptions {
 		INVTX="$(realpath "$0") $VTX install gui"
 	fi
 
-	"$YAD" --f1-action="$F1ACTION" --image "$SHOWPIC" "${YADIMGTOP[@]}" --center --window-icon="$STLICON" --form --center "${WINDECO[@]}" --title="$TITLE" \
+	"$YAD" --image "$SHOWPIC" "${YADIMGTOP[@]}" --center --window-icon="$STLICON" --form "${WINDECO[@]}" --title="$TITLE" \
 	--text="$VTXHEAD" --columns="$COLCOUNT" --f1-action="$F1ACTIONCG" --separator="" \
 	--field="$FBUT_GUISET_VTXINST!$TT_CODA":FBTN "$INVTX" \
 	--field="$FBUT_GUISET_VTXSTART":FBTN "$(realpath "$0") $VTX start" \
@@ -17192,7 +17194,7 @@ function setVortexSLR {
 	## Both of the SLR options for Vortex assume a valid Vortex Proton version.
 	## otherwise the SLR won't be used.
 
-	# Use SLR to install Vortex -- Recommended, see https://github.com/tinkergame/tinkergame/issues/806
+	# Use SLR to install Vortex -- Recommended, see https://github.com/sonic2kk/steamtinkerlaunch/issues/806
 	if [ "$VORTEXUSESLR" -eq 1 ]; then
 		writelog "INFO" "${FUNCNAME[0]} - VORTEXUSESLR is '$VORTEXUSESLR', using Steam Linux Runtime to install Vortex"
 		setNonGameSLRReap "1" "$USEVORTEXPROTON"  # Force the requested SLR for Vortex Proton version if we enable SLR option
@@ -17200,7 +17202,7 @@ function setVortexSLR {
 		writelog "INFO" "${FUNCNAME[0]} - Vortex will run WITHOUT the Steam Linux Runtime"
 	fi
 
-	## Use SLR for Vortex in general - Not recommended, see https://github.com/tinkergame/tinkergame/issues/828
+	## Use SLR for Vortex in general - Not recommended, see https://github.com/sonic2kk/steamtinkerlaunch/issues/828
 	if [ "$VORTEXUSESLRPOSTINSTALL" -eq 1 ]; then
 		writelog "WARN" "${FUNCNAME[0]} - WARNING: VORTEXUSESLRPOSTINSTALL is '$VORTEXUSESLRPOSTINSTALL', Vortex will be launched with the Steam Linux Runtime -- This may cause problems with mod deployment!"
 		setNonGameSLRReap "1" "$USEVORTEXPROTON"
@@ -17239,7 +17241,7 @@ function installVortex {
 				## some winetricks components, and then removed afterwards, but this would be a separate feature.
 				## Removing this line should helph get Vortex working on SteamOS for now, until they break it again.
 				##
-				## For context, see https://github.com/tinkergame/tinkergame/issues/806#issuecomment-1565759961
+				## For context, see https://github.com/sonic2kk/steamtinkerlaunch/issues/806#issuecomment-1565759961
 
 				# Vortex 1.8.0+ only requires DotNet6 (only need to pass desktop6, as installDotNet will append dotnet)
 				# writelog "INFO" "${FUNCNAME[0]} - Installing .NET 6 for Vortex Mod Manager"
@@ -18577,7 +18579,7 @@ function setYadBin {
 				export ONSTEAMDECK=1
 				YADAIDLDIR="$STLSDPATH"
 				YAIDST="$YADAIDLDIR/$YADAPPIMAGE"
-				YAIURL="$GHURL/tinkergame/tinkergame-tweaks/releases/download"
+				YAIURL="$GHURL/sonic2kk/steamtinkerlaunch-tweaks/releases/download"
 				YAIDL="$YAIURL/$YADSTLIMAGE/$YADSTLIMAGE"
 				YADAPPIMAGE="$YADSTLIMAGE"
 
@@ -18594,7 +18596,7 @@ function setYadBin {
 						echo "Found local Yad AppImage in '$STLDLDIR/yadappimage/$YADAPPIMAGE'!"
 						mv "$STLDLDIR/yadappimage/$YADAPPIMAGE" "$YAIDST" || steamDeckInstallFail
 					elif [ -f "$STLDEPS/$YADAPPIMAGE" ]; then
-						# Yad in $HOME/stl/deps with full matching name
+						# Yad in $HOME/tg/deps with full matching name
 						writelog "INFO" "${FUNCNAME[0]} - Found local Yad AppImage in '$STLDEPS/$YADAPPIMAGE'"
 						echo "Found local Yad AppImage in '$STLDEPS/$YADAPPIMAGE'!"
 						mv "$STLDEPS/$YADAPPIMAGE" "$YAIDST" || steamDeckInstallFail
@@ -18675,6 +18677,13 @@ function setYadBin {
 	fi
 }
 
+function isHelpOrVersionArg {
+	case "$1" in
+		help|--help|-h|version|--version|-v) return 0 ;;
+		*) return 1 ;;
+	esac
+}
+
 function checkIntDeps {
 
 	if [ "$SKIPINTDEPCHECK" -eq 1 ] || [ "$1" == "yad" ]; then
@@ -18737,7 +18746,7 @@ function checkIntDeps {
 			if [ "$(printf '%s\n' "$MINYAD" "$YADVER" | sort -V | head -n1)" != "$MINYAD" ]; then
 				writelog "ERROR" "${FUNCNAME[0]} - Yad version '$YADVER' is too old. You need to update to at least '$MINYAD'" "E"
 				notiShow "$(strFix "$NOTY_NOTFOUND2" "$YADVER" "$MINYAD")"
-				if [ "$1" != "--help" ] && [ "$1" != "-h" ]; then
+				if ! isHelpOrVersionArg "$1"; then
 					exit
 				fi
 			else
@@ -18756,7 +18765,7 @@ function checkIntDeps {
 		if [ "$DEPSMISSING" -eq 1 ]; then
 			writelog "ERROR" "${FUNCNAME[0]} - Above programs need to be installed to use '${PROGNAME,,}'" "E"
 			writelog "ERROR" "${FUNCNAME[0]} The dependency check can be disabled by enabling 'SKIPINTDEPCHECK' - exiting now" "E"
-			if [ "$1" != "--help" ] && [ "$1" != "-h" ]; then
+			if ! isHelpOrVersionArg "$1"; then
 				exit
 			fi
 		fi
@@ -21231,7 +21240,7 @@ function PickSpecificWine {
 
 	SPECWINE="$("$YAD" --f1-action="$F1ACTION" --window-icon="$STLICON" --form --center --on-top "${WINDECO[@]}" \
 	--title="$TITLE" --separator="|" \
-	--text="$(spanFont "GUI_DLSPECWINE" "H")" \
+	--text="$(spanFont "$GUI_DLSPECWINE" "H")" \
 	--field=" ":LBL " " \
 	--field="Vanilla":CHK "TRUE" \
 	--field="Staging":CHK "TRUE" \
@@ -21348,7 +21357,7 @@ function WineSelection {
 
 	writelog "INFO" "${FUNCNAME[0]} - Opening Wine Selection"
 
-	 "$YAD" --f1-action="$F1ACTION" --image "$SHOWPIC" "${YADIMGTOP[@]}" --center --window-icon="$STLICON" --form --center "${WINDECO[@]}" \
+	 "$YAD" --image "$SHOWPIC" "${YADIMGTOP[@]}" --center --window-icon="$STLICON" --form "${WINDECO[@]}" \
 	--title="$TITLE" \
 	--text="$(spanFont "$GUI_SELWINE" "H")" \
 	--button="$BUT_DLDWINE":0 \
@@ -22183,7 +22192,7 @@ function CompatTool {
 			if [ ! -d "$STEAMCOMPATOOLS" ]; then
 				writelog "INFO" "${FUNCNAME[0]} - Initially creating dir '$STEAMCOMPATOOLS'"
 				mkProjDir "$STEAMCOMPATOOLS"
-				if [ ! -d "$SCTS" ]; then
+				if [ ! -d "$STEAMCOMPATOOLS" ]; then
 					writelog "ERROR" "${FUNCNAME[0]} - Failed to create the directory '$STEAMCOMPATOOLS'"
 				fi
 			fi
@@ -22239,7 +22248,7 @@ function CompatTool {
 				echo "}"
 				} >> "$TVDF"
 
-				if [ ! -f "$CVDF" ]; then
+				if [ ! -f "$TVDF" ]; then
 					writelog "ERROR" "${FUNCNAME[0]} - Failed to create the file '$TVDF' - check your write priviledges on '$SCTS'"
 				fi
 
@@ -22467,6 +22476,7 @@ function howto {
 	echo "                                       Steam compatibility tool"
 	echo "                                       under 'STEAMCOMPATOOLS'"
 	echo "    configdir                        Open the TinkerGame config directory with xdg-open"
+	echo "    conty up|update                  Update the bundled Conty runtime"
 	echo "    createappinfo|cai <id|i|o>       Create raw appinfo for <id>"
 	echo "                                      or for 'installed|i' or 'owned|o' games"
 	echo "                                      Append any arg to update the raw file"
@@ -22498,6 +22508,8 @@ function howto {
 	echo "                                       from filerequester or"
 	echo "                                       automatically the latest|l version or"
 	echo "                                       directly from <url>"
+	echo "    dotnet <pfx> <wine>              Install dotnet into a Wineprefix"
+	echo "    dxvkhud|dxh <gameid>             Pick a DXVK HUD layout for <gameid>"
 	echo "    editor <value>                   Opens the editor menu"
 	echo "                                       (for 'SteamAppID' or 'last')"
 	echo "    fav <value>                      Opens the favorite menu"
@@ -22514,6 +22526,8 @@ function howto {
 	echo "    getslr <gameid>                  Fetch the required Steam Linux Runtime for <gameid>'s TinkerGame Proton version"
 	echo "               native                  (optional) get the native Steam Linux Runtime"
 	echo "    gettitle|gt <gameid>             Print the Game Title for <gameid>"
+	echo "    help                             Show this help text"
+	echo "    helpurl|hu <gameid>              Open the help URL menu for <gameid>"
 	echo "    hedgemodmanager|hmm              HedgeModManager"
 	echo "            install|i                  install latest stable HedgeModManager"
 	echo "            download|d <channel>       download latest HedgeModManager release (stable or nightly)"
@@ -22601,10 +22615,10 @@ function howto {
 	echo "      --link                            Symlink art files to Steam Grid folder"
 	echo "      --move                            Move art files to Steam Grid folder"
 	echo "    settings <value>                 Opens the $SETMENU"
+	echo "    sort                             Open the category sort menu"
 	echo "    src                              Shortcut '$STERECO'"
 	echo "    steamdeckcompat <gameid>         Get information about Steam Deck compatibility for <gameid>"
 	echo "                                       Will work offline if the information has been fetched before"
-	echo "                                       (for 'SteamAppID' or 'last')"
 	echo "    steamgriddb|sgdb <appid/args>    Download most relevant artwork from SteamGridDB based on Steam AppID or SteamGridDB Game ID"
 	echo "                                      Attempts to search for and download hero, logo, and boxart from SteamGridDB, and can optionally"
 	echo "                                      apply this artwork to the game in your Steam library, by giving it the AppID of the game to use"
@@ -22685,6 +22699,14 @@ function howto {
 	echo "                                       (no effect if already enabled)"
 	echo "                                     <s>kip the waitrequester temporarily"
 	echo "                                     <u>nskip the temporary waitrequester skip"
+	echo "    noty [text]                      Show a test notification"
+	echo "    pdb <gameid>                     Look up <gameid> on ProtonDB"
+	echo "    pickwin|pw <gameid> <win>        Pick/save a window name for SBS-VR"
+	echo "    runwinecfg|onetimewinecfg|otwcfg [gameid]   Run Winecfg once in a game's prefix"
+	echo "    runwinetricks|onetimewinetricks|otwt [gameid] Run Winetricks once in a game's prefix"
+	echo "    ${SPEK,,} download|dl            Download ${SPEK}"
+	echo "    winedebugchannel|wdc <gameid>    Set Wine debug channels for <gameid>"
+	echo "    winetricks|wt <gameid>           Launch Winetricks for <gameid>'s prefix"
 	echo "    wiki <page>                      Opens the wiki <page> in yad"
 	echo "    yad <yad binary> <opt>           Configure the used Yad binary"
 	echo "                                       <yad binary> can be either"
@@ -22699,6 +22721,15 @@ function howto {
 
 #STARTCMDLINE
 function commandline {
+	if [ "$1" == "-q" ]; then
+		writelog "INFO" "${FUNCNAME[0]} - Quiet mode enabled with '-q', suppressing notifier for this execution"
+		export STLQUIET=1
+		USENOTIFIER=0
+		shift
+		commandline "$@"
+		return
+	fi
+
 	if [ "$1" == "addcustomproton" ] || [ "$1" == "acp" ]; then
 		addCustomProton "$2" "$3"
 	elif [ "$1" == "addnonsteamgame" ] || [ "$1" == "ansg" ] ; then
@@ -22893,74 +22924,10 @@ function commandline {
 		fetchGameSLRGui "$2"
 	elif [ "$1" == "debug" ]; then
 		## Why are you looking here? :-)
-		DEBUGNOSTAID="-222353304"
-
-		### This part of debug is for testing updating the JSON blob in the localconfig VDF
-		### that holds information about which Collections a non-steam game is using
-		###
-		### It may also be some now-outdated testing for localconfig.vdf parsing
-
-		# # Don't let the user run the internal debug command
+		# Don't let the user run the internal debug command
 		writelog "WARN" "${FUNCNAME[0]} - No debug for you!"
 		echo "No debug for you!"
 		return
-
-		# DEBUGNOSTAID="-222353304"
-
-		DEBUGTESTT="$( findSteamShortcutByAppID "3581081989" )"
-		parseSteamShortcutEntryAppID "$DEBUGTESTT"
-
-		# editSteamShortcutEntry "3666773025" "appname" "New Name 2"
-
-		# return
-
-		# DEBUG_LOCOVDF="$STUIDPATH/config/localconfig bsak.vdf"
-
-		## Get nested VDF section
-		# getNestedVdfSection "Valve/Steam/Apps/7/cloud" "2" "$DEBUG_LOCOVDF"
-
-		## -----
-		## Mark Non-Steam Game game with given AppID as 'hidden'
-		## Could be extended to add to categories once we can get the category
-		NOUSCOEXISTS=0
-		DEBUG_LOCOVDF="$STUIDPATH/config/localconfig bsak.vdf"
-
-		LOCOWESTO="$( getVdfSection "WebStorage" "" "" "$DEBUG_LOCOVDF" )"
-		LOCOUSCO="$( getVdfSectionValue "$LOCOWESTO" "user-collections" "1" )"
-
-		if [ -z "$LOCOUSCO" ]; then
-			echo "No user-collections information defined, creating new one"
-			# shellcheck disable=SC2034
-			NOUSCOEXISTS=1  # debug var
-			LOCOUSCO="\"{}\""
-		fi
-
-		LOCOUSCO="$( echo "$LOCOUSCO" | jq 'fromjson' )"
-
-		## Insert Non-Steam Game into user-collection 'hidden' category, creating it if it doesn't exist
-		if ! jq -e '. | try(.hidden)' <<< "$LOCOUSCO" >/dev/null ; then
-			echo "No hidden games, adding blank hidden category"
-			LOCOUSCO="$( jq '. += { hidden: { id: "hidden", added: [], removed: [] } }' <<< "$LOCOUSCO" )"
-		fi
-
-		LOCOUSCO="$( jq '.hidden.added += [ 1234567890 ]' <<< "$LOCOUSCO" )"
-
-		if [ "$NOUSCOEXISTS" -eq 1 ]; then
-			echo "Adding new section into VDF"
-			addVdfSectionValue "$LOCOWESTO" "user-collections" "$LOCOUSCO" "$DEBUG_LOCOVDF"
-		else
-			echo "Editing existing VDF value with '$LOCOUSCO'"
-			editVdfSectionValue "$LOCOWESTO" "user-collections" "$LOCOUSCO" "$DEBUG_LOCOVDF"
-		fi
-
-		addVdfSectionValue "$LOCOWESTO" "test-val" "testvall" "$DEBUG_LOCOVDF"
-
-		## -----
-
-		## Update OverlayAppEnable for given shortcut in localconfig.vdf
-		SHORTCUTLOCALCONFIGVDFSECTION="$( getNestedVdfSection "Apps/${DEBUGNOSTAID}" "1" "$DEBUG_LOCOVDF" )"
-		editVdfSectionValue "$SHORTCUTLOCALCONFIGVDFSECTION" "OverlayAppEnable" "0" "$DEBUG_LOCOVDF"
-		# getVdfSectionValue "$SHORTCUTLOCALCONFIGVDFSECTION" "OverlayAppEnable"
 	elif [ "$1" == "mo2" ]; then
 		if [ -n "$2" ]; then
 			if [ "$2" == "download" ] || [ "$2" == "d" ]; then
@@ -23022,7 +22989,7 @@ function commandline {
 			elif [ "$2" == "winetricks" ] || [ "$2" == "wt" ]; then
 				mo2Winetricks
 			elif [ "$2" == "resetmime" ]; then
-				writelog "INFO" "${FUNCMAME[0]} - (Re)setting MO2 .desktop file entries and MimeType associations"
+				writelog "INFO" "${FUNCNAME[0]} - (Re)setting MO2 .desktop file entries and MimeType associations"
 				echo "(Re)setting MO2 .desktop file entries and MimeType associations"
 				setMO2DLMime
 			else
@@ -23069,7 +23036,7 @@ function commandline {
 					dlHedgeMod "$3"
 				fi
 			elif [ "$2" == "resetmime" ]; then
-				writelog "INFO" "${FUNCMAME[0]} - (Re)setting HMM .desktop file entries and MimeType associations"
+				writelog "INFO" "${FUNCNAME[0]} - (Re)setting HMM .desktop file entries and MimeType associations"
 				echo "(Re)setting HMM .desktop file entries and MimeType associations"
 				createHMMDesktopFile
 			else
@@ -23189,7 +23156,7 @@ function commandline {
 							touch "$FUPDATE"
 							updateConfigEntry "$2" "$4" "$STLGAMEDIRID/$3.conf"
 						elif [ "$3" == "global" ] && [ -f "$STLDEFGLOBALCFG" ]; then
-							writelog "INFO" "${FUNCNAME[0]} - update global config entry '$2' to value '$3' in global config file '$STLDEFGLOBALCFG'" "E"
+							writelog "INFO" "${FUNCNAME[0]} - update global config entry '$2' to value '$4' in global config file '$STLDEFGLOBALCFG'" "E"
 							touch "$FUPDATE"
 							updateConfigEntry "$2" "$4" "$STLDEFGLOBALCFG"
 						else
@@ -23430,7 +23397,7 @@ function commandline {
 			elif [ "$2" == "winetricks" ] || [ "$2" == "wt" ]; then
 				vtxWinetricks
 			elif [ "$2" == "resetmime" ]; then
-				writelog "INFO" "${FUNCMAME[0]} - (Re)setting ${VTX^} .desktop file entries and MimeType associations"
+				writelog "INFO" "${FUNCNAME[0]} - (Re)setting ${VTX^} .desktop file entries and MimeType associations"
 				echo "(Re)setting ${VTX^} .desktop file entries and MimeType associations"
 				setVortexDLMime
 			else
@@ -23518,10 +23485,6 @@ function commandline {
 	elif [ "$1" == "openissue" ] || [ "$1" == "oi" ]; then
 		writelog "INFO" "${FUNCNAME[0]} - Opening issue tracker in user's default browser"
 		"$XDGO" "$PROJECTPAGE/issues/new/choose"
-	elif echo "$@" | grep -owq '\-q'; then
-		writelog "INFO" "${FUNCNAME[0]} - Quiet mode enabled with '-q', suppressing notifier for this execution"
-		export STLQUIET=1
-		USENOTIFIER=0
 	else
 		if ! grep -q "lang=\|run" <<< "$@"; then
 			writelog "INFO" "${FUNCNAME[0]} ------------------------"
@@ -25289,7 +25252,9 @@ function closeSTL {
 
 	if [ -f "$STLSHM/KillBrowser-$AID.txt" ]; then
 		writelog "INFO" "${FUNCNAME[0]} - '$BROWSER' instance was created, so closing it now, to exit the game session"
-		"$PKILL" -f "$BROWSER"
+		if [ -n "$BROWSER" ] && [ "$BROWSER" != "$XDGO" ]; then
+			"$PKILL" -f "$BROWSER"
+		fi
 		rm "$STLSHM/KillBrowser-$AID.txt"
 	fi
 
@@ -25366,10 +25331,10 @@ function closeSTL {
 	rm "$UPWINTMPL" 2>/dev/null
 	rm "$KILLSWITCH" 2>/dev/null
 	rm "$GWXTEMP" 2>/dev/null
-	rm "$STLSHM/lola-*.txt" 2>/dev/null
+	rm "$STLSHM"/lola-*.txt 2>/dev/null
 
 	# only useful for win games or games started outside steam:
-	if [ "$STLPLAY" -eq 1 ] || { [ "$ISGAME" -eq 2 ] || [ "$ISGAME" -eq 3 ] && [ "$USEWINE" -eq 0 ];}; then
+	if [ "$STLPLAY" -eq 1 ] || [ "$ISGAME" -eq 2 ] || { [ "$ISGAME" -eq 3 ] && [ "$USEWINE" -eq 0 ]; }; then
 		writeLastRun
 		storeMetaData "$AID" "$GN" "$GPFX" "$EFD"
 	fi
@@ -26594,7 +26559,7 @@ function checkSteamDeckDependencies {
 	if [ -f "$(command -v "yad")" ]; then
 		writelog "INFO" "${FUNCNAME[0]} - Using yad binary found in path: '$(command -v "yad")'"
 		echo "Dependency 'yad' already installed, nothing to do."
-		# Force update of global config file to add Yad path if it exists in $HOME/stl/deps/yad/bin
+		# Force update of global config file to add Yad path if it exists in $HOME/tg/deps/yad/bin
 		touch "$FUPDATE"
 		updateConfigEntry "YAD" "$( command -v "yad" )" "$STLDEFGLOBALCFG"
 	else
@@ -27008,8 +26973,8 @@ function checkSteamDeckSTLUpdated {
 	fi
 }
 
-# Clear dependencies in /home/deck/stl/deps so that they can be redownloaded the next time TinkerGame is ran on Steam Deck
-# This also serves as a quickfix for #719, as dependencies an be quickly removed and then re-downloaded to ensure better compatibility with SteamOS updates
+# Clear dependencies in /home/deck/tg/deps so that they can be redownloaded the next time TinkerGame is ran on Steam Deck
+# This also serves as a quickfix for upstream issue #719, as dependencies can be quickly removed and then re-downloaded to ensure better compatibility with SteamOS updates
 # In future, STL should auto-bump these somehow
 function clearDeckDeps {
 	if [ "$ONSTEAMDECK" -eq 1 ]; then

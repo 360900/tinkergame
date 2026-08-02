@@ -10,7 +10,7 @@ assignees: ''
 <!--
 Fill out as much of the required information as you can. Please do not ignore the issue template, otherwise your issue may be closed without resolution.
 
-Feel free to search through currently open issues to see if someone else has already reported your issue, or to see if your issue has already been resolved. If at all possible, try testing the latest version of TinkerGame from the master branch to see if the issue has already been fixed. You can also check the changelog on the wiki to see if its been fixed since the latest release: https://github.com/tinkergame/tinkergame/wiki/Changelog
+Feel free to search through currently open issues to see if someone else has already reported your issue, or to see if your issue has already been resolved. If at all possible, try testing the latest version of TinkerGame from the master branch to see if the issue has already been fixed. You can also check the changelog on the wiki to see if its been fixed since the latest release: https://github.com/360900/tinkergame/wiki/Changelog
 -->
 
 ## System Information

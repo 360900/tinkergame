@@ -43,6 +43,15 @@ Review custom configuration values before launching a game. In particular,
 check custom commands, compatibility-tool paths, and scripts that explicitly
 call `steamtinkerlaunch`.
 
+## Steam Deck
+
+On Steam Deck the dependency and version-marker paths changed as part of the
+rename. The offline dependency folder is now `/home/deck/tg` instead of
+`/home/deck/stl`, prefixes carry a `tg-version` marker instead of
+`stl-version`, and OpenVR-FSR writes `openvr_fsr-tg-enabled.txt` instead of
+`openvr_fsr-stl-enabled.txt`. Older prefixes are detected as a fresh install
+once and get re-patched; this is expected.
+
 ## Re-register With Steam
 
 Remove the old compatibility-tool entry and register TinkerGame again:

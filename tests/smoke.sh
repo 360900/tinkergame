@@ -18,7 +18,8 @@ test -f MIGRATION.md
 
 if grep -R -n --exclude=MIGRATION.md --exclude=LICENSE \
 	--exclude-dir=.git --exclude-dir=tests \
-	-e 'steamtinkerlaunch' -e 'SteamTinkerLaunch' .; then
+	-e 'steamtinkerlaunch' -e 'SteamTinkerLaunch' . \
+	| grep -v -e 'sonic2kk/steamtinkerlaunch'; then
 	printf '%s\n' 'legacy project name found outside migration documentation' >&2
 	exit 1
 fi

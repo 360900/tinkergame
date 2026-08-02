@@ -4,7 +4,7 @@
 	"revision"		"1"
 	"title"		"TinkerGame control"
 	"description"		"#Steam Deck controller settings for TinkerGame"
-	"author"	"frostworx"
+	"author"	"TinkerGame"
 	"url"		"autosave:///home/deck/.local/share/Steam/steamapps/common/Steam Controller Configs/XXXXXX/config/YYYYYY/controller_neptune.vdf"
 	"export_type"		"unknown"
 	"controller_type"		"controller_neptune"
