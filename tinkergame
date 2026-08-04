@@ -17751,6 +17751,7 @@ function installMO2 {
 				fi
 				notiShow "$(strFix "$NOTY_INSTSTOP" "${MO2SPATH##*/}")" "S"
 				writelog "INFO" "${FUNCNAME[0]} - Base ${MO} installation finished"
+				setMO2DLMime
 				notiShow "$GUI_DONE" "S"
 			else
 				writelog "SKIP" "${FUNCNAME[0]} - MO2RUNPROT '$MO2RUNPROT' not found, can't continue with $MO installion"
