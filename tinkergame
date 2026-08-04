@@ -1759,19 +1759,23 @@ function commandlineGetSteamGridDBArtwork {
 	echo "$GSGDBA_APPID" > "$NOSTSGDBIDSHMFILE"  # Store ID in case other functions need it (i.e. addNonSteamGame) -- Little hacky, would rather return this somehow...
 }
 
+function getGridsForGames {
+	local STGAAIDLIST STGAAID
+
+	STGAAIDLIST="${1:-}"
+	while read -r STGAAID; do
+		getSteamGridDBArtwork "$STGAAID"
+	done <<< "$STGAAIDLIST"
+}
 function getGridsForOwnedGames {
 	if checkSGDbApi; then
-		while read -r OWNSTGAAID; do
-			getSteamGridDBArtwork "$OWNSTGAAID"
-		done <<< "$( getOwnedAids )"
+		getGridsForGames "$( getOwnedAids )"
 	fi
 }
 function getGridsForInstalledGames {
 	if checkSGDbApi; then
 		if [ "$(listInstalledGameIDs | wc -l)" -gt 0 ]; then
-			while read -r INSTGAAID; do
-				getSteamGridDBArtwork "$INSTGAAID"
-			done <<< "$( listInstalledGameIDs )"
+			getGridsForGames "$( listInstalledGameIDs )"
 		else
 			writelog "SKIP" "${FUNCNAME[0]} - No installed games found!"
 		fi
@@ -5312,7 +5316,7 @@ function EditorDialog {
 						checkHelpUrl "$HELPURL"
 					fi
 
-					if [ -z "$STLEDITOR" ] || [ "$STLEDITOR" -eq "$NON" ]; then
+					if [ -z "$STLEDITOR" ] || [ "$STLEDITOR" = "$NON" ]; then
 						writelog "INFO" "${FUNCNAME[0]} - No editor found or selected. Falling back to '$XDGO'"
 						writelog "WARN" "${FUNCNAME[0]} - If you find games fail to close try setting an editor manually"
 						STLEDITOR=$XDGO
@@ -18622,6 +18626,16 @@ function checkExtDeps {
 	checkDep "USEOBSCAP" "$OBSCAP"
 }
 
+function getLatestYadAppImage {
+	# Probe GitHub for the newest Yad AppImage release name, so we don't hardcode an old version
+	# Prints nothing if the probe fails and the caller can fall back to a known-good default
+	local YADLATEST
+	YADLATEST="$("$WGET" -q --timeout=10 "${AGHURL}/repos/sonic2kk/steamtinkerlaunch-tweaks/releases/latest" -O - 2>/dev/null | grep -o '"tag_name": *"[^"]*"' | head -n1 | cut -d '"' -f4)"
+	if [ -n "$YADLATEST" ] && grep -qi "\.appimage$" <<< "$YADLATEST"; then
+		echo "$YADLATEST"
+	fi
+}
+
 function setYadBin {
 	local YADINSTLDLDIR
 	local YADINSTLDEPS
@@ -18664,7 +18678,12 @@ function setYadBin {
 
 	elif [ "$1" == "ai" ] || [ "$1" == "appimage" ]; then
 		# YADSTLIMAGE="Yad-8418e37-x86_64.AppImage"
-		YADSTLIMAGE="Yad-13.0-x86_64.AppImage"
+		# Probe for the latest release so we don't silently fall back to an old version, then use a known-good default
+		YADSTLIMAGE="$(getLatestYadAppImage)"
+		if [ -z "$YADSTLIMAGE" ]; then
+			writelog "WARN" "${FUNCNAME[0]} - Could not determine latest Yad AppImage release, falling back to the default"
+			YADSTLIMAGE="Yad-13.0-x86_64.AppImage"
+		fi
 		YAIDL="$YAIURL/$YADSTLIMAGE/$YADSTLIMAGE"
 		YADAPPIMAGE="$YADSTLIMAGE"
 		DLCHK="sha512sum"
@@ -18836,8 +18855,7 @@ function checkIntDeps {
 
 		if [ ! -x "$(command -v "steam")" ] && [ "$INFLATPAK" -eq 0 ]; then
 			DEPSMISSING=1
-			echo "ERROR" "Steam not found"
-			writelog "ERROR" "${FUNCNAME[0]} - Steam not found"
+			writelog "ERROR" "${FUNCNAME[0]} - Steam not found" "E"
 		fi
 
 		setAwkBin
@@ -20014,7 +20032,7 @@ function checkHelpUrl {
 		if [ -n "$HELPURL" ]; then
 			HELPURLNQ="${HELPURL//\"}"
 
-			if [ -z "$BROWSER" ] || [ "$BROWSER" -eq "$NON" ]; then
+			if [ -z "$BROWSER" ] || [ "$BROWSER" = "$NON" ]; then
 				writelog "INFO" "${FUNCNAME[0]} - No web browser selected falling back to '$XDGO'"
 				writelog "WARN" "${FUNCNAME[0]} - If issues occur opening web pages try setting a browser manually"
 				BROWSER="$XDGO"
@@ -20649,6 +20667,7 @@ function gameScopeArgs {  # This implementation could be VASTLY improved!
 	fi
 }
 
+
 function gameArgs {
 	ARGSTRING="$1"
 	unset GAMEARGSARR
@@ -21144,7 +21163,6 @@ function standaloneLaunch {
 	export CURWIKI="$PPW/$STLA"
 	TITLE="${PROGNAME}-$STLA"
 	pollWinRes "$TITLE"
-	echo "STLISLDFD $STLISLDFD"
 	if [ -d "$STLISLDFD" ] && [ "$(find "$STLISLDFD" -name "*.desktop" | wc -l)" -ge 1 ]; then
 		"$YAD" --f1-action="$F1ACTION" --icons --window-icon="$STLICON" --read-dir="$STLISLDFD" "${WINDECO[@]}" --title="$TITLE" --single-click --keep-icon-size --center --compact --sort-by-name "$GEOM"
 	else
@@ -22661,7 +22679,7 @@ function howto {
 	echo "                                      Note that this will not remove your mods or installed Winetricks"
 	echo "    lang=<option>                    Mostly to get translated configs on inital setup."
 	echo "                                      <option> can be a language file name without suffix or an path to a valid language file"
-    echo "    launcher <args>                  Start the Game Launcher"
+	echo "    launcher <args>                  Start the Game Launcher"
 	echo "             COLLECTION                Show only installed games from Steam collection COLLECTION"
 	echo "             menu                      Open Steam Collection Menu"
 	echo "             last                      Open last Game as 'Menu'"
@@ -22708,10 +22726,10 @@ function howto {
 	echo "         --save                        Save given configuration for use in the One-Time Run GUI for this game in future"
 	echo "         --default                     Restore all saved One-Time Run values to default"
 	echo "    play <gameid>                    Start game with id <gameid> directly"
- 	echo "    proton|p <title> <X>             Start and/or create <title> with proton"
+	echo "    proton|p <title> <X>             Start and/or create <title> with proton"
 	echo "                                       without using steam."
 	echo "                                       Optional <X> opens gui"
- 	echo "    proton|p list                    Update the list of all available proton versions"
+	echo "    proton|p list                    Update the list of all available proton versions"
 	echo "    set <var> <for> <value>          Change configuration settings, either per-game (<AppID>), for all games (<all>),"
 	echo "                                      or in the Global config (<global>)"
 	echo "                                       Example:"
@@ -22803,7 +22821,7 @@ function howto {
 	echo "           getset                      Show config of installed ${VTX^}"
 	echo "           reset                       Reset all autodetected settings in ${VTX^}"
 	echo "           stage <path>                Add ${VTX^} stage via dialog"
-    echo "                                        or directly the one given in <path>"
+	echo "                                        or directly the one given in <path>"
 	echo "           resetmime                   (Re)set MimeType and application menu entries"
 	echo "           winecfg                     Run Winecfg with ${VTX^} Wine in ${VTX^} prefix"
 	echo "           winetricks|wt               Run Winetricks with ${VTX^} Wine in ${VTX^} prefix"
@@ -22836,18 +22854,20 @@ function howto {
 
 #STARTCMDLINE
 function commandline {
-	if [ "$1" == "-q" ]; then
+	case "$1" in
+	"-q")
 		writelog "INFO" "${FUNCNAME[0]} - Quiet mode enabled with '-q', suppressing notifier for this execution"
 		export STLQUIET=1
 		USENOTIFIER=0
 		shift
 		commandline "$@"
 		return
-	fi
+	;;
 
-	if [ "$1" == "addcustomproton" ] || [ "$1" == "acp" ]; then
+	"addcustomproton"|"acp")
 		addCustomProton "$2" "$3"
-	elif [ "$1" == "addnonsteamgame" ] || [ "$1" == "ansg" ] ; then
+	;;
+	"addnonsteamgame"|"ansg")
 		if [ -z "$2" ]; then
 			addNonSteamGameGui "$NON"
 		else
@@ -22862,17 +22882,20 @@ function commandline {
 				addNonSteamGameGui "$NON"
 			fi
 		fi
-	elif [ "$1" == "backup" ]; then
+	;;
+	"backup")
 		if [ "$2" == "all" ]; then
 			backupSteamUserGate "$2"
 		else
 			FUSEID "$2"
 			backupSteamUserGate "$USEID"
 		fi
-	elif [ "$1" == "block" ]; then
+	;;
+	"block")
 		FUSEID "$2"
 		setGuiBlockSelection "$USEID"
-	elif [ "$1" == "cleardeckdeps" ]; then
+	;;
+	"cleardeckdeps")
 		# We check this in clearDeckDeps too, but thsis is just insurance
 		if [ "$ONSTEAMDECK" -eq 1 ]; then
 			clearDeckDeps
@@ -22880,9 +22903,11 @@ function commandline {
 			writelog "SKIP" "${FUNCNAME[0]} - Not on Steam Deck, nothing to do."
 			echo "Not on Steam Deck, nothing to do."
 		fi
-	elif [ "$1" == "sort" ]; then
+	;;
+	"sort")
 		setGuiSortOrder
-	elif [ "$1" == "compat" ]; then
+	;;
+	"compat")
 		if [ -n "$2" ]; then
 			if [ "$2" == "add" ] || [ "$2" == "del" ] || [ "$2" == "get" ]; then
 				CompatTool "$2"
@@ -22892,17 +22917,20 @@ function commandline {
 		else
 			CompatTool "get"
 		fi
-	elif [ "$1" == "conty" ]; then
+	;;
+	"conty")
 		if [ -n "$2" ]; then
 			if [ "$2" == "up" ] || [ "$2" == "update" ]; then
 				updateConty
 			fi
 		fi
-	elif [ "$1" == "createcompatdata" ] || [ "$1" == "ccd" ]; then
+	;;
+	"createcompatdata"|"ccd")
 		FUSEID "$2"
 		writelog "INFO" "${FUNCNAME[0]} - Starting Install via command: reCreateCompatdata \"$1\" \"$USEID\" \"$3\""
 		reCreateCompatdata "$1" "$USEID" "$3"
-	elif [ "$1" == "createdesktopicon" ] || [ "$1" == "cdi" ]; then
+	;;
+	"createdesktopicon"|"cdi")
 		if [ "$2" == "all" ]; then
 			if [ "$(listInstalledGameIDs | wc -l)" -eq 0 ]; then
 				writelog "SKIP" "${FUNCNAME[0]} - No installed games found!" "E"
@@ -22915,7 +22943,8 @@ function commandline {
 			FUSEID "$2"
 			createDesktopIconFile "$USEID" "$3"
 		fi
-	elif [ "$1" == "createappinfo" ] || [ "$1" == "cai" ]; then
+	;;
+	"createappinfo"|"cai")
 		if [ "$2" == "installed" ] || [ "$2" == "i" ]; then
 			if [ "$(listInstalledGameIDs | wc -l)" -eq 0 ]; then
 				writelog "SKIP" "${FUNCNAME[0]} - No installed games found!" "E"
@@ -22932,7 +22961,8 @@ function commandline {
 			FUSEID "$2"
 			getRawAppIDInfo "$USEID" "$3"
 		fi
-	elif [ "$1" == "createappinfometa" ] || [ "$1" == "caim" ]; then
+	;;
+	"createappinfometa"|"caim")
 		if [ -n "$2" ]; then
 			if [ "$2" == "installed" ] || [ "$2" == "i" ]; then
 				if [ "$(listInstalledGameIDs | wc -l)" -eq 0 ]; then
@@ -22955,33 +22985,43 @@ function commandline {
 		else
 			writelog "INFO" "${FUNCNAME[0]} - need at least 'installed|i' or 'owned|o' or a SteamAppId as arg2" "E"
 		fi
-	elif [ "$1" == "createfirstinstall" ] || [ "$1" == "cfi" ]; then
+	;;
+	"createfirstinstall"|"cfi")
 		FUSEID "$2"
 		CreateCustomEvaluatorScript "$USEID"
-	elif [ "$1" == "configdir" ]; then
+	;;
+	"configdir")
 		"$XDGO" "$STLCFGDIR"
-	elif [ "$1" == "${DPRS,}" ] || [ "$1" == "dprs" ]; then
+	;;
+	"${DPRS,}"|"dprs")
 		startDepressurizer
-	elif [ "$1" == "dlcustomproton" ] || [ "$1" == "dcp" ]; then
+	;;
+	"dlcustomproton"|"dcp")
 		dlCustomProtonGate "$2"
-	elif [ "$1" == "dlwine" ] || [ "$1" == "dw" ]; then
+	;;
+	"dlwine"|"dw")
 		dlWineGate "$2"
-	elif [ "$1" == "dxvkhud" ] || [ "$1" == "dxh" ]; then
+	;;
+	"dxvkhud"|"dxh")
 		FUSEID "$2"
 		DxvkHudPick "$USEID"
-	elif [ "$1" == "listproton" ] || [ "$1" == "lp" ]; then
+	;;
+	"listproton"|"lp")
 		prettyPrintProtonArr "$2"
-	elif [ "$1" == "dotnet" ]; then
+	;;
+	"dotnet")
 		if [ -n "$3" ]; then
 			installDotNet "$2" "$3" "$4"
 		else
 			writelog "INFO" "${FUNCNAME[0]} - need at least a winepfx as arg2 '$2' and a wine binary as arg3" "E"
 			#howto
 		fi
-	elif [ "$1" == "editor" ]; then
+	;;
+	"editor")
 		FUSEID "$2"
 		EditorDialog "$USEID"
-	elif [ "$1" == "fav" ]; then
+	;;
+	"fav")
 		FUSEID "$2"
 		if [ -n "$3" ] && [ "$3" == "set" ]; then
 			setGuiFavoritesSelection "$USEID"
@@ -22990,60 +23030,76 @@ function commandline {
 			favoritesMenu "$USEID"
 			cleanYadLeftOvers
 		fi
-	elif [ "$1" == "gamefiles" ] || [ "$1" == "gf" ]; then
+	;;
+	"gamefiles"|"gf")
 		FUSEID "$2"
 		GameFilesMenu "$USEID"
-	elif [ "$1" == "gamescope" ] || [ "$1" == "gs" ]; then
+	;;
+	"gamescope"|"gs")
 		FUSEID "$2"
 		GameScopeGui "$USEID" "$3"
-	elif [ "$1" == "getexe" ] || [ "$1" == "ge" ]; then
+	;;
+	"getexe"|"ge")
 		getGameExe "$2" "1"
-	elif [ "$1" == "getid" ] || [ "$1" == "gi" ] || [ "$1" == "gid" ]; then
+	;;
+	"getid"|"gi"|"gid")
 		getIDFromTitle "$2" "1"
-	elif [ "$1" == "gettitle" ] || [ "$1" == "gt" ]; then
+	;;
+	"gettitle"|"gt")
 		getTitleFromID "$2" "1"
-	elif [ "$1" == "getcompatdata" ] || [ "$1" == "gc" ]; then
+	;;
+	"getcompatdata"|"gc")
 		getCompatData "$2" "1"
-	elif [ "$1" == "getgamedir" ] || [ "$1" == "gg" ]; then
+	;;
+	"getgamedir"|"gg")
 		if [ "$3" == "only" ]; then
 			getGameDir "$2" "X" "1"
 		else
 			getGameDir "$2" "" "1"
 		fi
-	elif [ "$1" == "help" ] || [ "$1" == "--help" ] || [ "$1" == "-h" ]; then
+	;;
+	"help"|"--help"|"-h")
 		howto
-	elif [ "$1" == "helpurl" ] || [ "$1" == "hu" ]; then
+	;;
+	"helpurl"|"hu")
 		FUSEID "$2"
 		HelpUrlMenu "$USEID"
 		if [ -z "$3" ]; then
 			rm "$STLSHM/KillBrowser-$AID.txt" 2>/dev/null
 		fi
-	elif [ "$1" == "launcher" ]; then
+	;;
+	"launcher")
 		openGameLauncher "$2" "$3"
-	elif [ "$1" == "list" ]; then
+	;;
+	"list")
 		if [ -z "$2" ]; then
 			echo "invalid usage - must pass one additional argument to 'list' command, either 'owned' or 'installed'"
 		else
 			listSteamGames "$2" "$3" # 3rd parameter is optional
 		fi
-	elif [ "$1" == "meta" ]; then
+	;;
+	"meta")
 		createMetaData "yes"
-	elif [ "$1" == "getslr" ]; then
+	;;
+	"getslr")
 		if [ "$3" == "native" ]; then
 			FETCHNATIVESLR=1
 		else
 			FETCHNATIVESLR=0
 		fi
 		commandlineFetchGameSLR "$2" "$FETCHNATIVESLR"
-	elif [ "$1" == "getslrbtn" ]; then  # Internal use only for the Main Menu button
+	;;
+	"getslrbtn")
 		fetchGameSLRGui "$2"
-	elif [ "$1" == "debug" ]; then
+	;;
+	"debug")
 		## Why are you looking here? :-)
 		# Don't let the user run the internal debug command
 		writelog "WARN" "${FUNCNAME[0]} - No debug for you!"
 		echo "No debug for you!"
 		return
-	elif [ "$1" == "mo2" ]; then
+	;;
+	"mo2")
 		if [ -n "$2" ]; then
 			if [ "$2" == "download" ] || [ "$2" == "d" ]; then
 				dlLatestMO2
@@ -23115,7 +23171,8 @@ function commandline {
 			echo "need arg2"
 			howto
 		fi
-	elif [ "$1" == "hedgemodmanager" ] || [ "$1" == "hmm" ]; then
+	;;
+	"hedgemodmanager"|"hmm")
 		if [ -n "$2" ]; then
 			if [ -n "$3" ]; then
 				CMDHMMDLVER="$3"
@@ -23162,9 +23219,11 @@ function commandline {
 			writelog "INFO" "arg2 '$2' is no valid command"
 			howto
 		fi
-	elif [ "$1" == "opengridfolder" ] || [ "$1" == "ogf" ]; then
+	;;
+	"opengridfolder"|"ogf")
 		openSteamGridDir
-	elif [ "$1" == "setgameart" ] || [ "$1" == "sga" ]; then
+	;;
+	"setgameart"|"sga")
 		if [ -n "$2" ]; then
 			if [ -z "$3" ]; then
 				setGameArtGui "$2"  # Don't think this function needs to take any arguments
@@ -23174,14 +23233,16 @@ function commandline {
 		else
 			echo "At least one argument (AppID) must be provided"
 		fi
-	elif [ "$1" == "noty" ]; then
+	;;
+	"noty")
 		if [ -n "$2" ]; then
 			NTEXT="$2"
 		else
 			NTEXT="notifier test"
 		fi
 		notiShow "$NTEXT"
-	elif [ "$1" == "onetimerun" ] || [ "$1" == "otr" ]; then
+	;;
+	"onetimerun"|"otr")
 		FUSEID "$2"
 		if [ -z "$2" ]; then
 			writelog "WARN" "${FUNCNAME[0]} - No AppID provided for One-Time Run, attempting to start with last known AppID '$USEID'"
@@ -23198,9 +23259,11 @@ function commandline {
 				commandlineOneTimeRun "${@:2}"
 			fi
 		fi
-	elif [ "$1" == "pdb" ]; then
+	;;
+	"pdb")
 		getProtonDBRating "$2"
-	elif [ "$1" == "steamdeckcompat" ] || [ "$1" == "sdc" ]; then
+	;;
+	"steamdeckcompat"|"sdc")
 		mapfile -d ";" -t -O "${#DECKCOMPATARR[@]}" DECKCOMPATARR <<< "$( getSteamDeckCompatInfo "$( echo "$2" | xargs )" )"
 		unset "DECKCOMPATARR[-1]"
 
@@ -23216,9 +23279,11 @@ function commandline {
 				done
 			fi
 		fi
-	elif [ "$1" == "pickwin" ] || [ "$1" == "pw" ]; then
+	;;
+	"pickwin"|"pw")
 		pickGameWindowNameMeta "$2" "$3"
-	elif [ "$1" == "play" ]; then
+	;;
+	"play")
 		if [ -z "$2" ]; then
 			writelog "INFO" "${FUNCNAME[0]} - need at a valid game name or SteamAppId of an installed game or an absolute path to a game exe as arg2 '$2' or 'gui' for a menu" "E"
 		else
@@ -23232,13 +23297,15 @@ function commandline {
 				initPlay "${@:2}"
 			fi
 		fi
-	elif [ "$1" == "proton" ] || [ "$1" == "p" ]; then
+	;;
+	"proton"|"p")
 		if [ -n "$2" ] && [ "$2" == "list" ]; then
 			getAvailableProtonVersions "up" X
 		else
 			StandaloneProtonGame "$2" "$3"
 		fi
-	elif [ "$1" == "set" ]; then
+	;;
+	"set")
 		if [ -n "$2" ]; then
 				if [ "$3" == "global" ]; then
 					ENTLIST="$(sed -n "/#STARTsaveCfgglobal/,/ENDsaveCfgglobal/p;/#ENDsaveCfgglobal/q" "$0" | grep "echo" | grep "=" | cut -d '"' -f2 | cut -d '=' -f1 | sed 's/^#//')"
@@ -23288,11 +23355,14 @@ function commandline {
 			writelog "INFO" "${FUNCNAME[0]} - arg2 is missing, you need to provide a valid config entry which should be updated!" "E"
 			exit
 		fi
-	elif [ "$1" == "settings" ]; then
+	;;
+	"settings")
 		startSettings "$2"
-	elif [ "$1" == "src" ]; then
+	;;
+	"src")
 			"$STEAM" "${STEAM}://${RECO}"
-	elif [ "$1" == "steamworksshared" ] || [ "$1" == "sws" ]; then
+	;;
+	"steamworksshared"|"sws")
 		if [ -n "$2" ]; then
 			if [ "$2" == "install" ] || [ "$2" == "i" ]; then
 				if [ -n "$4" ]; then
@@ -23311,7 +23381,8 @@ function commandline {
 			echo "need arg2"
 			howto
 		fi
-	elif [ "$1" == "${SPEK,,}" ]; then
+	;;
+	"${SPEK,,}")
 		if [ -n "$2" ]; then
 			if [ "$2" == "download" ] || [ "$2" == "dl" ]; then
 				dlSpecialK "$3"
@@ -23321,7 +23392,8 @@ function commandline {
 		else
 			howto
 		fi
-	elif [ "$1" == "steamgriddb" ] || [ "$1" == "sgdb" ]; then
+	;;
+	"steamgriddb"|"sgdb")
 		# This is the new SteamGridDB commandline usage, we just expose direct function to commandline
 
 		# No arguments passed, skip
@@ -23339,9 +23411,11 @@ function commandline {
 			## Will allow for usage like `tinkergame sgdb 730 --apply` which is very clean
 			commandlineGetSteamGridDBArtwork "$@"
 		fi
-	elif [ "$1" == "getsteamgriddbid" ] || [ "$1" == "sgdbid" ]; then
+	;;
+	"getsteamgriddbid"|"sgdbid")
 		getSGDBGameIDFromTitle "$2"
-	elif [ "$1" == "update" ]; then
+	;;
+	"update")
 		if [ -n "$2" ]; then
 			if [ "$2" == "gamedata" ]; then
 				if [ -z "$3" ]; then
@@ -23407,16 +23481,19 @@ function commandline {
 		else
 			howto
 		fi
-	elif [ "$1" == "cleargamegrids" ]; then
+	;;
+	"cleargamegrids")
 		if [ -z "$2" ]; then
 			writelog "ERROR" "${FUNCNAME[0]} - No parameter given, cannot remove artwork, skipping"
 			echo "You must provide either a Steam AppID to remove artwork for, or specify 'all' to remove all game artwork"
 		else
 			removeSteamGrids "$2"
 		fi
-	elif [ "$1" == "version" ] || [ "$1" == "--version" ] || [ "$1" == "-v" ]; then
+	;;
+	"version"|"--version"|"-v")
 		echo "${PROGNAME,,}-${PROGVERS}"
-	elif [ "$1" == "$VTX" ]; then
+	;;
+	"$VTX")
 		# TODO Vortex uninstall option?
 		# TODO Vortex commandline flag to set no auto update (i.e. --disable-auto-update)
 
@@ -23523,7 +23600,8 @@ function commandline {
 			echo "need arg2"
 			howto
 		fi
-	elif [ "$1" == "vr" ]; then
+	;;
+	"vr")
 		if [ -n "$3" ]; then
 			GAMEWINDOW="$2"
 			AID="$3"
@@ -23535,7 +23613,8 @@ function commandline {
 		else
 			howto
 		fi
-	elif [ "$1" == "waitrequester" ] || [ "$1" == "wr" ]; then
+	;;
+	"waitrequester"|"wr")
 		if [ -n "$2" ] && { [ "$2" == "e" ] || [ "$2" == "s" ] || [ "$2" == "u" ];}; then
 			if [ "$2" == "e" ]; then
 				writelog "INFO" "${FUNCNAME[0]} - enabling the Wait Requester for the next launched game"
@@ -23556,12 +23635,15 @@ function commandline {
 			writelog "INFO" "${FUNCNAME[0]} - need either e,s or u as arg2"
 			howto
 		fi
-	elif [ "$1" == "wiki" ]; then
+	;;
+	"wiki")
 		OpenWikiPage "$2"
-	elif [ "$1" == "winetricks" ] || [ "$1" == "wt" ]; then
+	;;
+	"winetricks"|"wt")
 		FUSEID "$2"
 		chooseWinetricksPrefix "$USEID"
-	elif [ "$1" == "runwinecfg" ] || [ "$1" == "onetimewinecfg" ] || [ "$1" == "otwcfg" ]; then
+	;;
+	"runwinecfg"|"onetimewinecfg"|"otwcfg")
 		# Assumes that if `runwinecfg` is called without any arguments that it's an internal call
 		# Otherwise we assume if *any* arguments are passed that we're a user calling it from the command-line
 		if [ -n "$2" ]; then
@@ -23577,7 +23659,8 @@ function commandline {
 			writelog "INFO" "${FUNCNAME[0]} - Looks like we're getting an internal One-Time Winecfg call"
 			oneTimeWinecfg
 		fi
-	elif [ "$1" == "runwinetricks" ] || [ "$1" == "onetimewinetricks" ] || [ "$1" == "otwt" ]; then
+	;;
+	"runwinetricks"|"onetimewinetricks"|"otwt")
 		# All of the above comments about Winecfg apply to this Winetricks logic as well
 		if [ -n "$2" ]; then
 			writelog "INFO" "${FUNCNAME[0]} - Looks like we're a user calling this from the command line -- User passed '$2'"
@@ -23586,10 +23669,12 @@ function commandline {
 			writelog "INFO" "${FUNCNAME[0]} - Looks like we're getting an internal One-Time Winetricks call"
 			oneTimeWinetricks
 		fi
-	elif [ "$1" == "winedebugchannel" ] || [ "$1" == "wdc" ]; then
+	;;
+	"winedebugchannel"|"wdc")
 		FUSEID "$2"
 		SetWineDebugChannels "$USEID"
-	elif [ "$1" == "yad" ]; then
+	;;
+	"yad")
 		if [ -n "$2" ]; then
 			setYadBin "$2" "$3"
 		else
@@ -23597,16 +23682,19 @@ function commandline {
 			writelog "INFO" "${FUNCNAME[0]} - arg2 '$2' needs to be a valid yad parameter"
 			howto
 		fi
-	elif [ "$1" == "openissue" ] || [ "$1" == "oi" ]; then
+	;;
+	"openissue"|"oi")
 		writelog "INFO" "${FUNCNAME[0]} - Opening issue tracker in user's default browser"
 		"$XDGO" "$PROJECTPAGE/issues/new/choose"
-	else
+	;;
+	*)
 		if ! grep -q "lang=\|run" <<< "$@"; then
 			writelog "INFO" "${FUNCNAME[0]} ------------------------"
 			writelog "INFO" "${FUNCNAME[0]} - arg1 '$1' is no valid command"
 			howto
 		fi
-	fi
+	;;
+	esac
 }
 #ENDCMDLINE
 
