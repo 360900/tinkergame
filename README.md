@@ -81,9 +81,22 @@ registration as well. Add `--yes` to skip the confirmation prompt.
 sudo tinkergame-uninstall --purge
 ```
 
-The install requires Bash, YAD, Git, Wget, Tar, Unzip, and the other tools
-listed by the installation checks. Optional integrations add their own
-dependencies. `jq` is required for custom Proton and shader repository data.
+The install requires Bash, YAD, Git, Wget, Tar, Unzip, `jq`, `xdotool`, `xxd`,
+`xprop`, `xrandr`, and `xwininfo`. Optional integrations add their own
+dependencies.
+
+On Debian, Linux Mint, and Ubuntu:
+
+```sh
+sudo apt-get update
+sudo apt-get install bash yad git wget tar unzip jq xdotool xxd x11-xserver-utils x11-utils
+```
+
+On Arch Linux:
+
+```sh
+sudo pacman -S bash git jq tar unzip wget xdotool xxd xorg-xprop xorg-xrandr xorg-xwininfo yad
+```
 
 ## Use With Steam
 
