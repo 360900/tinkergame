@@ -380,6 +380,70 @@ function refreshProtList {
 	fi
 }
 
+function openMainMenuTabs {
+	# tabbed Main Menu - the 20 tool buttons from MM_G1..MM_G6 are shown as
+	# one notebook tab per group instead of one long button list.
+	# Requires MM_G1..MM_G6 (yad argument word arrays) and MM_TABS (labels).
+	# Returns the notebook exit code, or 3 so the caller falls back to the
+	# classic single form Main Menu.
+
+	# only an explicit "0" disables the tabs - unset means default (enabled)
+	if [ -n "$USETABBEDMENU" ] && [ "$USETABBEDMENU" -eq 0 ]; then
+		return 3
+	fi
+
+	if ! tgTabsSupported; then
+		writelog "SKIP" "${FUNCNAME[0]} - no Yad notebook support - using the classic single form Main Menu"
+		return 3
+	fi
+
+	if [ "${#MM_TABS[@]}" -le 1 ]; then
+		return 3
+	fi
+
+	mkProjDir "$MTEMP"
+
+	MM_TAB_PLUG() {
+		# one notebook tab with its group of tool buttons ($1 = tab number)
+		MMFLDS=()
+		case "$1" in
+			1) MMFLDS=("${MM_G1[@]}") ;;
+			2) MMFLDS=("${MM_G2[@]}") ;;
+			3) MMFLDS=("${MM_G3[@]}") ;;
+			4) MMFLDS=("${MM_G4[@]}") ;;
+			5) MMFLDS=("${MM_G5[@]}") ;;
+			6) MMFLDS=("${MM_G6[@]}") ;;
+		esac
+		GDK_BACKEND=x11 "${YAD:-yad}" --plug="$TGKEY" --tabnum="$1" --form --columns="$COLCOUNT" "${MMFLDS[@]}" --scroll
+	}
+
+	TGNB_TABS=("${MM_TABS[@]}")
+	TGNB_FUNCS=(MM_TAB_PLUG MM_TAB_PLUG MM_TAB_PLUG MM_TAB_PLUG MM_TAB_PLUG MM_TAB_PLUG)
+	TGNB_TITLE="$TITLE"
+	TGNB_TEXT="$SETHEAD"
+	TGNB_IMAGE="$SHOWPIC"
+	TGNB_OUTPREFIX="$MTEMP/mainmenu"
+	TGNB_F1ACTION="$F1ACTIONCG"
+	TGNB_BUTTONS=(
+		--button="$BUT_EXIT":0
+		--button="$BUT_GUISET_CATMENUSHORT":4
+		--button="$BUT_GM":6
+		--button="$BUT_DGM":8
+		--button="$BUT_GLM":10
+		--button="$BUT_FAV":12
+		--button="$BUT_EDITORMENU":14
+		--button="$BUT_SEARCH":18
+		--button="$BUT_PLAY":16
+	)
+
+	writelog "INFO" "${FUNCNAME[0]} - Opening the tabbed Main Menu with '${#MM_TABS[@]}' tabs"
+
+	TGNBRC=0
+	tgNotebookLaunch || TGNBRC=$?
+
+	return "$TGNBRC"
+}
+
 function MainMenu {
 	writelog "INFO" "${FUNCNAME[0]} - Preparing to load Main Menu"
 
@@ -495,83 +559,120 @@ function MainMenu {
 
 	createProtonList X
 
-	"$YAD" --image "$SHOWPIC" "${YADIMGTOP[@]}" --scroll --center --window-icon="$STLICON" --form "${WINDECO[@]}" --title="$TITLE" \
-	--text="$SETHEAD" \
-	--columns="$COLCOUNT" --f1-action="$F1ACTIONCG" --separator="" \
-	--field="$FBUT_GUISET_DCP":FBTN "$(realpath "$0") dcp" \
-	--field="$FBUT_GUISET_DW":FBTN "$(realpath "$0") dw" \
-	--field="$FBUT_GUISET_RECREATEPFX":FBTN "$(realpath "$0") ccd \"$AID\" \"s\"" \
-	--field="$FBUT_GUISET_WDC":FBTN "$(realpath "$0") wdc \"$AID\"" \
-	--field="$FBUT_GUISET_WTSEL":FBTN "$(realpath "$0") wt \"$AID\"" \
-	--field="$FBUT_GUISET_ADDNSGA!$TT_ADDNSGA":FBTN "$(realpath "$0") ansg" \
-	--field="$FBUT_GUISET_CREATEEVALSC":FBTN "$(realpath "$0") cfi \"$AID\"" \
-	--field="$FBUT_GUISET_OTR!$TT_OTR":FBTN "$(realpath "$0") otr \"$AID\"" \
-	--field="$FBUT_GUISET_DXHSEL":FBTN "$(realpath "$0") dxh \"$AID\"" \
-	--field="$FBUT_GUISET_SHADERREPOS!$TT_SHADERREPOS":FBTN "$(realpath "$0") update shaders repos" \
-	--field="$FBUT_GUISET_UPSHADER!$TT_UPSHADER":FBTN "$(realpath "$0") update gameshaders \"$SHADDESTDIR\"" \
-	--field="$FBUT_GUISET_FAVSEL!$TT_FAVSEL":FBTN "$(realpath "$0") fav \"$AID\" set"\
-	--field="$FBUT_GUISET_BLOCKCAT":FBTN "$(realpath "$0") block" \
-	--field="$FBUT_GUISET_SORTCAT!$TT_SORTCAT":FBTN "$(realpath "$0") sort" \
-	--field="$FBUT_GUISET_OPURL!$TT_OPENURL":FBTN "$(realpath "$0") hu \"$AID\" X" \
-	--field="$FBUT_GUISET_GASCO!$TT_GASCO":FBTN "$(realpath "$0") gs \"$AID\" \"$GN\"" \
-	--field="$FBUT_GUISET_VORTEX!$TT_VORTEX":FBTN "$(realpath "$0") $VTX start" \
-	--field="$FBUT_GUISET_MO!$TT_MO":FBTN "$(realpath "$0") mo2 start" \
-	--field="$FBUT_GUISET_GETSLR!$TT_GETSLR":FBTN "$(realpath "$0") getslrbtn \"$AID\"" \
-	--field="$GUI_GAFI!$TT_GAFI":FBTN "$(realpath "$0") gf \"$AID\"" \
-	--button="$BUT_EXIT":0 \
-	--button="$BUT_GUISET_CATMENUSHORT":4 \
-	--button="$BUT_GM":6 \
-	--button="$BUT_DGM":8 \
-	--button="$BUT_GLM":10 \
-	--button="$BUT_FAV":12 \
-	--button="$BUT_EDITORMENU":14 \
-	--button="$BUT_PLAY":16 \
-	"$GEOM"
-	case $? in
+	# The 20 Main Menu tool buttons, grouped by topic. Each group is one
+	# notebook tab in the tabbed Main Menu (openMainMenuTabs); the classic
+	# single form fallback shows them all in one list, in the same order.
+	MM_G1=(	# Downloads
+		"--field=${FBUT_GUISET_DCP}:FBTN" "$(realpath "$0") dcp"
+		"--field=${FBUT_GUISET_DW}:FBTN" "$(realpath "$0") dw"
+		"--field=${FBUT_GUISET_GETSLR}!${TT_GETSLR}:FBTN" "$(realpath "$0") getslrbtn \"$AID\""
+	)
+	MM_G2=(	# Wine and Proton
+		"--field=${FBUT_GUISET_RECREATEPFX}:FBTN" "$(realpath "$0") ccd \"$AID\" \"s\""
+		"--field=${FBUT_GUISET_WDC}:FBTN" "$(realpath "$0") wdc \"$AID\""
+		"--field=${FBUT_GUISET_WTSEL}:FBTN" "$(realpath "$0") wt \"$AID\""
+	)
+	MM_G3=(	# Shaders and HUD
+		"--field=${FBUT_GUISET_DXHSEL}:FBTN" "$(realpath "$0") dxh \"$AID\""
+		"--field=${FBUT_GUISET_SHADERREPOS}!${TT_SHADERREPOS}:FBTN" "$(realpath "$0") update shaders repos"
+		"--field=${FBUT_GUISET_UPSHADER}!${TT_UPSHADER}:FBTN" "$(realpath "$0") update gameshaders \"$SHADDESTDIR\""
+	)
+	MM_G4=(	# Mod managers
+		"--field=${FBUT_GUISET_VORTEX}!${TT_VORTEX}:FBTN" "$(realpath "$0") $VTX start"
+		"--field=${FBUT_GUISET_MO}!${TT_MO}:FBTN" "$(realpath "$0") mo2 start"
+	)
+	MM_G5=(	# Steam integration
+		"--field=${FBUT_GUISET_ADDNSGA}!${TT_ADDNSGA}:FBTN" "$(realpath "$0") ansg"
+		"--field=${FBUT_GUISET_FAVSEL}!${TT_FAVSEL}:FBTN" "$(realpath "$0") fav \"$AID\" set"
+		"--field=${FBUT_GUISET_BLOCKCAT}:FBTN" "$(realpath "$0") block"
+		"--field=${FBUT_GUISET_SORTCAT}!${TT_SORTCAT}:FBTN" "$(realpath "$0") sort"
+	)
+	MM_G6=(	# Game tools
+		"--field=${FBUT_GUISET_CREATEEVALSC}:FBTN" "$(realpath "$0") cfi \"$AID\""
+		"--field=${FBUT_GUISET_OTR}!${TT_OTR}:FBTN" "$(realpath "$0") otr \"$AID\""
+		"--field=${FBUT_GUISET_OPURL}!${TT_OPENURL}:FBTN" "$(realpath "$0") hu \"$AID\" X"
+		"--field=${FBUT_GUISET_GASCO}!${TT_GASCO}:FBTN" "$(realpath "$0") gs \"$AID\" \"$GN\""
+		"--field=${GUI_GAFI}!${TT_GAFI}:FBTN" "$(realpath "$0") gf \"$AID\""
+	)
+	MM_TABS=( "$GUI_MMTAB_DL" "$GUI_MMTAB_WP" "$GUI_MMTAB_SH" "$GUI_MMTAB_MODS" "$GUI_MMTAB_STEAM" "$GUI_MMTAB_GT" )
+
+	MMRC=0
+	openMainMenuTabs || MMRC=$?
+
+	if [ "$MMRC" -eq 3 ]; then
+		writelog "INFO" "${FUNCNAME[0]} - Opening the classic single form Main Menu"
+		MMRC=0
+		"$YAD" --image "$SHOWPIC" "${YADIMGTOP[@]}" --scroll --center --window-icon="$STLICON" --form "${WINDECO[@]}" --title="$TITLE" \
+		--text="$SETHEAD" \
+		--columns="$COLCOUNT" --f1-action="$F1ACTIONCG" --separator="" \
+		"${MM_G1[@]}" \
+		"${MM_G2[@]}" \
+		"${MM_G3[@]}" \
+		"${MM_G4[@]}" \
+		"${MM_G5[@]}" \
+		"${MM_G6[@]}" \
+		--button="$BUT_EXIT":0 \
+		--button="$BUT_GUISET_CATMENUSHORT":4 \
+		--button="$BUT_GM":6 \
+		--button="$BUT_DGM":8 \
+		--button="$BUT_GLM":10 \
+		--button="$BUT_FAV":12 \
+		--button="$BUT_EDITORMENU":14 \
+		--button="$BUT_SEARCH":18 \
+		--button="$BUT_PLAY":16 \
+		"$GEOM" || MMRC=$?
+	fi
+	case "$MMRC" in
 	0)  {
-			clickInfo "${FUNCNAME[0]}" "$?" "$BUT_EXIT" "$SETMENU" "Exit"
+			clickInfo "${FUNCNAME[0]}" "$MMRC" "$BUT_EXIT" "$SETMENU" "Exit"
 			GOBACK=0
 			closeSTL " ######### STOP EARLY $PROGNAME $PROGVERS #########"
 			exit
 		}
 	;;
 	4) 	{
-			clickInfo "${FUNCNAME[0]}" "$?" "$BUT_GUISET_CATMENUSHORT" "$SETMENU" "Category Menu Selection"
+			clickInfo "${FUNCNAME[0]}" "$MMRC" "$BUT_GUISET_CATMENUSHORT" "$SETMENU" "Category Menu Selection"
 			refreshProtList
 			setGuiCategoryMenuSel "$AID" "${FUNCNAME[0]}"
 		}
 	;;
 	6) 	{
-			clickInfo "${FUNCNAME[0]}" "$?" "$BUT_GM" "$SETMENU" "$GAMMENU"
+			clickInfo "${FUNCNAME[0]}" "$MMRC" "$BUT_GM" "$SETMENU" "$GAMMENU"
 			refreshProtList
 			openGameMenu "$AID" "${FUNCNAME[0]}"
 		}
 	;;
 	8) 	{
-			clickInfo "${FUNCNAME[0]}" "$?" "$BUT_DGM" "$SETMENU" "Game Default Menu"
+			clickInfo "${FUNCNAME[0]}" "$MMRC" "$BUT_DGM" "$SETMENU" "Game Default Menu"
 			refreshProtList
 			openGameDefaultMenu "$AID" "${FUNCNAME[0]}"
 		}
 	;;
 	10) 	{
-			clickInfo "${FUNCNAME[0]}" "$?" "$BUT_GLM" "$SETMENU" "Global Menu"
+			clickInfo "${FUNCNAME[0]}" "$MMRC" "$BUT_GLM" "$SETMENU" "Global Menu"
 			refreshProtList
 			openGlobalMenu "$AID" "${FUNCNAME[0]}" "1"
 		}
 	;;
 	12) 	{
-			clickInfo "${FUNCNAME[0]}" "$?" "$BUT_FAV" "$SETMENU" "Favorites"
+			clickInfo "${FUNCNAME[0]}" "$MMRC" "$BUT_FAV" "$SETMENU" "Favorites"
 			refreshProtList
 			favoritesMenu "$AID" "${FUNCNAME[0]}"
 		}
 	;;
-	14) 	{
-			clickInfo "${FUNCNAME[0]}" "$?" "$BUT_EDITORMENU" "$SETMENU" "EditorDialog"
+	14)	{
+			clickInfo "${FUNCNAME[0]}" "$MMRC" "$BUT_EDITORMENU" "$SETMENU" "EditorDialog"
 			EditorDialog "$AID" "${FUNCNAME[0]}"
 		}
 	;;
-	16) 	{
-			clickInfo "${FUNCNAME[0]}" "$?" "$BUT_PLAY" "$SETMENU" "Game"
+	18)	{
+			clickInfo "${FUNCNAME[0]}" "$MMRC" "$BUT_SEARCH" "$SETMENU" "SearchSettings"
+			refreshProtList
+			openSearchMenu "$AID" "${FUNCNAME[0]}"
+		}
+	;;
+	16)	{
+			clickInfo "${FUNCNAME[0]}" "$MMRC" "$BUT_PLAY" "$SETMENU" "Game"
 			GOBACK=0
 			startSteamGame
 		}
@@ -792,13 +893,23 @@ function openMenu {
 	pollWinRes "$TITLE"
 
 	writelog "INFO" "${FUNCNAME[0]} - Starting createMenu \"$ARGMENU\" \"$ARGFUNC\" \"$ARGPIC\" \"$UNUSED\" \"$ARGCOLS\" \"$ARGTITLE\" \"$ARGPCMD\" \"$ARGSPAT\""
-	createMenu "$ARGSPLIT" "$ARGMENU" "$ARGFUNC" "$ARGPIC" "$UNUSED" "$ARGCOLS" "$ARGTITLE" "$ARGPCMD" "$ARGSPAT"
 
-	source "$ARGMENU"
-	writelog "INFO" "${FUNCNAME[0]} - Currently used tempfile is '$MKCFG'"
-	"$ARGFUNC" > "$MKCFG"
+	# tabbed notebook menu first - openTabbedMenu steps aside with rc 3 whenever
+	# tabs are not possible, then the classic single form menu takes over
+	TG_TAB_RC=3
+	openTabbedMenu "$ARGSPLIT" "$ARGMENU" "$ARGFUNC" "$ARGPIC" "$UNUSED" "$ARGCOLS" "$ARGTITLE" "$ARGPCMD" "$ARGSPAT"
+	TG_TAB_RC=$?
 
-	case $? in
+	if [ "$TG_TAB_RC" -eq 3 ]; then
+		createMenu "$ARGSPLIT" "$ARGMENU" "$ARGFUNC" "$ARGPIC" "$UNUSED" "$ARGCOLS" "$ARGTITLE" "$ARGPCMD" "$ARGSPAT"
+
+		source "$ARGMENU"
+		writelog "INFO" "${FUNCNAME[0]} - Currently used tempfile is '$MKCFG'"
+		TG_TAB_RC=0
+		"$ARGFUNC" > "$MKCFG" || TG_TAB_RC=$?
+	fi
+
+	case "$TG_TAB_RC" in
 	0) 	{
 			if [ "$ARGPCMD" == "$NON" ]; then
 				clickInfo "${FUNCNAME[0]}" "$?" "$QBUT0" "$GAMMENU" "Exit"

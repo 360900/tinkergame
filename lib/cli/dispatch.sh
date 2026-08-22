@@ -505,6 +505,9 @@ function commandline {
 	"settings")
 		startSettings "$2"
 	;;
+	"search")
+		startSearchSettings "$2"
+	;;
 	"src")
 			"$STEAM" "${STEAM}://${RECO}"
 	;;

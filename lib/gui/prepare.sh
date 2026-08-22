@@ -48,6 +48,29 @@ function prepareGUI {
 			writelog "WARN" "${FUNCNAME[0]} - Disabling Yad window decorations does nothing on Wayland!"
 		fi
 	fi
+
+	# Theming: request a GTK theme for every TinkerGame window. GTK_THEME is read
+	# by GTK itself, '$NON' (or empty) keeps the system default, and a ':dark'
+	# suffix picks the dark variant of a theme (for example 'Adwaita:dark').
+	# emptyVars later removes $GTK_THEME again before the game is started.
+	if [ -n "$YADTHEME" ] && [ "$YADTHEME" != "$NON" ]; then
+		export GTK_THEME="$YADTHEME"
+		writelog "INFO" "${FUNCNAME[0]} - requesting GTK theme '$YADTHEME' for all TinkerGame windows"
+	fi
+
+	# Theming: load extra CSS rules from a user file into every Yad window.
+	# YAD_OPTIONS is parsed by Yad itself (split on whitespace and prepended to
+	# the command line), so '--css' reaches every '$YAD' call without touching
+	# each invocation site. An existing $YAD_OPTIONS value is preserved. Yad
+	# splits on plain spaces, so the file path must not contain any.
+	if [ -n "$YADCSS" ] && [ "$YADCSS" != "$NON" ]; then
+		if [ -r "$YADCSS" ]; then
+			export YAD_OPTIONS="${YAD_OPTIONS:+$YAD_OPTIONS }--css=$YADCSS"
+			writelog "INFO" "${FUNCNAME[0]} - loading custom CSS '$YADCSS' for all TinkerGame windows"
+		else
+			writelog "SKIP" "${FUNCNAME[0]} - YADCSS '$YADCSS' is not a readable file - ignoring it"
+		fi
+	fi
 }
 
 function createLanguageList {

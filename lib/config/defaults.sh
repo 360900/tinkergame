@@ -106,6 +106,9 @@ function setDefaultCfgValues {
 		if [ -z "$USERSSPEKVERS" ]; then		USERSSPEKVERS="1"; fi
 		if [ -z "$RSSPEKVERS" ]; then		RSSPEKVERS="5.4.2"; fi
 		if [ -z "$USEWINDECO" ]; then		USEWINDECO="1"; fi
+		if [ -z "$USETABBEDMENU" ]; then		USETABBEDMENU="1"; fi
+		if [ -z "$YADTHEME" ]; then		YADTHEME="$NON"; fi
+		if [ -z "$YADCSS" ]; then		YADCSS="$NON"; fi
 		if [ -z "$USETRAYICON" ]; then		USETRAYICON="1"; fi
 		if [ -z "$USEGAMEPICS" ]; then		USEGAMEPICS="1"; fi
 		if [ -z "$USECUSTOMFALLBACKPIC" ]; then		USECUSTOMFALLBACKPIC="0"; fi

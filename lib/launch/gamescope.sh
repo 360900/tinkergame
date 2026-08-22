@@ -380,6 +380,25 @@ function GameScopeGui {
 	setShowPic
 	setGameScopeVars  # Get values for UI elements below
 
+	# Ordered field map for the form below: one entry per --field line, in
+	# exactly the same order. Entries starting with "H:" are section headings
+	# (LBL) which occupy an output slot but are not assigned to a variable.
+	# This single list replaces the former hand-counted heading indexes.
+	local -a GSFIELDSPEC=(
+		"H:GUI_GSGENERALSET"
+		"GSINTRES" "GSSHWRES" "GSFLR" "GSFLU" "USEGAMESCOPE" "GSFS" "GSBW" "GSSE" "GSFWF" "GSFGC" "GSFGK" "GSFOOR" "GSENABLECUSTCUR" "GSCURSOR" "GSMOUSESENSITIVITY"
+		"H:GUI_GSFILTERINGSET"
+		"GSFLTR" "GSSCALE" "GSFSRS" "GSMSF" "GSRSEP" "GSRSTI"
+		"H:GUI_GSHDRSET"
+		"GSHDR" "GSHDRWGFS" "GSHDRSCNITS" "GSHDRITM" "GSHDRITMSDRNITS" "GSHDRITMTGTNITS"
+		"H:GUI_GSVRSET"
+		"GSVR" "GSVREXNA" "GSVRDEFNAM" "GSVROVERLAYKEY" "GSVRICONENABLE" "GSVRICON" "GSVRSHOIMM" "GSVRCONTROLBAR" "GSVRCONTROLBARKEYBOARD" "GSVRCONTROLBARCLOSE" "GSVRSCROLLSSPEED" "GSVRMODAL"
+		"H:GUI_GSEMBEDDEDSET"
+		"GSDEFTOUCHMODE" "GSIMMEDIATEFLIPS" "GSADAPTIVESYNC" "GSPREFOUT" "GSDRMMODE"
+		"H:GUI_GSADVOPTIONS"
+		"GSBACKEND" "GSSTATSPATHENABLE" "GSSTATSPATH" "GSHIDECURSORDELAY" "GSFORCECOMP" "GSDEBUGHUD" "GSFORCEHDRSUPPORT" "GSFORCEHDROUTPUT" "GSPREFERVKDEVICE" "GSWAYLAND" "GSRT" "GSHDLS" "USEGAMESCOPEWSI"
+	)
+
 	# GameScope Yad options form
 	GASCOS="$("$YAD" --f1-action="$F1ACTION" --image "$SHOWPIC" "${YADIMGTOP[@]}" --scroll --window-icon="$STLICON" --form --center --on-top "${WINDECO[@]}" \
 			--title="$TITLE" --separator="|" \
@@ -461,95 +480,24 @@ function GameScopeGui {
 				    }
 				;;
 				4)	{
-						## TODO This section could still be simplified a bit further probably
-
 						# Get selected GameScope options
 						mapfile -d "|" -t -O "${#GSARR[@]}" GSARR < <(printf '%s' "$GASCOS")
 
-						# Use "relative positioning" type system by calculating the position/index of each heading, and using this to get the values at a given index in the GSARR array
-						# for example GSFILTERHEADING=16, then the first element will be GSFILTERHEADING + 1
-						# This is ${GSARR[17]}, but if we were to add another option to the General settings, we would only need to bump GSGENERALOPTSLEN to 16
-						GSGENERALHEADING=0  # Index in GSARR of General heading label
-						GSGENERALOPTSLEN=15
+						if [ "${#GSARR[@]}" -ne "${#GSFIELDSPEC[@]}" ]; then
+							writelog "WARN" "${FUNCNAME[0]} - GameScope form returned ${#GSARR[@]} values, but ${#GSFIELDSPEC[@]} fields were expected - results may be incomplete"
+						fi
 
-						GSFILTERINGHEADING=$(( GSGENERALHEADING +  GSGENERALOPTSLEN + 1 )) # Index in GSARR of Filtering heading label
-						GSFILTERINGOPTSLEN=6
-
-						GSHDRHEADING=$(( GSFILTERINGHEADING + GSFILTERINGOPTSLEN + 1 ))
-						GSHDROPTSLEN=6
-
-						GSVRHEADING=$(( GSHDRHEADING + GSHDROPTSLEN + 1 ))
-						GSVROPTSLEN=12
-
-						GSEMBEDDEDHEADING=$(( GSVRHEADING + GSVROPTSLEN + 1 ))
-						GSEMBEDDEDOPTSLEN=5
-
-						GSADVANCEDHEADING=$(( GSEMBEDDEDHEADING + GSEMBEDDEDOPTSLEN + 1 ))
-						# GSADVANCEDOPTSLEN=12  # Commented because Shellcheck gets angry about this being unused, but it is a good reference
-
-						# GSARR[0] is the General heading
-						GSINTRES="${GSARR[$GSGENERALHEADING + 1]}"
-						GSSHWRES="${GSARR[$GSGENERALHEADING + 2]}"
-						GSFLR="${GSARR[$GSGENERALHEADING + 3]}"
-						GSFLU="${GSARR[$GSGENERALHEADING + 4]}"
-						USEGAMESCOPE="${GSARR[$GSGENERALHEADING + 5]}"
-						GSFS="${GSARR[$GSGENERALHEADING + 6]}"
-						GSBW="${GSARR[$GSGENERALHEADING + 7]}"
-						GSSE="${GSARR[$GSGENERALHEADING + 8]}"
-						GSFWF="${GSARR[$GSGENERALHEADING + 9]}"
-						GSFGC="${GSARR[$GSGENERALHEADING + 10]}"
-						GSFGK="${GSARR[$GSGENERALHEADING + 11]}"
-						GSFOOR="${GSARR[$GSGENERALHEADING + 12]}"
-						GSENABLECUSTCUR="${GSARR[$GSGENERALHEADING + 13]}"
-						GSCURSOR="${GSARR[$GSGENERALHEADING + 14]}"
-						GSMOUSESENSITIVITY="${GSARR[$GSGENERALHEADING + 15]}"
-						# GSARR[16] is the Filtering heading
-						GSFLTR="${GSARR[$GSFILTERINGHEADING + 1]}"
-						GSSCALE="${GSARR[$GSFILTERINGHEADING + 2]}"
-						GSFSRS="${GSARR[$GSFILTERINGHEADING + 3]}"
-						GSMSF="${GSARR[$GSFILTERINGHEADING + 4]}"
-						GSRSEP="${GSARR[$GSFILTERINGHEADING + 5]}"
-						GSRSTI="${GSARR[$GSFILTERINGHEADING + 6]}"
-						# GSARR[23] is the HDR heading
-						GSHDR="${GSARR[$GSHDRHEADING + 1]}"
-						GSHDRWGFS="${GSARR[$GSHDRHEADING + 2]}"
-						GSHDRSCNITS="${GSARR[$GSHDRHEADING + 3]}"
-						GSHDRITM="${GSARR[$GSHDRHEADING + 4]}"
-						GSHDRITMSDRNITS="${GSARR[$GSHDRHEADING + 5]}"
-						GSHDRITMTGTNITS="${GSARR[$GSHDRHEADING + 6]}"
-						# GSARR[30] is the VR heading
-						GSVR="${GSARR[$GSVRHEADING + 1]}"
-						GSVREXNA="${GSARR[$GSVRHEADING + 2]}"
-						GSVRDEFNAM="${GSARR[$GSVRHEADING + 3]}"
-						GSVROVERLAYKEY="${GSARR[$GSVRHEADING + 4]}"
-						GSVRICONENABLE="${GSARR[$GSVRHEADING + 5]}"
-						GSVRICON="${GSARR[$GSVRHEADING + 6]}"
-						GSVRSHOIMM="${GSARR[$GSVRHEADING + 7]}"
-						GSVRCONTROLBAR="${GSARR[$GSVRHEADING + 8]}"
-						GSVRCONTROLBARKEYBOARD="${GSARR[$GSVRHEADING + 9]}"
-						GSVRCONTROLBARCLOSE="${GSARR[$GSVRHEADING + 10]}"
-						GSVRSCROLLSSPEED="${GSARR[$GSVRHEADING + 11]}"
-						GSVRMODAL="${GSARR[$GSVRHEADING + 12]}"
-						# GSARR[43] is the Embedded heading
-						GSDEFTOUCHMODE="${GSARR[$GSEMBEDDEDHEADING + 1]}"
-						GSIMMEDIATEFLIPS="${GSARR[$GSEMBEDDEDHEADING + 2]}"
-						GSADAPTIVESYNC="${GSARR[$GSEMBEDDEDHEADING + 3]}"
-						GSPREFOUT="${GSARR[$GSEMBEDDEDHEADING + 4]}"
-						GSDRMMODE="${GSARR[$GSEMBEDDEDHEADING + 5]}"
-						# GSARR[49] is the Advanced heading
-						GSBACKEND="${GSARR[$GSADVANCEDHEADING + 1]}"
-						GSSTATSPATHENABLE="${GSARR[$GSADVANCEDHEADING + 2]}"
-						GSSTATSPATH="${GSARR[$GSADVANCEDHEADING + 3]}"
-						GSHIDECURSORDELAY="${GSARR[$GSADVANCEDHEADING + 4]}"
-						GSFORCECOMP="${GSARR[$GSADVANCEDHEADING + 5]}"
-						GSDEBUGHUD="${GSARR[$GSADVANCEDHEADING + 6]}"
-						GSFORCEHDRSUPPORT="${GSARR[$GSADVANCEDHEADING + 7]}"
-						GSFORCEHDROUTPUT="${GSARR[$GSADVANCEDHEADING + 8]}"
-						GSPREFERVKDEVICE="${GSARR[$GSADVANCEDHEADING + 9]}"
-						GSWAYLAND="${GSARR[$GSADVANCEDHEADING + 10]}"
-						GSRT="${GSARR[$GSADVANCEDHEADING + 11]}"
-						GSHDLS="${GSARR[$GSADVANCEDHEADING + 12]}"
-						USEGAMESCOPEWSI="${GSARR[$GSADVANCEDHEADING + 13]}"
+						# Assign every non-heading form result to its variable,
+						# purely driven by the GSFIELDSPEC order above
+						GSI=0
+						for GSSPEC in "${GSFIELDSPEC[@]}"; do
+							if [[ "$GSSPEC" == H:* ]]; then
+								GSI=$(( GSI + 1 ))
+								continue
+							fi
+							printf -v "$GSSPEC" '%s' "${GSARR[$GSI]}"
+							GSI=$(( GSI + 1 ))
+						done
 
 						# Build the GameScope arguments string
 						unset GAMESCOPE_ARGS

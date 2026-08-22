@@ -157,14 +157,19 @@ function editorSkipped {
 		ASKCNT="$SETASKCNT"
 
 		if [ "$ASKCNT" -ge "$MAXASK" ]; then
-			notiShow "$(strFix "$NOTY_CANCELREQ1" "$MAXASK" "$GN" "$AID")"
-			writelog "INFO" "${FUNCNAME[0]} - 'ASKCNT $ASKCNT' reached 'MAXASK $MAXASK' - disabling requester and resetting counter"
-			updateConfigEntry "WAITEDITOR" "0" "$STLGAMECFG"
-			updateConfigEntry "ASKCNT" "0" "$STLGAMECFG"
-		elif [ "$ASKCNT" -lt "$MAXASK" ]; then
-			notiShow "$(strFix "$NOTY_CANCELREQ2" "$ASKCNT" $((MAXASK - ASKCNT)) "$GN" "$AID")"
+			notiShow "$(strFix "$NOTY_CANCELREQ1" "$ASKCNT" "$GN" "$AID")"
+			writelog "INFO" "${FUNCNAME[0]} - 'ASKCNT $ASKCNT' reached 'MAXASK $MAXASK' - suggesting to disable the requester via the '$BUT_SKIPCG' button"
+		else
+			notiShow "$(strFix "$NOTY_CANCELREQ2" "$ASKCNT" "$GN" "$AID")"
 		fi
 	fi
+}
+
+function editorDontAskAgain {
+	writelog "INFO" "${FUNCNAME[0]} - Disabling Wait Requester for '$GN ($AID)' in '$STLGAMECFG'"
+	updateConfigEntry "WAITEDITOR" "0" "$STLGAMECFG"
+	updateConfigEntry "ASKCNT" "0" "$STLGAMECFG"
+	notiShow "$(strFix "$NOTY_DONTASK" "$GN" "$AID")"
 }
 
 function checkWaitRequester {
@@ -263,6 +268,7 @@ function askSettings {
 				--field="<i>($GUI_EDITABLEGAMECFGS)</i>":LBL \
 				--button="$REQBUT":0 \
 				--button="$BUT_SKIP":1 \
+				--button="$BUT_SKIPCG":2 \
 				--timeout="$WAITEDITOR" \
 				--timeout-indicator=top \
 				"$GEOM"
@@ -279,6 +285,8 @@ function askSettings {
 					;;
 					1)  writelog "INFO" "${FUNCNAME[0]} - Selected $BUT_SKIP - Starting game without opening the $SETMENU"
 						editorSkipped ;;
+					2)  writelog "INFO" "${FUNCNAME[0]} - Selected $BUT_SKIPCG - Disabling the requester and starting game without opening the $SETMENU"
+						editorDontAskAgain ;;
 					70) writelog "INFO" "${FUNCNAME[0]} - TIMEOUT - Starting game without opening the $SETMENU" ;;
 					*) {
 					   writelog "WARN" "${FUNCNAME[0]} - Wait Requester returned unknown exit code '${WAITREQRESULT}' - Defaulting to opening the $SETMENU"

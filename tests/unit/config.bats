@@ -13,11 +13,11 @@ setup() {
 	export RESH="ReShade"
 }
 
-@test "saveCfg: creates a fresh global.conf with all 130 schema keys" {
+@test "saveCfg: creates a fresh global.conf with all 133 schema keys" {
 	local f="$BATS_TEST_TMPDIR/global.conf"
 	saveCfg "$f" X
 	[ -f "$f" ]
-	[ "$(grep -cE '^[A-Z0-9_]+=' "$f")" -eq 130 ]
+	[ "$(grep -cE '^[A-Z0-9_]+=' "$f")" -eq 133 ]
 	[ "$(head -1 "$f")" = "## config Version: $PROGVERS" ]
 }
 
@@ -96,7 +96,7 @@ setup() {
 	printf '## config Version: v0.0.1\nSTLLANG="german"\n' >"$f"
 	saveCfg "$f" X
 	grep -q '^STLLANG="german"$' "$f"       # existing value survives
-	[ "$(grep -cE '^[A-Z0-9_]+=' "$f")" -eq 130 ]   # missing keys appended
+	[ "$(grep -cE '^[A-Z0-9_]+=' "$f")" -eq 133 ]   # missing keys appended
 }
 
 @test "updateConfigFile: fast path leaves a current-version file untouched" {

@@ -21,6 +21,22 @@ function startSettings {
 	cleanYadLeftOvers
 }
 
+function startSearchSettings {
+	FUSEID "$1"
+
+	writelog "INFO" "${FUNCNAME[0]} - createProtonList:"
+	createProtonList X
+
+	writelog "INFO" "${FUNCNAME[0]} - openTrayIcon:"
+	openTrayIcon
+
+	writelog "INFO" "${FUNCNAME[0]} - openSearchMenu:"
+	openSearchMenu "$USEID"
+
+	writelog "INFO" "${FUNCNAME[0]} - cleanYadLeftOvers:"
+	cleanYadLeftOvers
+}
+
 function retBool {
 	if [ "$1" == "TRUE" ]; then
 		echo "1"
