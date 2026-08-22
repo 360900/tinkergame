@@ -14,6 +14,21 @@ function setflatpak {
 	fi
 }
 
+# Steam invokes the compatibility tool with the 'stop' verb (f.e. when the user
+# stops the game from the Steam client). The verb word arrives as one of the
+# first two arguments, optionally followed by the game executable path.
+function isStopVerbInvocation {
+	[ "$1" == "stop" ] || [ "$2" == "stop" ]
+}
+
+# A 'stop' request must never be treated as a game launch: exit cleanly without
+# running any start scripts or relaunching anything. The original game session
+# cleans its own processes up (killPrefixOnGameExit / closeSTL).
+function handleStopVerb {
+	writelog "INFO" "${FUNCNAME[0]} - Steam 'stop' verb request '${*}' received - stopping instead of starting"
+	exit 0
+}
+
 # GDK_BACKEND can be either x11 or wayland -- User may want, in some instances, to force X11 over defaulting to Wayland for compatibility
 # Option to force Yad to use XWayland is on Global Menu
 function setGDKBackend {
@@ -206,6 +221,13 @@ function main {
 	else
 		writelog "INFO" "${FUNCNAME[0]} - Checking command line: incoming arguments '${*}'"
 		writelog "INFO" "${FUNCNAME[0]} - Checking command line: first argument '${1}'"
+
+		# Steam's 'stop' verb still carries the game executable path, so without
+		# this check it would be misinterpreted as a fresh game launch
+		# (re-running user start scripts and trying to relaunch the game)
+		if isStopVerbInvocation "$@"; then
+			handleStopVerb "$@"
+		fi
 
 		if [ -n "$SteamAppId" ] && [ "$SteamAppId" -eq "0" ]; then
 			if grep -q "\"$1\"" <<< "$(sed -n "/^#STARTCMDLINE/,/^#ENDCMDLINE/p;/^#ENDCMDLINE/q" "$TGSRC_CMDLINE" | grep if)"; then

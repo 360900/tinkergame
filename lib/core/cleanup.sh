@@ -50,6 +50,15 @@ function closeSTL {
 		"$PKILL" -f "$MANGOAPP"
 	fi
 
+	# when wine-discord-ipc-bridge is used it keeps wine processes of the game
+	# prefix alive beyond the game session: kill the prefix, so no orphaned wine
+	# processes keep the Steam session alive (killPrefixOnGameExit does this as
+	# well - this is a safety net in case it died)
+	if [ "$ISGAME" -eq 2 ] && [ "$USE_WDIB" -eq 1 ] && [ "$USEWINE" -eq 0 ] && [ -n "$RUNWINESERVER" ] && [ -d "$GPFX" ]; then
+		writelog "INFO" "${FUNCNAME[0]} - USE_WDIB is enabled - killing the wine prefix '$GPFX'"
+		WINEPREFIX="$GPFX" "$RUNWINESERVER" -k 2>/dev/null
+	fi
+
 	checkPlayTime "$duration"
 
 	steamdeckClose

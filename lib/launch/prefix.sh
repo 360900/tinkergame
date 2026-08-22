@@ -1418,14 +1418,27 @@ function useReplay {
 }
 
 function killPrefixOnGameExit {
+	# the TinkerGame main process which backgrounded us: used to detect a
+	# session which died without a regular close (f.e. killed by Steam), so
+	# we never wait forever
+	KPOGEMAINPID="$PPID"
+
 	waitForGamePid
 	GPID="$(GAMEPID)"
 	if [ -n "$GPID" ]; then
 		writelog "INFO" "${FUNCNAME[0]} - Game pid '$GPID' found"
+		writelog "INFO" "${FUNCNAME[0]} - Waiting for '$GPID' closing to kill Proton"
+		tail --pid="$GPID" -f /dev/null
+	else
+		# the game pid could not be determined (f.e. the game exe is not found
+		# in the process list): wait for the TinkerGame session to end instead,
+		# so the prefix is still torn down and no orphaned wine processes
+		# (f.e. wine-discord-ipc-bridge) keep the Steam session alive forever
+		writelog "WAIT" "${FUNCNAME[0]} - No game pid found - waiting for the session to end instead"
+		while [ ! -f "$CLOSETMP" ] && kill -0 "$KPOGEMAINPID" 2>/dev/null; do
+			sleep 1
+		done
 	fi
-	writelog "INFO" "${FUNCNAME[0]} - Waiting for '$GPID' closing to kill Proton"
-
-	tail --pid="$GPID" -f /dev/null
 	writelog "INFO" "${FUNCNAME[0]} - Game process '$GPID' finished - Force closing Proton"
 	if [ "$USEWINE" -eq 0 ]; then
 		WINEPREFIX="$GPFX" "$RUNWINESERVER" -k
@@ -1433,7 +1446,12 @@ function killPrefixOnGameExit {
 		WINEPREFIX="$GWFX" "$RUNWINESERVER" -k
 	fi
 
-	touch "$CLOSETMP"
+	# only (re)create CLOSETMP when we had a game pid or a close was already
+	# in progress: a session that finished cleaning up must not be left with
+	# a stale closing marker
+	if [ -n "$GPID" ] || [ -f "$CLOSETMP" ]; then
+		touch "$CLOSETMP"
+	fi
 }
 
 function StateSteamWebHelper {

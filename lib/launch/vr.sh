@@ -365,6 +365,12 @@ function GAMEPID {
 			else
 				# very likely this needs to be improved/changed
 				GAMPI="$("$PGREP" -a "" | grep "$GE" | grep "Z:" | grep "\.exe" | grep -v "CrashHandler" | cut -d ' ' -f1 | tail -n1)"
+				if [ -z "$GAMPI" ]; then
+					# some environments (f.e. the Steam Linux Runtime) don't expose
+					# the windows 'Z:' path in the game process command line - retry
+					# without requiring it
+					GAMPI="$("$PGREP" -a "" | grep "$GE" | grep "\.exe" | grep -v "CrashHandler" | cut -d ' ' -f1 | tail -n1)"
+				fi
 			fi
 		fi
 		echo "$GAMPI"
@@ -378,11 +384,26 @@ function waitForGamePid {
 		writelog "WAIT" "${FUNCNAME[0]} - Waiting for custom process CUSTOMCMD '$CUSTOMCMD'"
 	fi
 
+	# bounded wait: stop waiting when ${PROGNAME,,} is closing, and give up
+	# after TG_WAITFORGAMEPID_MAX seconds (default 300) without finding the pid,
+	# so callers never spin forever when the game process can't be detected
+	WFGPMAX="${TG_WAITFORGAMEPID_MAX:-300}"
+	WFGPWAITED=0
+
 	while [ -z "$(GAMEPID)" ]; do
-		writelog "WAIT" "${FUNCNAME[0]} - Waiting for game process $(GAMEPID)"
+		if [ -f "$CLOSETMP" ]; then
+			writelog "WAIT" "${FUNCNAME[0]} - ${PROGNAME,,} is just closing - giving up waiting for the game process"
+			return 1
+		fi
+		if [ "$WFGPWAITED" -ge "$WFGPMAX" ]; then
+			writelog "WAIT" "${FUNCNAME[0]} - Gave up waiting for the game process after '$WFGPWAITED' seconds"
+			return 1
+		fi
+		WFGPWAITED=$(( WFGPWAITED + 1 ))
 		sleep 1
 	done
 	writelog "INFO" "${FUNCNAME[0]} - Game process found at $(GAMEPID)"
+	return 0
 }
 
 function getGameWinXIDFromPid {
