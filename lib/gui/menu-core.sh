@@ -587,7 +587,7 @@ function openTrayIcon {
 
 				if [ -n "$GAMEWINDOW" ]; then
 					writelog "INFO" "${FUNCNAME[0]} - TrayIcon: picked '$PICKWINDOWNAME'"
-					"$PROGCMD" "vr" "$PICKWINDOWNAME" "$AID" "s"
+					"$PROGCMD" game vr "$PICKWINDOWNAME" "$AID" "s"
 				else
 					writelog "SKIP" "${FUNCNAME[0]} - TrayIcon: Didn't find a game window name to open in vr"
 				fi
@@ -595,12 +595,12 @@ function openTrayIcon {
 
 			function TrayPickWin {
 				writelog "INFO" "${FUNCNAME[0]} - TrayIcon: Executing Window Pick command for game '$GN '$AID'"
-				"$PROGCMD" "pw" "$AID" "$GN"
+				"$PROGCMD" game pickwin "$AID" "$GN"
 			}
 
 			function TraySRC {
 				writelog "INFO" "${FUNCNAME[0]} - TrayIcon: Executing command '$STEAM ${STEAM}://${RECO}'"
-				"$PROGCMD" "src"
+				"$PROGCMD" steam src
 			}
 
 			function TrayUWT {
@@ -615,22 +615,22 @@ function openTrayIcon {
 
 			function TrayGameFiles {
 				writelog "INFO" "${FUNCNAME[0]} - TrayIcon: Executing Game Files command for game '$GN '$AID'"
-				"$PROGCMD" "gf" "$AID"
+				"$PROGCMD" game files "$AID"
 			}
 
 			function TrayMO2 {
 				writelog "INFO" "${FUNCNAME[0]} - TrayIcon: Starting standalone $MO instance"
-				"$PROGCMD" "mo2" "start"
+				"$PROGCMD" mods mo2 start
 			}
 
 			function TrayProtonList {
 				writelog "INFO" "${FUNCNAME[0]} - TrayIcon: Updating list of available Proton versions"
-				"$PROGCMD" "proton" "list"
+				"$PROGCMD" proton refresh
 			}
 
 			function TrayOpenIssue {
 				writelog "INFO" "${FUNCNAME[0]} - TrayIcon: Open Issue Tracker with User's Default Browser"
-				"$PROGCMD" "openissue"
+				"$PROGCMD" issue
 			}
 
 			TrayIconExports

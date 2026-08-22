@@ -38,6 +38,9 @@ TGSRC_CLEANUP="$TG_LIBDIR/core/cleanup.sh"
 # Option schema (single source of truth for config keys):
 TGOPTDEF="$TG_LIBDIR/../data/options.def"
 
+# CLI command registry (single source of truth for the command listing):
+TGCOMMANDSDEF="$TG_LIBDIR/../data/commands.def"
+
 # ---- module manifest (order matters) -------------------------------------
 source "$TG_LIBDIR/core/common.sh"
 source "$TG_LIBDIR/core/paths.sh"
@@ -80,6 +83,7 @@ source "$TG_LIBDIR/launch/pipeline.sh"
 source "$TG_LIBDIR/launch/start.sh"
 source "$TG_LIBDIR/cli/compat.sh"
 source "$TG_LIBDIR/core/util.sh"
+source "$TG_LIBDIR/cli/registry.sh"
 source "$TG_LIBDIR/cli/help.sh"
 source "$TG_LIBDIR/cli/dispatch.sh"
 source "$TG_LIBDIR/launch/postrun.sh"

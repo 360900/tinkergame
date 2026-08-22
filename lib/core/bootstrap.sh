@@ -226,8 +226,8 @@ function main {
 			# But if $1 is a known command in this list, explicitly pass it to 'commandline' as we know it is NOT a game command
 			# This prevents commands which contain 'steamapps/common' ANYWHERE in their command (including as paths as parameters to other flags) from being interpreted as a game launch
 			#
-			# If $1 is a known tinkergame command (with 'tinkergame otr', $1 would be 'otr') then intervene and force this to the 'commandline' function as it is a known tinkergame command
-			STLINCOMINGSKIPCOMMANDS="otr|onetimerun"
+			# If $1 is a known tinkergame command (with 'tinkergame game onetimerun', $1 would be 'game') then intervene and force this to the 'commandline' function as it is a known tinkergame command
+			STLINCOMINGSKIPCOMMANDS="game"
 
 			if grep -q "update" <<< "$@" || grep -q "^play" <<< "$@" ; then
 				commandline "$@"

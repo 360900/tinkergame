@@ -632,9 +632,9 @@ function setMO2DLMime {
 		echo "X-KeepTerminal=false"
 		echo "Path=$(dirname "$MO2EXE")"
 		if [ "$INFLATPAK" -eq 1 ]; then
-			echo "Exec=/usr/bin/flatpak run --command=tinkergame $FLATPAK_ID mo2 u %u"
+			echo "Exec=/usr/bin/flatpak run --command=tinkergame $FLATPAK_ID mods mo2 url %u"
 		else
-			echo "Exec=$(realpath "$0") mo2 u %u"
+			echo "Exec=$(realpath "$0") mods mo2 url %u"
 		fi
 		echo "NoDisplay=true"
 		echo "Hidden=false"

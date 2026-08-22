@@ -563,36 +563,36 @@ function MainMenu {
 	# notebook tab in the tabbed Main Menu (openMainMenuTabs); the classic
 	# single form fallback shows them all in one list, in the same order.
 	MM_G1=(	# Downloads
-		"--field=${FBUT_GUISET_DCP}:FBTN" "$(realpath "$0") dcp"
-		"--field=${FBUT_GUISET_DW}:FBTN" "$(realpath "$0") dw"
-		"--field=${FBUT_GUISET_GETSLR}!${TT_GETSLR}:FBTN" "$(realpath "$0") getslrbtn \"$AID\""
+		"--field=${FBUT_GUISET_DCP}:FBTN" "$(realpath "$0") proton download"
+		"--field=${FBUT_GUISET_DW}:FBTN" "$(realpath "$0") wine download"
+		"--field=${FBUT_GUISET_GETSLR}!${TT_GETSLR}:FBTN" "$(realpath "$0") proton getslr-gui \"$AID\""
 	)
 	MM_G2=(	# Wine and Proton
-		"--field=${FBUT_GUISET_RECREATEPFX}:FBTN" "$(realpath "$0") ccd \"$AID\" \"s\""
-		"--field=${FBUT_GUISET_WDC}:FBTN" "$(realpath "$0") wdc \"$AID\""
-		"--field=${FBUT_GUISET_WTSEL}:FBTN" "$(realpath "$0") wt \"$AID\""
+		"--field=${FBUT_GUISET_RECREATEPFX}:FBTN" "$(realpath "$0") game compatdata \"$AID\" \"s\""
+		"--field=${FBUT_GUISET_WDC}:FBTN" "$(realpath "$0") wine debug-channels \"$AID\""
+		"--field=${FBUT_GUISET_WTSEL}:FBTN" "$(realpath "$0") wine winetricks \"$AID\""
 	)
 	MM_G3=(	# Shaders and HUD
-		"--field=${FBUT_GUISET_DXHSEL}:FBTN" "$(realpath "$0") dxh \"$AID\""
+		"--field=${FBUT_GUISET_DXHSEL}:FBTN" "$(realpath "$0") game dxvk-hud \"$AID\""
 		"--field=${FBUT_GUISET_SHADERREPOS}!${TT_SHADERREPOS}:FBTN" "$(realpath "$0") update shaders repos"
 		"--field=${FBUT_GUISET_UPSHADER}!${TT_UPSHADER}:FBTN" "$(realpath "$0") update gameshaders \"$SHADDESTDIR\""
 	)
 	MM_G4=(	# Mod managers
-		"--field=${FBUT_GUISET_VORTEX}!${TT_VORTEX}:FBTN" "$(realpath "$0") $VTX start"
-		"--field=${FBUT_GUISET_MO}!${TT_MO}:FBTN" "$(realpath "$0") mo2 start"
+		"--field=${FBUT_GUISET_VORTEX}!${TT_VORTEX}:FBTN" "$(realpath "$0") mods vortex start"
+		"--field=${FBUT_GUISET_MO}!${TT_MO}:FBTN" "$(realpath "$0") mods mo2 start"
 	)
 	MM_G5=(	# Steam integration
-		"--field=${FBUT_GUISET_ADDNSGA}!${TT_ADDNSGA}:FBTN" "$(realpath "$0") ansg"
-		"--field=${FBUT_GUISET_FAVSEL}!${TT_FAVSEL}:FBTN" "$(realpath "$0") fav \"$AID\" set"
-		"--field=${FBUT_GUISET_BLOCKCAT}:FBTN" "$(realpath "$0") block"
-		"--field=${FBUT_GUISET_SORTCAT}!${TT_SORTCAT}:FBTN" "$(realpath "$0") sort"
+		"--field=${FBUT_GUISET_ADDNSGA}!${TT_ADDNSGA}:FBTN" "$(realpath "$0") steam add-game"
+		"--field=${FBUT_GUISET_FAVSEL}!${TT_FAVSEL}:FBTN" "$(realpath "$0") config favorites \"$AID\" set"
+		"--field=${FBUT_GUISET_BLOCKCAT}:FBTN" "$(realpath "$0") config block"
+		"--field=${FBUT_GUISET_SORTCAT}!${TT_SORTCAT}:FBTN" "$(realpath "$0") config sort"
 	)
 	MM_G6=(	# Game tools
-		"--field=${FBUT_GUISET_CREATEEVALSC}:FBTN" "$(realpath "$0") cfi \"$AID\""
-		"--field=${FBUT_GUISET_OTR}!${TT_OTR}:FBTN" "$(realpath "$0") otr \"$AID\""
-		"--field=${FBUT_GUISET_OPURL}!${TT_OPENURL}:FBTN" "$(realpath "$0") hu \"$AID\" X"
-		"--field=${FBUT_GUISET_GASCO}!${TT_GASCO}:FBTN" "$(realpath "$0") gs \"$AID\" \"$GN\""
-		"--field=${GUI_GAFI}!${TT_GAFI}:FBTN" "$(realpath "$0") gf \"$AID\""
+		"--field=${FBUT_GUISET_CREATEEVALSC}:FBTN" "$(realpath "$0") game first-install \"$AID\""
+		"--field=${FBUT_GUISET_OTR}!${TT_OTR}:FBTN" "$(realpath "$0") game onetimerun \"$AID\""
+		"--field=${FBUT_GUISET_OPURL}!${TT_OPENURL}:FBTN" "$(realpath "$0") game helpurl \"$AID\" X"
+		"--field=${FBUT_GUISET_GASCO}!${TT_GASCO}:FBTN" "$(realpath "$0") game gamescope \"$AID\" \"$GN\""
+		"--field=${GUI_GAFI}!${TT_GAFI}:FBTN" "$(realpath "$0") game files \"$AID\""
 	)
 	MM_TABS=( "$GUI_MMTAB_DL" "$GUI_MMTAB_WP" "$GUI_MMTAB_SH" "$GUI_MMTAB_MODS" "$GUI_MMTAB_STEAM" "$GUI_MMTAB_GT" )
 

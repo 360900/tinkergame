@@ -242,8 +242,8 @@ teardown() {
 	grep -qF -- 'DL CUSTOM PROTON' "$STUB_YAD_LOG"
 	grep -qF -- 'VORTEX' "$STUB_YAD_LOG"
 	grep -qF -- 'GAME FILES' "$STUB_YAD_LOG"
-	grep -qF -- 'getslrbtn "12345"' "$STUB_YAD_LOG"
-	grep -qF -- 'ccd "12345" "s"' "$STUB_YAD_LOG"
+	grep -qF -- 'proton getslr-gui "12345"' "$STUB_YAD_LOG"
+	grep -qF -- 'game compatdata "12345" "s"' "$STUB_YAD_LOG"
 	[ -f "$MARK/startSteamGame" ]
 }
 

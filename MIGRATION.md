@@ -43,6 +43,76 @@ Review custom configuration values before launching a game. In particular,
 check custom commands, compatibility-tool paths, and scripts that explicitly
 call `steamtinkerlaunch`.
 
+## Command Line Changes
+
+The command line was regrouped into a two-level verb tree
+(`tinkergame <group> <verb>`) and the old short aliases were removed.
+Commands that other scripts call must be updated accordingly.
+
+| Old command | New command |
+| --- | --- |
+| `backup <appid>` | `game backup <appid>` |
+| `block`, `sort` | `config block`, `config sort` |
+| `configdir` | `config dir` |
+| `fav <appid> set` | `config favorites <appid> set` |
+| `yad` | `config yad` |
+| `createcompatdata\|ccd` | `game compatdata` |
+| `createdesktopicon\|cdi` | `game desktop-icon` |
+| `createfirstinstall\|cfi` | `game first-install` |
+| `dxvkhud\|dxh` | `game dxvk-hud` |
+| `gamefiles\|gf` | `game files` |
+| `gamescope\|gs` | `game gamescope` |
+| `helpurl\|hu` | `game helpurl` |
+| `launcher` | `game launcher` |
+| `onetimerun\|otr` | `game onetimerun` |
+| `pickwin\|pw` | `game pickwin` |
+| `pdb` | `game protondb` |
+| `steamdeckcompat\|sdc` | `game deckcompat` |
+| `vr` | `game vr` |
+| `waitrequester\|wr` | `game waitrequester` |
+| `addnonsteamgame\|ansg` | `steam add-game` |
+| `cleardeckdeps` | `steam clear-deck-deps` |
+| `depressurizer\|dprs` | `steam depressurizer` |
+| `src` | `steam src` |
+| `steamworksshared\|sws` | `steam shared` |
+| `addcustomproton\|acp` | `proton add` |
+| `dlcustomproton\|dcp` | `proton download` |
+| `getslr` | `proton getslr` |
+| `getslrbtn` | `proton getslr-gui` |
+| `listproton\|lp` | `proton list` |
+| `proton list` | `proton refresh` (the old verb updated the CSV) |
+| `proton\|p <title>` | `proton start <title>` |
+| `dlwine\|dw` | `wine download` |
+| `dotnet` | `wine dotnet` |
+| `winedebugchannel\|wdc` | `wine debug-channels` |
+| `winetricks\|wt` | `wine winetricks` |
+| `runwinetricks\|otwt` | `wine onetime-winetricks` |
+| `runwinecfg\|otwcfg` | `wine winecfg` |
+| `mo2` | `mods mo2` |
+| `hedgemodmanager\|hmm` | `mods hedge` |
+| `vortex` | `mods vortex` |
+| `cleargamegrids` | `artwork clear` |
+| `getsteamgriddbid\|sgdbid` | `artwork gameid` |
+| `opengridfolder\|ogf` | `artwork open` |
+| `setgameart\|sga` | `artwork set` |
+| `steamgriddb\|sgdb` | `artwork download` |
+| `getexe\|ge` | `get exe` |
+| `getcompatdata\|gc` | `get compatdata` |
+| `getgamedir\|gg` | `get gamedir` |
+| `getid\|gi\|gid` | `get id` |
+| `gettitle\|gt` | `get title` |
+| `createappinfo\|cai` | `meta raw` |
+| `createappinfometa\|caim` | `meta write` |
+| `meta` | `meta update` |
+| `specialk download` | `update specialk` |
+| `conty up` | `update conty` |
+| `openissue\|oi` | `issue` |
+
+Unchanged top-level commands: `play`, `set`, `settings`, `search`, `editor`,
+`noty`, `wiki`, `list`, `compat`, `update`, `help`, `version`, and `-q`.
+Sub-verbs of `mods mo2`, `mods vortex`, and `mods hedge` keep their old names
+(for example `mods vortex start`, `mods mo2 url`).
+
 ## Steam Deck
 
 On Steam Deck the dependency and version-marker paths changed as part of the

@@ -1,0 +1,99 @@
+# TinkerGame CLI command registry
+#
+# Format: one command per line, TAB-separated fields:
+#   group<TAB>verb<TAB>argstring<TAB>summary
+#
+# group    - "General" for top-level commands, otherwise the group name which
+#            becomes the first CLI word (e.g. "game" -> `tinkergame game ...`)
+# verb     - the sub-command word (for General: the top-level verb itself)
+# argstring- argument synopsis shown in the help listing (may be empty)
+# summary  - one-line description shown in the help listing
+#
+# The listing in `tinkergame help` is generated from this file.
+# Multi-line usage details for complex commands live as static text in
+# lib/cli/help.sh (howto) - keep both in sync when changing commands.
+# Dispatch handlers live in lib/cli/dispatch.sh (tgCmd* functions).
+General	help		Show this help text
+General	version		Output the program version
+General	play	<gameid|gui|ed|list> [args]	Start a game directly or via the standalone launcher
+General	set	<entry> <appid|all|global> <value>	Change a configuration setting
+General	settings	[value]	Open the settings menu (for 'SteamAppID' or 'last')
+General	search	[value]	Open the settings search
+General	editor	[value]	Open the editor menu (for 'SteamAppID' or 'last')
+General	noty	[text]	Show a test notification
+General	wiki	[page]	Open the wiki <page> in yad
+General	list	<owned|installed|nonsteam> [id|name|path|count|full]	List info on owned, installed or non-Steam games
+General	compat	<add|del|get>	Register/unregister/get TinkerGame as Steam compatibility tool
+General	issue		Open the issue tracker on GitHub in the default browser
+General	game	<sub>	Game commands - see the GAME section below
+General	config	<sub>	Configuration commands - see the CONFIG section below
+General	steam	<sub>	Steam integration commands - see the STEAM section below
+General	proton	<sub>	Proton commands - see the PROTON section below
+General	wine	<sub>	Wine commands - see the WINE section below
+General	mods	<tool> <sub>	Mod manager commands (mo2, vortex, hedge) - see the MODS section below
+General	artwork	<sub>	Game artwork commands - see the ARTWORK section below
+General	get	<sub>	Game info queries - see the GET section below
+General	update	<sub>	Data update commands - see the UPDATE section below
+General	meta	<sub>	App metadata commands - see the META section below
+game	files	<gameid>	Open menu for opening game files
+game	gamescope	<gameid> [gamename]	GameScope config-menu for game
+game	onetimerun	<gameid> [args]	Open One-Time Run menu for running a one-off executable in a game's Wineprefix
+game	backup	<value>	Backup found steamuser files (for 'SteamAppID' or 'all')
+game	desktop-icon	<game|all> [0-3]	Create desktop icon for game
+game	dxvk-hud	<gameid>	Pick a DXVK HUD layout for game
+game	helpurl	<gameid> [x]	Open the help URL menu for game
+game	vr	<windowid> <SteamAppID> [s]	Start SBS-VR mode for a window and game
+game	pickwin	<gameid> <gamename>	Pick/save a window name for SBS-VR
+game	protondb	<gameid>	Look up game on ProtonDB
+game	deckcompat	<gameid>	Get Steam Deck compatibility information for game
+game	waitrequester	<e|s|u>	Enable, skip or unskip the wait requester
+game	compatdata	<gameid> [gui]	(Re-)create compatdata for game
+game	first-install	<gameid>	Open gui to create a Steam First Time Setup file for game
+game	launcher	[args]	Start the Game Launcher
+config	dir		Open the TinkerGame config directory with xdg-open
+config	favorites	<value> [set]	Open the favorite menu (or set the favorite selection)
+config	block		Open the category Block selection menu
+config	sort		Open the category sort menu
+config	yad	<yadbinary> [opt]	Configure the used Yad binary
+steam	add-game	[args]	Add a non-Steam game to Steam (opens gui without args)
+steam	clear-deck-deps		Remove downloaded Steam Deck dependencies (SteamOS 3.X only)
+steam	shared	<l|i> [packagename] [appid|pfx] [wine]	Steamworks Shared package management
+steam	depressurizer		Prepare/launch Depressurizer
+steam	src		Shortcut to reset Steam collections
+proton	list	[name|path]	List name and path of all Proton versions known to TinkerGame
+proton	refresh		Update the list of all available proton versions
+proton	download	<url|latest|l|latestge|lge|latesttkg|ltkg>	Download/install custom Proton
+proton	add	<path>	Add local custom Proton to the internal list from dialog or directly from path
+proton	getslr	<gameid> [native]	Fetch the Steam Linux Runtime for a game's Proton version
+proton	getslr-gui	<gameid>	Fetch the required Steam Linux Runtime via gui
+proton	start	<title> [X]	Start and/or create title with proton without using steam
+wine	download	<url|latest|l>	Download/install Wine archive from filerequester, url or latest version
+wine	winecfg	[gameid]	Run Winecfg once in a game's prefix
+wine	winetricks	<gameid>	Launch Winetricks for a game's prefix
+wine	onetime-winetricks	[gameid]	Run Winetricks once in a game's prefix
+wine	debug-channels	<gameid>	Set Wine debug channels for game
+wine	dotnet	<pfx> <wine> [arg]	Install dotnet into a Wineprefix
+mods	mo2	<sub>	Mod Organizer 2 - see MODS DETAILS below
+mods	vortex	<sub>	Vortex - see MODS DETAILS below
+mods	hedge	<sub>	HedgeModManager - see MODS DETAILS below
+artwork	download	<appid> [args]	Download most relevant artwork from SteamGridDB
+artwork	set	<gameid> [args]	Set artwork for a game by AppID using absolute paths
+artwork	clear	<appid|all>	Remove downloaded game grids
+artwork	open		Open the Steam Grid folder with xdg-open
+artwork	gameid	<title>	Get SteamGridDB Game ID for title
+get	exe	<gameid/title>	Print the Game Exe
+get	id	<gametitle>	Print the SteamAppId for gametitle
+get	title	<gameid>	Print the Game Title for gameid
+get	compatdata	<gameid/title>	Print the Game compatdata path
+get	gamedir	<gameid/title> [only]	Print the Game install directory with game name and AppID
+update	gamedata	[SteamAppID]	Update missing desktopfiles and pictures of installed games
+update	grid	[owned|installed|nonsteam|shortcuts]	Update Steam Grid for game(s)
+update	allgamedata		Update gamedata for all games in sharedconfig.vdf
+update	shaders	[shadername|list|repos]	Update all enabled shaders or shadername
+update	gameshaders	[opt1] [opt2] [opt3]	Per-game shader selection and repo management
+update	reshade	[version]	(Re-)download ReShade (version)
+update	specialk	download|dl [version]	Download SpecialK
+update	conty	up|update	Update the bundled Conty runtime
+meta	update		Generate/Update metadata for all installed games
+meta	raw	<id|i|o> [arg]	Create raw appinfo for id or installed|owned games
+meta	write	<id|i|o> [arg]	Read data from raw appinfo and write to game metadata

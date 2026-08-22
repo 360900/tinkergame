@@ -118,9 +118,9 @@ function setVortexDLMime {
 		echo "X-KeepTerminal=false"
 		echo "Path=$(dirname "$VORTEXEXE")"
 		if [ "$INFLATPAK" -eq 1 ]; then
-			echo "Exec=/usr/bin/flatpak run --command=tinkergame $FLATPAK_ID $VTX u %u"
+			echo "Exec=/usr/bin/flatpak run --command=tinkergame $FLATPAK_ID mods vortex url %u"
 		else
-			echo "Exec=$(realpath "$0") $VTX u %u"
+			echo "Exec=$(realpath "$0") mods vortex url %u"
 		fi
 		echo "NoDisplay=true"
 		echo "Hidden=false"
@@ -1104,9 +1104,9 @@ function VortexOptions {
 	fi
 
 	if [ "$ONSTEAMDECK" -eq 1 ]; then
-		INVTX="$(realpath "$0") $VTX install"
+		INVTX="$(realpath "$0") mods vortex install"
 	else
-		INVTX="$(realpath "$0") $VTX install gui"
+		INVTX="$(realpath "$0") mods vortex install gui"
 	fi
 
 	# Only present the actions that make sense for the current install state:
@@ -1118,12 +1118,12 @@ function VortexOptions {
 	if [ "$VTXISINSTALLED" -eq 0 ]; then
 		VTXFIELDS+=( --field="$FBUT_GUISET_VTXINST!$TT_CODA":FBTN "$INVTX" )
 	else
-		VTXFIELDS+=( --field="$FBUT_GUISET_VTXSTART":FBTN "$(realpath "$0") $VTX start" )
+		VTXFIELDS+=( --field="$FBUT_GUISET_VTXSTART":FBTN "$(realpath "$0") mods vortex start" )
 		VTXFIELDS+=( --field="$FBUT_GUISET_VTXINST!$TT_CODA":FBTN "$INVTX" )
-		VTXFIELDS+=( --field="$FBUT_GUISET_VTXGAMES":FBTN "$(realpath "$0") $VTX games" )
-		VTXFIELDS+=( --field="$FBUT_GUISET_VTXSYMS":FBTN "$(realpath "$0") $VTX symlinks" )
+		VTXFIELDS+=( --field="$FBUT_GUISET_VTXGAMES":FBTN "$(realpath "$0") mods vortex games" )
+		VTXFIELDS+=( --field="$FBUT_GUISET_VTXSYMS":FBTN "$(realpath "$0") mods vortex symlinks" )
 	fi
-	VTXFIELDS+=( --field="$FBUT_GUISET_VTXSTAGE!$TT_STAGES":FBTN "$(realpath "$0") $VTX stage" )
+	VTXFIELDS+=( --field="$FBUT_GUISET_VTXSTAGE!$TT_STAGES":FBTN "$(realpath "$0") mods vortex stage" )
 
 	"$YAD" --image "$SHOWPIC" "${YADIMGTOP[@]}" --center --window-icon="$STLICON" --form "${WINDECO[@]}" --title="$TITLE" \
 	--text="$VTXHEAD" --columns="$COLCOUNT" --f1-action="$F1ACTIONCG" --separator="" \

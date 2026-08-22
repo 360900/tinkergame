@@ -83,6 +83,18 @@ When adding or changing an option:
 
 At runtime the schema is loaded by `lib/config/schema.sh` (functions `tgSchemaKeys`, `tgSchemaHasKey`, `tgSchemaDesc`, `tgExpandDesc`). The `tinkergame set` command uses it to validate entries.
 
+### Adding a CLI Command
+The command tree is driven by `data/commands.def`, a TSV file with one row per command: `group<TAB>verb<TAB>argstring<TAB>summary`. The group `General` holds top-level commands; every other group becomes a `tinkergame <group> <verb>` command. The argstring and summary feed the generated listing in `tinkergame help`.
+
+When adding or changing a command:
+
+1. Edit `data/commands.def`.
+2. Add the case body to the matching `tgCmd*` function in `lib/cli/dispatch.sh` (or a new `tgCmd<Group>` function plus a route in `commandline`). Bodies read their arguments after the sub-verb (`$1`, `$2`, ...), because the group dispatcher shifts the group word away. Unknown sub-verbs should fall back to `howto`.
+3. If the command needs more explanation than one summary line, add a detail block to `howto` in `lib/cli/help.sh`. Use tab-indented `echo` lines only - the smoke test fails on echo lines with leading spaces.
+4. If the command is spawned by the GUI (MainMenu buttons, tray icon, generated desktop files), update those call sites too, and note the change in `MIGRATION.md`.
+
+At runtime the registry is loaded by `lib/cli/registry.sh` (functions `tgCmdGroups`, `tgCmdGroupVerbs`, `tgCmdHas`, `tgCmdArgs`, `tgCmdSummary`). Commands used by Steam itself (`run`, `waitforexitandrun`, `lang=`) are not in the registry; they fall through the `commandline` catch-all silently and must keep doing so.
+
 ### Use ShellCheck
 Run `shellcheck tinkergame lib/*/*.sh` with the ShellCheck version provided by your distribution. Note that a few checks (for example SC2153, SC2119 and SC2120) are disabled in the module headers, because variables are assigned in one module and used in another, which per-file analysis cannot see.
 

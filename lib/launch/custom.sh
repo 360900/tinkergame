@@ -562,12 +562,12 @@ function OneTimeRunGui {
 		--field="$GUI_OTEXE!$DESC_OTEXE":FL "${OTEXE//\"}" \
 		--field="$GUI_OTARGS!$DESC_OTARGS" "${OTARGS//\"}" \
 		--field="$GUI_OTRFORCEPROTON!$DESC_OTRFORCEPROTON":CHK "$OTFORCEPROTON" \
-		--field="$BUT_RUNWINECFG!$DESC_RUNWINECFG":FBTN "$( realpath "$0" ) runwinecfg" \
+		--field="$BUT_RUNWINECFG!$DESC_RUNWINECFG":FBTN "$( realpath "$0" ) wine winecfg" \
 		--field="$GUI_OTRCUSTWORKINGDIR!$DESC_OTRCUSTWORKINGDIR":DIR "$OTRUNDIR" \
 		--field="$GUI_OTRUSEEXEDIR!$DESC_OTRUSEEXEDIR":CHK "$OTUSEEXEDIR" \
 		--field="$GUI_OTSAVE!$DESC_OTSAVE":CHK "FALSE" \
 		--field="$GUI_OTRSLR!$DESC_OTRSLR":CHK "$OTSLR" \
-		--field="$BUT_RUNWINETRICKS!$DESC_RUNWINETRICKS":FBTN "$( realpath "$0" ) runwinetricks" \
+		--field="$BUT_RUNWINETRICKS!$DESC_RUNWINETRICKS":FBTN "$( realpath "$0" ) wine onetime-winetricks" \
 		--button="$BUT_CAN:0" \
 		--button="$BUT_DGM:2" \
 		--button="$BUT_RUNONETIMECMD:4" \
