@@ -101,3 +101,24 @@ function FUSEID {
 	setGN "$USEID"
 }
 
+
+# waits until file $1 exists, polling every ${3:-1} seconds; gives up after
+# $2 seconds (0 = wait forever) and returns 1 - bounded replacement for
+# unbounded 'while [ ! -f ]' busy-waits
+function tgWaitForFile {
+	local WAITFILE="$1"
+	local WAITMAX="$2"
+	local WAITSTEP="${3:-1}"
+	local WAITED=0
+
+	while [ ! -e "$WAITFILE" ]; do
+		if [ "$WAITMAX" -gt 0 ] && [ "$WAITED" -ge "$WAITMAX" ]; then
+			writelog "WAIT" "${FUNCNAME[0]} - '$WAITFILE' did not appear within '$WAITMAX' seconds - giving up"
+			return 1
+		fi
+		sleep "$WAITSTEP"
+		WAITED=$(( WAITED + WAITSTEP ))
+	done
+
+	return 0
+}

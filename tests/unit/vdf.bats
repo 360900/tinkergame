@@ -45,10 +45,9 @@ setup() {
 
 	# both duplicate "apps" blocks (7 lines each)
 	[ "$(wc -l <<<"$all")" = "14" ]
-	# NOTE: the stop pattern is not ^-anchored, so the stop fires on the first
-	# line *containing* indent-1 tabs + '}' -- the inner block's closing brace.
-	# This pins current behavior; fix belongs to the stability phase.
-	[ "$(wc -l <<<"$first")" = "6" ]
+	# the anchored stop pattern quits on the first line *starting with*
+	# indent-1 tabs + '}' -- the block's own closing brace
+	[ "$(wc -l <<<"$first")" = "7" ]
 	grep -q '"730"' <<<"$first"
 	! grep -q '"440"' <<<"$first"
 }
@@ -57,11 +56,10 @@ setup() {
 	run getNestedVdfSection "UserLocalConfigStore/Software/Valve/Steam/CompatToolMapping" "" "$VDF"
 	[ "$status" -eq 0 ]
 	grep -q '"CompatToolMapping"' <<<"$output"
-	# NOTE: due to the unanchored stop pattern in getVdfSection, the walk
-	# truncates after the first nested block's closing brace -- the section
-	# below pins that (buggy) behavior until the anchor bug is fixed.
 	grep -q '"22320"' <<<"$output"
 	grep -q '"proton_8"' <<<"$output"
+	grep -q '"570"' <<<"$output"
+	grep -q '"Proton-tg"' <<<"$output"
 	! grep -q '"UserLocalConfigStore"' <<<"$output"
 }
 

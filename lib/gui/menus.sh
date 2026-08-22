@@ -912,30 +912,30 @@ function openMenu {
 	case "$TG_TAB_RC" in
 	0) 	{
 			if [ "$ARGPCMD" == "$NON" ]; then
-				clickInfo "${FUNCNAME[0]}" "$?" "$QBUT0" "$GAMMENU" "Exit"
+				clickInfo "${FUNCNAME[0]}" "$TG_TAB_RC" "$QBUT0" "$GAMMENU" "Exit"
 				GOBACK=0
 				closeSTL " ######### STOP EARLY $PROGNAME $PROGVERS #########"
 				exit
 			else
-				clickInfo "${FUNCNAME[0]}" "$?" "$QBUT0" "$GAMMENU" "$ARGPCMD"
+				clickInfo "${FUNCNAME[0]}" "$TG_TAB_RC" "$QBUT0" "$GAMMENU" "$ARGPCMD"
 				"$ARGPCMD" "$AID" "${FUNCNAME[0]}"
 			fi
 		}
 	;;
 	2)  {
-			clickInfo "${FUNCNAME[0]}" "$?" "$BUT_MAINMENU" "$FAVOMENU" "$SETMENU"
+			clickInfo "${FUNCNAME[0]}" "$TG_TAB_RC" "$BUT_MAINMENU" "$FAVOMENU" "$SETMENU"
 			MainMenu "$AID" "${FUNCNAME[0]}"
 		}
 	;;
 	4) 	{
 			GOBACK=0
-			clickInfo "${FUNCNAME[0]}" "$?" "$BUT_RELOAD" "$FAVOMENU" "$PARGUI"
+			clickInfo "${FUNCNAME[0]}" "$TG_TAB_RC" "$BUT_RELOAD" "$FAVOMENU" "$PARGUI"
 			if [ "$SAVESETSIZE" -eq 1 ] ; then	sleep 1;	fi
 			"$PARGUI" "$AID" "$ARGPCMD" "$ARGSPLIT"
 		}
 	;;
 	6) 	{
-			clickInfo "${FUNCNAME[0]}" "$?" "$BUT_SAVERELOAD" "$FAVOMENU" "$PARGUI"
+			clickInfo "${FUNCNAME[0]}" "$TG_TAB_RC" "$BUT_SAVERELOAD" "$FAVOMENU" "$PARGUI"
 			GOBACK=0
 			writelog "INFO" "${FUNCNAME[0]} - Saving config '$ARGLOADCFG' and restart '$PARGUI' GUI"
 			saveMenuEntries "$ARGMENU"
@@ -944,7 +944,7 @@ function openMenu {
 		}
 	;;
 	8)  {
-			clickInfo "${FUNCNAME[0]}" "$?" "$BUT_SAVEPLAY" "$FAVOMENU" "Game Start"
+			clickInfo "${FUNCNAME[0]}" "$TG_TAB_RC" "$BUT_SAVEPLAY" "$FAVOMENU" "Game Start"
 			GOBACK=0
 			writelog "INFO" "${FUNCNAME[0]} - Saving config '$ARGLOADCFG' and starting the game"
 			saveMenuEntries "$ARGMENU"
@@ -952,7 +952,7 @@ function openMenu {
 		}
 	;;
 	10)	{
-			clickInfo "${FUNCNAME[0]}" "$?" "$BUT_PLAY" "$FAVOMENU" "Game Start"
+			clickInfo "${FUNCNAME[0]}" "$TG_TAB_RC" "$BUT_PLAY" "$FAVOMENU" "Game Start"
 			GOBACK=0
 			startSteamGame
 		}

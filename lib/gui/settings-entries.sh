@@ -116,6 +116,16 @@ function favoritesMenu {
 }
 
 function listAllSettingsEntries {
+	# refresh the cache when the module source is newer (e.g. after an upgrade
+	# within the same boot) - otherwise new settings fields would stay invisible
+	# until reboot because the /dev/shm caches are never rewritten
+	if [ -f "$STLSETENTRIES" ] && [ "$TGSRC_SETENTRIES" -nt "$STLSETENTRIES" ]; then
+		writelog "INFO" "${FUNCNAME[0]} - '$TGSRC_SETENTRIES' changed - refreshing stale entry caches"
+		rm -f "$STLSETENTRIES" "$STLRAWENTRIES" 2>/dev/null
+		rm -rf "$MTEMP" 2>/dev/null
+		mkProjDir "$MTEMP"
+	fi
+
 	if [ -f "$STLSETENTRIES" ]; then
 		writelog "INFO" "${FUNCNAME[0]} - '$STLSETENTRIES' already exists - nothing to do"
 	else

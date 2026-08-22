@@ -411,15 +411,15 @@ function updateConfigEntry {
 					CFGVALUE=""
 				fi
 
-				# Help prevent expanding incoming config values by escaping them (i.e. when using with sed)
-				ESCAPED_CFGVALUE="$( printf "%s\n" "$CFGVALUE" | sed 's/\\/\\\\/g' )"
-
 				# only save value if it changed
 				# sed needs escaped string because otherwise it'll expand escape sequences in strings with backslashes
 				# i.e. config values with Windows paths, '\home\test' will have '\t' expanded as a tab character
 				# We have to use the regular one for echo though.
 				if { [ "${!CFGCAT}" != "$CFGVALUE" ] && [ "${!CFGCAT}" != "${CFGVALUE//$STLCFGDIR/STLCFGDIR}" ];} || [ -f "$FUPDATE" ]; then
 					CFGVALUE="${CFGVALUE//$STLCFGDIR/STLCFGDIR}"
+					# escape AFTER the STLCFGDIR substitution so the sed branches below
+					# persist the placeholder exactly like the append branch does
+					ESCAPED_CFGVALUE="$( printf "%s\n" "$CFGVALUE" | sed 's/\\/\\\\/g' )"
 					if [ "$(grep -c "#${CFGCAT}=" "$CFGFILE")" -eq 1 ]; then
 						writelog "INFO" "${FUNCNAME[0]} - Option '$CFGCAT' commented out in config '${CFGFILE##*/}' - activating it with the new value '$CFGVALUE'"
 						sed -i "/^#${CFGCAT}=/c$CFGCAT=\"$ESCAPED_CFGVALUE\"" "$CFGFILE"

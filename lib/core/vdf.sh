@@ -93,7 +93,7 @@ function getVdfSection {
 	# This is a very hacky solution to allow 'getNestedVdfSection' to use this function
 	# It needs the start pattern exact match but other functions can't use this
 	if [ -n "$STOPAFTERFIRSTMATCH" ]; then
-		sed -n "/^${INDENTEDSTARTPATTERN}/I,/^${INDENTEDENDPATTERN}/I { p; /${INDENTEDENDPATTERN}/I q }" "$VDF"
+		sed -n "/^${INDENTEDSTARTPATTERN}/I,/^${INDENTEDENDPATTERN}/I { p; /^${INDENTEDENDPATTERN}/I q }" "$VDF"
 	else
 		sed -n "/^${INDENTEDSTARTPATTERN}/I,/^${INDENTEDENDPATTERN}/I p" "$VDF"
 	fi
@@ -126,8 +126,14 @@ function checkVdfSectionAlreadyExists {
     fi
 
 	# Need to pass Indent + 1 because the block we're searching for is 1 deeper, i.e. searching "CompatToolMapping", the AppID key will be 1 indent deeper
-    printf "%s" "$SEARCHBLOCKVDFSECTION" > "/tmp/tmp.vdf"
-    getVdfSection "$BLOCKNAME" "" "$BLOCKINDENT" "/tmp/tmp.vdf" | grep -iq "$BLOCKNAME"
+	# write the section to a private temp file (the old hardcoded /tmp/tmp.vdf
+	# collided between concurrent TinkerGame invocations)
+	TGVDFTMP="$(mktemp "${TMPDIR:-/tmp}/tg-vdfsection.XXXXXX")" || return 1
+    printf "%s" "$SEARCHBLOCKVDFSECTION" > "$TGVDFTMP"
+    getVdfSection "$BLOCKNAME" "" "$BLOCKINDENT" "$TGVDFTMP" | grep -iq "$BLOCKNAME"
+	local TGRC="$?"
+	rm -f "$TGVDFTMP"
+	return "$TGRC"
 }
 
 function getNestedVdfSection {

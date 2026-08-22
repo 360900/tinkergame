@@ -339,9 +339,7 @@ function reCreateCompatdata {
 
 						runEvalsc "${EUNID}" &
 
-						while [ ! -f "$EVALISRUN" ];do
-							sleep 0.1
-						done
+						tgWaitForFile "$EVALISRUN" 120 0.1 || :
 
 						while [ -f "$EVALISRUN" ];do
 							getCurStep "${EUNID}"
@@ -491,11 +489,12 @@ function checkFirstTimeRun {
 		ISCRILOG="$2"
 		EVALVDF="$SCCILECO/$1"
 		writelog "INFO" "${FUNCNAME[0]} - Waiting for '$EVALVDF' to appear" "X" "$ISCRILOG"
-		while [ ! -f "$EVALVDF" ]; do
-			sleep 0.1
-		done
-		cp "$EVALVDF" "$EVMETAID"
-		writelog "INFO" "${FUNCNAME[0]} - Copied '$EVALVDF' to '$EVMETAID/$1'" "X" "$ISCRILOG"
+		if tgWaitForFile "$EVALVDF" 300 0.1; then
+			cp "$EVALVDF" "$EVMETAID"
+			writelog "INFO" "${FUNCNAME[0]} - Copied '$EVALVDF' to '$EVMETAID/$1'" "X" "$ISCRILOG"
+		else
+			writelog "SKIP" "${FUNCNAME[0]} - '$EVALVDF' never appeared - skipping the backup copy" "X" "$ISCRILOG"
+		fi
 	}
 
 	rmOldLog
@@ -603,9 +602,7 @@ function checkFirstTimeRun {
 							waitForEvaluatorscript "$EVSC" "$ISCRILOG" &
 							writelog "INFO" "${FUNCNAME[0]} - '$EVALSC' START - '$EARLYPROT run ${RUNISCCMD[*]}'" "X" "$ISCRILOG"
 							"$EARLYPROT" run "${RUNISCCMD[@]}"
-							while [ ! -f "$SRCEVSC" ]; do
-								sleep 0.1
-							done
+							tgWaitForFile "$SRCEVSC" 120 0.1 || :
 						fi
 
 						# have a evaluatorscript to work with:

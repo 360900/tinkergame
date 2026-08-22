@@ -103,21 +103,25 @@ setup() {
 	printf 'FOO="old"\n' >"$BATS_TEST_TMPDIR/conf"
 	unset FOO
 	run updateConfigEntry "FOO" 'C:\games\bin' "$BATS_TEST_TMPDIR/conf"
-	# NOTE: ESCAPED_CFGVALUE doubles the backslashes, but sed's 'c' command
-	# text un-escapes them again, so the file ends up with single backslashes.
-	# This pins current behavior; see the config-system overhaul for a fix.
+	# ESCAPED_CFGVALUE doubles the backslashes and sed's 'c' command text
+	# un-escapes them again, so the file faithfully keeps single backslashes.
 	grep -q '^FOO="C:\\games\\bin"$' "$BATS_TEST_TMPDIR/conf"
 }
 
-@test "updateConfigEntry: STLCFGDIR placeholder is only substituted on append, not on update" {
+@test "updateConfigEntry: backslash escape sequences are not expanded" {
+	printf 'FOO="old"\n' >"$BATS_TEST_TMPDIR/conf"
+	unset FOO
+	run updateConfigEntry "FOO" 'C:\tools\nstuff' "$BATS_TEST_TMPDIR/conf"
+	# '\t' and '\n' in Windows paths must stay literal, not become tab/newline:
+	grep -q '^FOO="C:\\tools\\nstuff"$' "$BATS_TEST_TMPDIR/conf"
+	! grep -qP '\t|\n' "$BATS_TEST_TMPDIR/conf"
+}
+
+@test "updateConfigEntry: STLCFGDIR placeholder is substituted on update and append" {
 	printf 'FOO="old"\n' >"$BATS_TEST_TMPDIR/conf"
 	unset FOO
 	run updateConfigEntry "FOO" "$STLCFGDIR/downloads/thing" "$BATS_TEST_TMPDIR/conf"
-	# NOTE: the sed update branches write ESCAPED_CFGVALUE, which was computed
-	# BEFORE the STLCFGDIR->placeholder substitution -- a real pre-existing bug
-	# (updates persist absolute paths, appends persist the placeholder).
-	# This pins current behavior; see the config-system overhaul for a fix.
-	grep -q "^FOO=\"$STLCFGDIR/downloads/thing\"$" "$BATS_TEST_TMPDIR/conf"
+	grep -q '^FOO="STLCFGDIR/downloads/thing"$' "$BATS_TEST_TMPDIR/conf"
 
 	printf 'OTHER="x"\n' >"$BATS_TEST_TMPDIR/conf2"
 	unset BAR

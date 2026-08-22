@@ -1131,10 +1131,16 @@ function getGameWindowName {
 				writelog "WAIT" "${FUNCNAME[0]} - Waiting for the pfx '$GPFX' to be full created"
 			fi
 
+			SYSREGWAITED=0
 			while [ ! -f "$SYSREG" ]; do
 				if [ -f "$CLOSETMP" ]; then
 					break
 				fi
+				if [ "$SYSREGWAITED" -ge 300 ]; then
+					writelog "WAIT" "${FUNCNAME[0]} - Gave up waiting for '$SYSREG' to appear after '$SYSREGWAITED' seconds"
+					break
+				fi
+				SYSREGWAITED=$(( SYSREGWAITED + 1 ))
 				sleep 1
 			done
 		fi
