@@ -1,0 +1,81 @@
+on:
+  push:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+name: "TinkerGame CI"
+permissions: {}
+
+jobs:
+  lint:
+    name: ShellCheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install ShellCheck
+        run: |
+          curl -Lso /tmp/shellcheck.tar.xz \
+            https://github.com/koalaman/shellcheck/releases/download/v0.10.0/shellcheck-v0.10.0.linux.x86_64.tar.xz
+          tar -xf /tmp/shellcheck.tar.xz -C /tmp
+          echo "/tmp/shellcheck-v0.10.0" >> "$GITHUB_PATH"
+      - name: ShellCheck (entry point, uninstaller, all lib modules)
+        run: shellcheck --extended-analysis=false tinkergame uninstall.sh lib/*/*.sh tools/gen-options.sh
+      - name: Option schema consistency (data/options.def vs generated defaults)
+        run: bash tools/gen-options.sh --check
+
+  unit:
+    name: Unit tests (bats)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install dependencies
+        run: |
+          sudo apt-get -y update
+          sudo apt-get -y install gawk jq
+      - name: Run unit tests
+        run: ./tests/run.sh unit
+
+  checks:
+    name: Smoke, data and consistency checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install ShellCheck
+        run: |
+          curl -Lso /tmp/shellcheck.tar.xz \
+            https://github.com/koalaman/shellcheck/releases/download/v0.10.0/shellcheck-v0.10.0.linux.x86_64.tar.xz
+          tar -xf /tmp/shellcheck.tar.xz -C /tmp
+          echo "/tmp/shellcheck-v0.10.0" >> "$GITHUB_PATH"
+      - name: Run smoke checks (incl. data validators, i18n parity, version consistency)
+        run: ./tests/smoke.sh
+        env:
+          SHELLCHECK_OPTIONS: --extended-analysis=false
+          TINKERGAME_CI_TAG: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
+
+  packaging:
+    name: Arch package build
+    runs-on: ubuntu-latest
+    container: archlinux:base-devel
+    steps:
+      - name: Install git (needed by checkout and git archive)
+        run: pacman -Sy --noconfirm git
+      - uses: actions/checkout@v5
+      - name: Build package from the current commit
+        run: |
+          pkgver="$(sed -n 's/^pkgver=//p' packaging/arch/PKGBUILD | head -1)"
+          # Tarball with the layout the GitHub tag tarball would have
+          # (<repo>-<version>/ prefix), pointed at by the PKGBUILD as a local
+          # source, so the packaging pipeline always tests the current commit
+          # even when the tag tarball does not exist yet.
+          git archive --prefix="tinkergame-${pkgver}/" -o "tinkergame-${pkgver}.tar.gz" HEAD
+          sed -i "s|^source=.*|source=(\"../tinkergame-${pkgver}.tar.gz\")|" packaging/arch/PKGBUILD
+          # makepkg refuses to run as root
+          useradd -m builduser
+          chown -R builduser .
+          su builduser -c 'cd packaging/arch && makepkg --noconfirm --nodeps'
+      - name: Stage install sanity check
+        run: |
+          make PREFIX=/usr DESTDIR="$PWD/stage" install
+          test -x stage/usr/bin/tinkergame
+          test -f stage/usr/share/tinkergame/lib/core/common.sh
+          test -f stage/usr/share/tinkergame/data/options.def

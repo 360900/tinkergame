@@ -2,7 +2,7 @@
 We are always looking for new contributors! TinkerGame has a lot of parts and a lot of features, so there's always something to contribute.
 
 ## How to Contribute
-TinkerGame is basically a huge Bash script. If you know any Bash, feel free to jump in and look around the code. It might seem a little daunting at first but just play around and you'll get the hang of it. I also recommend reading through the `tinkergame.log` file. The log for the most recent launch can be found in `/dev/shm/tinkergame`. This can give you a sense for the flow of the script and how all the functions connect together.
+TinkerGame is written in Bash. The `tinkergame` file in the repository root is a thin entry point; the actual code lives in the `lib/` modules it sources (see [Code Layout](#code-layout)). If you know any Bash, feel free to jump in and look around the code. It might seem a little daunting at first but just play around and you'll get the hang of it. I also recommend reading through the `tinkergame.log` file. The log for the most recent launch can be found in `/dev/shm/tinkergame`. This can give you a sense for the flow of the script and how all the functions connect together.
 
 Given that TinkerGame is a Linux utility, you will probably have a smoother time developing on Linux. This includes on Steam Deck.
 
@@ -37,6 +37,8 @@ That means, if you're developing a feature for TinkerGame v15.2 on August 14th 2
 
 During development, you can set `PROGVERS` to any value you want, but you may want to suffix it with the branch name in brackets. In the above example, if your branch is called `awesomer-tinkergame`, then your version string during development might be `v15.2.20250814-1 (awesomer-tinkergame)`. Before merging, however, this should be cleaned up once all feedback is addressed. You may also update the string during a rebase.
 
+When bumping `PROGVERS`, please also bump `pkgver` in `packaging/arch/PKGBUILD` to match (without the leading `v`). CI checks that both stay in sync.
+
 See also: **[Development Tips/Testing your Development Version](#testing-your-development-version)**.
 
 ### Commit History
@@ -54,8 +56,35 @@ You are also free to translate the string, if you speak the language. But if not
 ## Development Tips
 This section has some tips and guidance to help with writing code for TinkerGame.
 
+### Code Layout
+The `tinkergame` entry point resolves the library directory (`lib/` next to the script for development, `$PREFIX/share/tinkergame/lib` when installed, overridable with `TINKERGAME_LIBDIR`), defines a few `TGSRC_*` path variables used by self-inspecting code, and sources the modules in order before calling `main`. The modules are grouped by area:
+
+- `lib/core/` -- bootstrap, paths, logging, i18n, cleanup, VDF helpers, small utilities
+- `lib/config/` -- config defaults, loading, saving, migration, management
+- `lib/gui/` -- YAD menus, dialogs, window geometry, settings entries
+- `lib/launch/` -- the game launch pipeline (argument parsing, Proton/Wine setup, VR, ReShade, SpecialK, gamescope, prefix handling)
+- `lib/steam/` -- Steam data integration (libraries, appinfo, non-Steam games, compat tool registration)
+- `lib/mods/` -- mod manager integrations (Vortex, MO2, HedgeModManager)
+- `lib/tools/` -- downloads and external tool management
+- `lib/cli/` -- command line dispatch, help, compatibility tool CLI
+- `lib/deck/` -- Steam Deck specific handling
+
+Modules must not be executed directly; they are sourced by the entry point. Some code greps module sources at runtime (for example the settings menu greps `lib/gui/settings-entries.sh` for its field definitions) -- the `TGSRC_*` variables in the entry point point at these files, so if you move a file containing such a `#START.../#END...` marker block, update the entry point accordingly.
+
+### Adding a Config Option
+The single source of truth for configuration options is `data/options.def`, a TSV file with one row per option: `scope<TAB>key<TAB>default<TAB>description`. The scope is one of `url`, `gui`, `global` or `default_template`; the default is the shell expression used verbatim in `lib/config/defaults.sh`; the description is a template (usually a `$DESC_*` reference) that gets expanded into the `## ` comment written above each key in config files.
+
+When adding or changing an option:
+
+1. Edit `data/options.def`.
+2. Run `tools/gen-options.sh` to regenerate `lib/config/defaults.sh` (the generated file is committed; CI fails if it drifts from `data/options.def`). `tools/gen-options.sh --check` just verifies the committed file is up to date.
+3. Add the matching `GUI_*` label and `DESC_*` description strings to **all** language files in `lang/` (see [Translations](#translations)).
+4. Where the option takes effect, read it from the environment as usual (`loadCfg` exports every key). Writers and upgraders pick the option up automatically: `saveCfg` writes it into fresh configs, and `updateConfigFile` appends it to existing configs when they get upgraded to the current version (a timestamped backup of the old file is kept in `~/.config/tinkergame/backup/`).
+
+At runtime the schema is loaded by `lib/config/schema.sh` (functions `tgSchemaKeys`, `tgSchemaHasKey`, `tgSchemaDesc`, `tgExpandDesc`). The `tinkergame set` command uses it to validate entries.
+
 ### Use ShellCheck
-TinkerGame includes a ShellCheck directive for versions that support extended analysis. Run `shellcheck tinkergame` with the ShellCheck version provided by your distribution.
+Run `shellcheck tinkergame lib/*/*.sh` with the ShellCheck version provided by your distribution. Note that a few checks (for example SC2153, SC2119 and SC2120) are disabled in the module headers, because variables are assigned in one module and used in another, which per-file analysis cannot see.
 
 There is an awesome utility called [ShellCheck](http://shellcheck.net/) which helps ensure shell code is bug-free. It is strongly recommended to use this when developing for TinkerGame, it's a good way to catch bugs and write well structured code.
 

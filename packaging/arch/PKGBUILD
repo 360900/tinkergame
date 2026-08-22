@@ -1,5 +1,5 @@
 pkgname=tinkergame
-pkgver=14.0.20260707
+pkgver=14.0.20260805
 pkgrel=1
 pkgdesc='Steam compatibility tool and game utility manager'
 arch=('any')

@@ -20,12 +20,20 @@ install:
 		install -Dm755 "$$tmp" "$(DESTDIR)$(PREFIX)/bin/tinkergame-uninstall"
 
 	install -d "$(DESTDIR)$(PREFIX)/share/tinkergame"
-	cp -r collections eval guicfgs lang misc "$(DESTDIR)$(PREFIX)/share/tinkergame"
+	cp -r collections data eval guicfgs lang misc lib "$(DESTDIR)$(PREFIX)/share/tinkergame"
+	sed -i "s:^PREFIX=\"/usr\":PREFIX=\"$(PREFIX)\":" "$(DESTDIR)$(PREFIX)/share/tinkergame/lib/core/common.sh"
 
 	install -Dm644 README.md -t "$(DESTDIR)$(PREFIX)/share/doc/tinkergame"
 	install -Dm644 MIGRATION.md -t "$(DESTDIR)$(PREFIX)/share/doc/tinkergame"
 	install -Dm644 "misc/tinkergame.desktop" -t "$(DESTDIR)$(PREFIX)/share/applications"
 	install -Dm644 "misc/tinkergame.svg" -t "$(DESTDIR)$(PREFIX)/share/icons/hicolor/scalable/apps"
+
+ifneq ($(DESTDIR),)
+	@echo "Skipping TinkerGame Steam compatibility-tool registration (DESTDIR staging build)"
+else
+	@echo "Registering TinkerGame as a Steam compatibility tool"
+	@$(PREFIX)/bin/tinkergame compat add
+endif
 
 uninstall:
 	rm -f "${PREFIX}/bin/tinkergame-uninstall"

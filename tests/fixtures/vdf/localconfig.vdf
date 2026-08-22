@@ -1,0 +1,38 @@
+"UserLocalConfigStore"
+{
+	"Software"
+	{
+		"Valve"
+		{
+			"Steam"
+			{
+				"CompatToolMapping"
+				{
+					"22320"
+					{
+						"name"		"proton_8"
+						"config"		"payload"
+					}
+					"570"
+					{
+						"name"		"Proton-tg"
+					}
+				}
+			}
+		}
+	}
+	"apps"
+	{
+		"730"
+		{
+			"OverlayAppEnable"		"1"
+		}
+	}
+	"apps"
+	{
+		"440"
+		{
+			"OverlayAppEnable"		"1"
+		}
+	}
+}
