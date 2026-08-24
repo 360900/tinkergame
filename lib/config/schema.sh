@@ -11,7 +11,7 @@
 
 # NOTE: the arrays are declared with 'declare -gA' inside tgSchemaInit (not at
 # the top level of this file) so they stay global even when the entry point is
-# sourced from within a function (as the test harness does).
+# sourced from within a function (as the test runner does).
 
 # load data/options.def once (no-op on subsequent calls):
 function tgSchemaInit {
