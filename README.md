@@ -39,19 +39,34 @@ Use your distribution package manager when a TinkerGame package is available.
 ProtonUp-Qt and ProtonPlus support depends on their current release and package
 metadata.
 
-For a local system installation:
+The quickest way from a source checkout is the one-command installer:
 
 ```sh
-make
-sudo make install
+git clone https://github.com/360900/tinkergame.git
+cd tinkergame
+./install.sh
 ```
 
-For a user-local installation:
+`./install.sh` asks whether to install for the current user only (recommended,
+no root rights) or system-wide. It can also run non-interactively:
 
 ```sh
-make PREFIX="$HOME/.local"
-make PREFIX="$HOME/.local" install
+./install.sh --user     # install to ~/.local, no sudo
+./install.sh --system   # install to /usr, uses sudo
 ```
+
+The same with plain make:
+
+```sh
+sudo make install       # system-wide (/usr)
+make install-user       # current user (~/.local)
+```
+
+The install requires Bash, Make, YAD, Git, Wget, Tar, Unzip, and the other
+tools listed by the installation checks. Optional integrations add their own
+dependencies. `jq` is required for custom Proton and shader repository data.
+
+When installed for the current user, make sure `~/.local/bin` is in `PATH`.
 
 For distribution packaging, `DESTDIR` stages files without changing the
 runtime prefix embedded in the installed scripts:
@@ -81,15 +96,13 @@ registration as well. Add `--yes` to skip the confirmation prompt.
 sudo tinkergame-uninstall --purge
 ```
 
-The install requires Bash, YAD, Git, Wget, Tar, Unzip, and the other tools
-listed by the installation checks. Optional integrations add their own
-dependencies. `jq` is required for custom Proton and shader repository data.
-
 ## Use With Steam
 
 ### Proton games
 
-Register TinkerGame as a Steam compatibility tool:
+Installing TinkerGame registers it as a Steam compatibility tool
+automatically. If the registration was removed, or you installed without
+running the registration step, re-register it:
 
 ```sh
 tinkergame compat add
@@ -115,7 +128,7 @@ Run `tinkergame help` for the complete command list. Useful commands include:
 
 ```sh
 tinkergame settings
-tinkergame configdir
+tinkergame config dir
 tinkergame version
 tinkergame help
 ```
@@ -137,11 +150,11 @@ This is a full breaking rename. Existing users should read
 ## Troubleshooting
 
 Start with the latest log from the configured `logs` directory and the startup
-log under `/dev/shm/tinkergame`. Run the following to verify the local script:
+log under `/dev/shm/tinkergame`. Verify a source checkout with:
 
 ```sh
-bash -n tinkergame
-shellcheck tinkergame
+make build   # syntax-check the entry point and all lib/ modules
+make check   # smoke checks
 ```
 
 When reporting a problem, include the TinkerGame version, distribution,
@@ -173,9 +186,9 @@ handle optional dependencies explicitly.
 Run the local checks with:
 
 ```sh
-bash -n tinkergame
-shellcheck tinkergame
-make -n install PREFIX="$HOME/.local"
+make build          # syntax-check the entry point and all modules
+make check          # smoke checks
+./tests/run.sh unit # full unit test suite
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for development notes.

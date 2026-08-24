@@ -404,8 +404,8 @@ function GameScopeGui {
 			--title="$TITLE" --separator="|" \
 			--text="$(spanFont "$(strFix "$GUI_GASCOSET" "$SGNAID")" "H")" \
 			--field="$(spanFont "$GUI_GSGENERALSET" "H")":LBL "SKIP" \
-			--field="$GUI_GSINTRES!$DESC_GSINTRES ('GSINTRES')":CBE "$(cleanDropDown "${GSINTRES//\"}" "$(printf "%s\n" "$("$XRANDR" --current | grep "[0-9]x" | awk '{print $1}' | grep "^[0-9]" | tr '\n' '!')")")" \
-			--field="$GUI_GSSHWRES!$DESC_GSSHWRES ('GSSHWRES')":CBE "$(cleanDropDown "${GSSHWRES//\"}" "$(printf "%s\n" "$("$XRANDR" --current | grep "[0-9]x" | awk '{print $1}' | grep "^[0-9]" | tr '\n' '!')")")" \
+			--field="$GUI_GSINTRES!$DESC_GSINTRES ('GSINTRES')":CBE "$(cleanDropDown "${GSINTRES//\"}" "$(printf "%s\n" "$("$XRANDR" --current 2>/dev/null | grep "[0-9]x" | awk '{print $1}' | grep "^[0-9]" | tr '\n' '!')")")" \
+			--field="$GUI_GSSHWRES!$DESC_GSSHWRES ('GSSHWRES')":CBE "$(cleanDropDown "${GSSHWRES//\"}" "$(printf "%s\n" "$("$XRANDR" --current 2>/dev/null | grep "[0-9]x" | awk '{print $1}' | grep "^[0-9]" | tr '\n' '!')")")" \
 			--field="$GUI_GSFLR!$DESC_GSFLR ('GSFLR')":CBE "$(cleanDropDown "${GSFLR//\"}" "30!60!90!120!$UL")" \
 			--field="$GUI_GSFLU!$DESC_GSFLU ('GSFLU')":CBE "$(cleanDropDown "${GSFLU//\"}" "30!60!90!120!$UL")" \
 			--field="$GUI_USEGAMESCOPE!$DESC_USEGAMESCOPE ('USEGAMESCOPE')":CHK "${USEGAMESCOPE/#-/ -}" \

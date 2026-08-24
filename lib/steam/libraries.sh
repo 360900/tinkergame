@@ -103,8 +103,8 @@ function setSteamPaths {
 				# This will cause problems, so log a warning
 				#
 				# Hopefully this never happens under normal usage... We should always be able to find the Steam User
-				if [ -z "${STEAMUSERID}" ] || [ -z "${STUIDPATH}" ]; then
-					writelog "WARN" "${FUNCNAME[0]} - Could not find any logged in Steam users in '$LOGINUSERSCSV' (are any users logged in?) - other variables depend on it, expect problems!" "E"
+			if [ -z "${STEAMUSERID}" ] || [ -z "${STUIDPATH}" ]; then
+				writelog "WARN" "${FUNCNAME[0]} - Could not find any logged in Steam users in '$LOGINUSERSCSV' (are any users logged in?) - other variables depend on it, expect problems!"
 				elif [ ! -d "${STUIDPATH}" ]; then
 					# If we were able to get the Most Recent Steam user but the userdata path for this user with this UserID does not actually exist, something has gone horribly wrong!
 					# One possible but unlikely scenario is that the MostRecent user in LognUsersCSV file was removed from the Steam Client, so the userdata path would no longer exist

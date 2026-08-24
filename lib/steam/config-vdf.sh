@@ -108,6 +108,43 @@ function fillLoginUsersCSV {
 		writelog "INFO" "${FUNCNAME[0]} - Writing loginuser '${LOGINUSERLONGID},${LOGINUSERSHORTID},${LOGINUSERMOSTRECENT}' to '${LOGINUSERSCSV}'"
 		printf '%s;%s;%s\n' "${LOGINUSERLONGID}" "${LOGINUSERSHORTID}" "${LOGINUSERMOSTRECENT}"
 	done >"$LOGINUSERSCSV"
+
+	# Newer Steam clients no longer write a "MostRecent" field into loginusers.vdf,
+	# so every parsed user would end up with MostRecent=0 and no "current" user
+	# could be determined. Fall back to the newest login "Timestamp", or to the
+	# only listed user when no timestamps are available at all.
+	if [ -s "$LOGINUSERSCSV" ] && ! grep -q ';1$' "$LOGINUSERSCSV"; then
+		MRTOPID=""
+		MRTOPTS="0"
+
+		for LOGINUSERLONGID in "${LOGINUSERLONGIDS[@]}"; do
+			MRTS="$( getVdfSectionValue "$( getVdfSection "${LOGINUSERLONGID}" "" "1" "${LOGUVDF}" )" "Timestamp" "1" | tr -d '"' )"
+			if [ -n "$MRTS" ] && [ "$MRTS" -gt "$MRTOPTS" ]; then
+				MRTOPTS="$MRTS"
+				MRTOPID="$LOGINUSERLONGID"
+			fi
+		done
+
+		if [ -z "$MRTOPID" ] && [ "${#LOGINUSERLONGIDS[@]}" -eq 1 ]; then
+			MRTOPID="${LOGINUSERLONGIDS[0]}"
+		fi
+
+		if [ -n "$MRTOPID" ]; then
+			writelog "INFO" "${FUNCNAME[0]} - No user flagged MostRecent in '${LOGUVDF}' - using '${MRTOPID}' (newest login)"
+			# rewrite the CSV line by line: the long Steam IDs exceed awk's numeric
+			# precision, so 'id == $1' there would compare them as equal doubles
+			TGLUCSVTMP="$(mktemp "${TMPDIR:-/tmp}/tg-loginusers.XXXXXX")"
+			while IFS=';' read -r LUCLID LUCSID LUCMR; do
+				if [ "$LUCLID" == "$MRTOPID" ]; then
+					printf '%s;%s;%s\n' "${LUCLID}" "${LUCSID}" "1"
+				else
+					printf '%s;%s;%s\n' "${LUCLID}" "${LUCSID}" "${LUCMR}"
+				fi
+			done < "$LOGINUSERSCSV" > "$TGLUCSVTMP"
+			mv -f "$TGLUCSVTMP" "$LOGINUSERSCSV"
+			rm -f "$TGLUCSVTMP"
+		fi
+	fi
 }
 
 function updateLocalConfigAppsValue {

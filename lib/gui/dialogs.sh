@@ -15,11 +15,11 @@ function getUsedVars {
 
 function getScreenRes {
 	function widthList {
-		"$XRANDR" --verbose | grep "\*" -A2 | grep -oP 'width\K[^start]+'
+		"$XRANDR" --verbose 2>/dev/null | grep "\*" -A2 | grep -oP 'width\K[^start]+'
 	}
 
 	function heightList {
-		"$XRANDR" --verbose | grep "\*" -A2 | grep -oP 'height\K[^start]+'
+		"$XRANDR" --verbose 2>/dev/null | grep "\*" -A2 | grep -oP 'height\K[^start]+'
 	}
 
 	function getRes {
@@ -37,7 +37,7 @@ function getScreenRes {
 		FOUNDW="$(widthList | head -n1 | tr -dc '0-9')"
 		FOUNDH="$(heightList | head -n1 | tr -dc '0-9')"
 	else
-		XCUT="$("$XRANDR" --listactivemonitors | grep -Eo "\+[1-9][[:digit:]]*\+" | grep -Eo "[[:digit:]]*")"
+		XCUT="$("$XRANDR" --listactivemonitors 2>/dev/null | grep -Eo "\+[1-9][[:digit:]]*\+" | grep -Eo "[[:digit:]]*")"
 		MPOS="$("$XDO" getmouselocation --shell | head -n1 | cut -d '=' -f2)"
 		if [ "$MPOS" -gt "$XCUT" ]; then
 			FOUNDW="$(widthList | tail -n1 | tr -dc '0-9')"
@@ -70,7 +70,7 @@ function getScreenRes {
 function listScreenRes {
 	while read -r lres; do
 		echo "${lres%*[[:blank:]]}" | cut -d ' ' -f1
-	done <<< "$("$XRANDR" --verbose | grep "+VSync$")" | sort -nur
+	done <<< "$("$XRANDR" --verbose 2>/dev/null | grep "+VSync$")" | sort -nur
 }
 
 function setInitWinXY {
