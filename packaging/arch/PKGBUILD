@@ -1,20 +1,23 @@
 pkgname=tinkergame
-pkgver=14.0.20260805
+pkgver=0.1.0.alpha.1
 pkgrel=1
 pkgdesc='Steam compatibility tool and game utility manager'
 arch=('any')
 url='https://github.com/360900/tinkergame'
 license=('GPL-3.0-or-later')
 depends=('bash' 'git' 'jq' 'tar' 'unzip' 'wget' 'xdotool' 'xxd' 'xorg-xprop' 'xorg-xrandr' 'xorg-xwininfo' 'yad')
-source=("$url/archive/refs/tags/v$pkgver.tar.gz")
+# pkgver uses dots for the pre-release stage (Arch forbids dashes); the git tag keeps them
+_tagver="${pkgver//.alpha./-alpha.}"
+_tagver="${_tagver//.beta./-beta.}"
+source=("$url/archive/refs/tags/v$_tagver.tar.gz")
 sha256sums=('SKIP')
 
 build() {
-	cd "$pkgname-$pkgver"
+	cd "$pkgname-$_tagver"
 	make build
 }
 
 package() {
-	cd "$pkgname-$pkgver"
+	cd "$pkgname-$_tagver"
 	make PREFIX=/usr DESTDIR="$pkgdir" install
 }

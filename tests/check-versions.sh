@@ -18,7 +18,13 @@ if [ -z "$PROGVERS" ]; then
 fi
 
 PKGVER="$(sed -n "s/^pkgver=\(.*\)$/\1/p" packaging/arch/PKGBUILD | head -1)"
-if [ -n "$PKGVER" ] && [ "v$PKGVER" != "$PROGVERS" ]; then
+# Arch pkgver cannot contain dashes, so pre-release stages use dots there
+# (0.1.0.alpha.1) while PROGVERS/git tags use dashes (v0.1.0-alpha.1)
+PKGVER_TAG="v$PKGVER"
+for stage in alpha beta rc; do
+	PKGVER_TAG="${PKGVER_TAG//.$stage./-$stage.}"
+done
+if [ -n "$PKGVER" ] && [ "$PKGVER_TAG" != "$PROGVERS" ]; then
 	printf '%s\n' "check-versions: packaging/arch/PKGBUILD pkgver ($PKGVER) does not match PROGVERS ($PROGVERS) - please bump pkgver" >&2
 	fail=1
 fi

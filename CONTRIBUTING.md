@@ -31,13 +31,15 @@ There are no strict rules on how to name or format your pull requests. Just try 
 ### Versioning
 **Note:** Version strings don't have to be updated when submitting PRs with no code updates. You're still free to do so, but it isn't really necessary if you're not touching `tinkergame`. It is cleaner for me though! :-)
 
-Before a Pull Request can be merged, the `PROGVERS` should be bumped. This value controls how config files are versioned, and how new data is pulled into them. Usually, `PROGVERS` is set to the current `major.minor` version, and then the current date plus 1 at the end. Dates follow the ISO date standard. If the current date is already used, you can adjust the revision number. The version major and minor strings don't need to be changed by you, *only the date needs to be changed*.
+Before a Pull Request can be merged, the `PROGVERS` should be bumped. This value controls how config files are versioned, and how new data is pulled into them. TinkerGame follows [Semantic Versioning](https://semver.org) with a pre-release suffix while it is in Alpha: `vMAJOR.MINOR.PATCH-stage.N`, e.g. `v0.1.0-alpha.1`. Anything may change at any time while the major version is `0`.
 
-That means, if you're developing a feature for TinkerGame v15.2 on August 14th 2025, you would set the string as `v15.2.20250814-1`. If this date was already used, you would change the `-1` to be `-2` in this case, or `-3` and so on. Take a look around commits, and multiple commits in the same day, to see the diff on how `PROGVERS` is bumped. As examples, take a look at [`62aec11`](https://github.com/360900/tinkergame/commit/62aec1124e19798509d203c6e28c24b28ac11157) for a version bump example, and its follow-up [`c2071ea`](https://github.com/360900/tinkergame/commit/c2071ea044277bd87a02aa51764ac88b42aae298) for a revision bump example.
+In practice, *only the number after the stage needs to be changed by you*: bump the counter for each release (`v0.1.0-alpha.1` -> `v0.1.0-alpha.2`). The `MINOR` version is bumped (and the counter reset) by the maintainer when a batch of features lands (`v0.2.0-alpha.1`). Once the app is feature-complete, the stage moves to `beta` (`v1.0.0-beta.1`), and the suffix is dropped entirely for a stable release (`v1.0.0`). Git tags match `PROGVERS` exactly.
 
-During development, you can set `PROGVERS` to any value you want, but you may want to suffix it with the branch name in brackets. In the above example, if your branch is called `awesomer-tinkergame`, then your version string during development might be `v15.2.20250814-1 (awesomer-tinkergame)`. Before merging, however, this should be cleaned up once all feedback is addressed. You may also update the string during a rebase.
+That means, if you're developing a bugfix on top of `v0.1.0-alpha.1`, you would set the string to `v0.1.0-alpha.2`.
 
-When bumping `PROGVERS`, please also bump `pkgver` in `packaging/arch/PKGBUILD` to match (without the leading `v`). CI checks that both stay in sync.
+During development, you can set `PROGVERS` to any value you want, but you may want to suffix it with the branch name in brackets. If your branch is called `awesomer-tinkergame`, then your version string during development might be `v0.1.0-alpha.2 (awesomer-tinkergame)`. Before merging, however, this should be cleaned up once all feedback is addressed. You may also update the string during a rebase.
+
+When bumping `PROGVERS`, please also bump `pkgver` in `packaging/arch/PKGBUILD` to match, but note that Arch does not allow dashes in `pkgver`: drop the leading `v` and write the pre-release stage with dots (`v0.1.0-alpha.1` becomes `0.1.0.alpha.1`). CI checks that both stay in sync.
 
 See also: **[Development Tips/Testing your Development Version](#testing-your-development-version)**.
 
