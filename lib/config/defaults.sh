@@ -282,7 +282,7 @@ function setDefaultCfgValues {
 		if [ -z "$SBSRS" ]; then		SBSRS="0"; fi
 		if [ -z "$MINVRWINH" ]; then		MINVRWINH="640"; fi
 		if [ -z "$WAITFORTHISPID" ]; then		WAITFORTHISPID="$NON"; fi
-		if [ -z "$WAITEDITOR" ]; then		WAITEDITOR="5"; fi
+		if [ -z "$WAITEDITOR" ]; then		WAITEDITOR="10"; fi
 		if [ -z "$STEAMAPPIDFILE" ]; then		STEAMAPPIDFILE="0"; fi
 		if [ -z "$CHECKCOLLECTIONS" ]; then		CHECKCOLLECTIONS="1"; fi
 		if [ -z "$BACKUPSTEAMUSER" ]; then		BACKUPSTEAMUSER="0"; fi

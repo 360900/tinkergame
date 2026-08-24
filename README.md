@@ -62,9 +62,24 @@ sudo make install       # system-wide (/usr)
 make install-user       # current user (~/.local)
 ```
 
-The install requires Bash, Make, YAD, Git, Wget, Tar, Unzip, and the other
-tools listed by the installation checks. Optional integrations add their own
-dependencies. `jq` is required for custom Proton and shader repository data.
+The install requires Bash, Make, YAD, Git, Wget, Tar, Unzip, `jq`
+(custom Proton and shader repository data), `xxd`, and the X11 tools
+`xprop`, `xrandr`, and `xwininfo`. Optional integrations add their own
+dependencies.
+
+Debian/Ubuntu:
+
+```sh
+sudo apt-get install bash yad git wget tar unzip jq xdotool xxd x11-xserver-utils x11-utils
+```
+
+Arch:
+
+```sh
+sudo pacman -S bash git jq tar unzip wget xdotool xxd xorg-xprop xorg-xrandr xorg-xwininfo yad
+```
+
+(`xdotool` is only needed for a few optional legacy features.)
 
 When installed for the current user, make sure `~/.local/bin` is in `PATH`.
 

@@ -325,8 +325,8 @@ function autoBumpGE {
 			if [ "$NEWESTGE" == "$USEPROTON" ]; then
 				writelog "SKIP" "${FUNCNAME[0]} - $USEPROTON is already the newest GE Proton version"
 			else
-				writelog "INFO" "${FUNCNAME[0]} - $(strFix "$NOTY_BUMP" "$USEPROTON" "$USEPROTON" "$NEWESTGE")"
-				notiShow "$(strFix "$NOTY_BUMP" "$USEPROTON" "$USEPROTON" "$NEWESTGE")"
+				writelog "INFO" "${FUNCNAME[0]} - $(strFix "$NOTY_BUMP" "Proton" "$USEPROTON" "$NEWESTGE")"
+				notiShow "$(strFix "$NOTY_BUMP" "Proton" "$USEPROTON" "$NEWESTGE")"
 				USEPROTON="$NEWESTGE"
 				touch "$FUPDATE"
 				updateConfigEntry "USEPROTON" "$USEPROTON" "$STLGAMECFG"
@@ -343,8 +343,8 @@ function autoBumpProton {
 		if [ "$NEWESTPROTON" == "$USEPROTON" ]; then
 			writelog "SKIP" "${FUNCNAME[0]} - $USEPROTON is already the newest official Proton version"
 		else
-			writelog "INFO" "${FUNCNAME[0]} - $(strFix "$NOTY_BUMP" "$USEPROTON" "$USEPROTON" "$NEWESTPROTON")"
-			notiShow "$(strFix "$NOTY_BUMP" "$USEPROTON" "$USEPROTON" "$NEWESTPROTON")"
+			writelog "INFO" "${FUNCNAME[0]} - $(strFix "$NOTY_BUMP" "Proton" "$USEPROTON" "$NEWESTPROTON")"
+			notiShow "$(strFix "$NOTY_BUMP" "Proton" "$USEPROTON" "$NEWESTPROTON")"
 			USEPROTON="$NEWESTPROTON"
 			touch "$FUPDATE"
 			updateConfigEntry "USEPROTON" "$USEPROTON" "$STLGAMECFG"
