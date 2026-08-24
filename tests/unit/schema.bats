@@ -14,7 +14,7 @@ setup() {
 @test "tgSchemaKeys: scope key counts match the schema" {
 	[ "$(tgSchemaKeys "url" | grep -c .)" -eq 35 ]
 	[ "$(tgSchemaKeys "gui" | grep -c .)" -eq 4 ]
-	[ "$(tgSchemaKeys "global" | grep -c .)" -eq 133 ]
+	[ "$(tgSchemaKeys "global" | grep -c .)" -eq 134 ]
 	[ "$(tgSchemaKeys "default_template" | grep -c .)" -eq 189 ]
 }
 

@@ -62,12 +62,18 @@ jobs:
       - uses: actions/checkout@v5
       - name: Build package from the current commit
         run: |
+          # checkout runs as a different user than this step inside the container
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
           pkgver="$(sed -n 's/^pkgver=//p' packaging/arch/PKGBUILD | head -1)"
+          # Pre-release stages use dots in pkgver (Arch forbids dashes) but
+          # dashes in the tag/tarball prefix -- mirrors the PKGBUILD's _tagver
+          tagver="${pkgver//.alpha./-alpha.}"
+          tagver="${tagver//.beta./-beta.}"
           # Tarball with the layout the GitHub tag tarball would have
           # (<repo>-<version>/ prefix), pointed at by the PKGBUILD as a local
           # source, so the packaging pipeline always tests the current commit
           # even when the tag tarball does not exist yet.
-          git archive --prefix="tinkergame-${pkgver}/" -o "tinkergame-${pkgver}.tar.gz" HEAD
+          git archive --prefix="tinkergame-${tagver}/" -o "tinkergame-${pkgver}.tar.gz" HEAD
           sed -i "s|^source=.*|source=(\"../tinkergame-${pkgver}.tar.gz\")|" packaging/arch/PKGBUILD
           # makepkg refuses to run as root
           useradd -m builduser
