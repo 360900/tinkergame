@@ -70,11 +70,11 @@ jobs:
           tagver="${pkgver//.alpha./-alpha.}"
           tagver="${tagver//.beta./-beta.}"
           # Tarball with the layout the GitHub tag tarball would have
-          # (<repo>-<version>/ prefix), pointed at by the PKGBUILD as a local
-          # source, so the packaging pipeline always tests the current commit
-          # even when the tag tarball does not exist yet.
-          git archive --prefix="tinkergame-${tagver}/" -o "tinkergame-${pkgver}.tar.gz" HEAD
-          sed -i "s|^source=.*|source=(\"../tinkergame-${pkgver}.tar.gz\")|" packaging/arch/PKGBUILD
+          # (<repo>-<version>/ prefix), placed next to the PKGBUILD and
+          # referenced by plain filename, so makepkg can reliably find the
+          # local source (parent-relative ../ paths are not resolved).
+          git archive --prefix="tinkergame-${tagver}/" -o "packaging/arch/tinkergame-${pkgver}.tar.gz" HEAD
+          sed -i "s|^source=.*|source=(\"tinkergame-${pkgver}.tar.gz\")|" packaging/arch/PKGBUILD
           # makepkg refuses to run as root
           useradd -m builduser
           chown -R builduser .
