@@ -74,6 +74,18 @@ function tgSplitTemplateByCat {
 	' "$1"
 }
 
+# Escape Pango markup special characters for yad label contexts that parse
+# markup. Tab labels are rendered with gtk_label_set_markup_with_mnemonic -
+# a bare '&' (or '<') makes markup parsing fail and the label come out
+# EMPTY, which is how "Wine & Proton" showed up as a nameless tab.
+function tgMarkupEscape {
+	local s="$1"
+	s="${s//&/&amp;}"
+	s="${s//</&lt;}"
+	s="${s//>/&gt;}"
+	printf '%s' "$s"
+}
+
 function tgNotebookLaunch {
 	# generic yad --notebook + --plug launcher shared by the tabbed settings
 	# menus (openTabbedMenu) and the tabbed Main Menu (openMainMenuTabs).
@@ -105,7 +117,7 @@ function tgNotebookLaunch {
 
 	TGNBARGS=()
 	for TGNBTAB in "${TGNB_TABS[@]}"; do
-		TGNBARGS+=(--tab="$TGNBTAB")
+		TGNBARGS+=(--tab="$(tgMarkupEscape "$TGNBTAB")")
 	done
 
 	TGNBF1=()

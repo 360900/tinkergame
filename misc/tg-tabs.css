@@ -1,0 +1,27 @@
+/* Default TinkerGame notebook styling: give every tab a visible outline
+ * and spacing so tabs are easy to tell apart from each other and from
+ * the page content. Loaded automatically unless YADCSS is set.
+ * This only selects notebook widgets, so non-notebook windows are
+ * unaffected. */
+
+notebook > header {
+	border-bottom: 2px solid @borders;
+	padding: 3px;
+}
+
+notebook tab {
+	border: 1px solid @borders;
+	border-radius: 4px 4px 0 0;
+	margin: 2px;
+	padding: 4px 12px;
+}
+
+notebook tab:checked {
+	border-bottom: 2px solid @theme_selected_bg_color;
+	background: @theme_base_color;
+	font-weight: bold;
+}
+
+notebook tab:hover:not(:checked) {
+	background: shade(@theme_bg_color, 0.93);
+}

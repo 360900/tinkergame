@@ -6,6 +6,13 @@
 # TinkerGame library module -- sourced by the "tinkergame" entry point. Do not execute directly.
 
 function setGeom {
+	# Stale saved geometries (saved on a bigger screen or under a different
+	# GUI scale) must never push a window off the screen again, so every
+	# geometry is clamped to the screen size measured in prepareGUI.
+	TGCLAMPXY="$(tgClampWinXY "$WINX" "$WINY" "${TGSCRW:-}" "${TGSCRH:-}")"
+	if [ -n "$TGCLAMPXY" ]; then
+		read -r WINX WINY <<< "$TGCLAMPXY"
+	fi
 	GEOM="--geometry=${WINX}x${WINY}+${POSX}+${POSY}"
 }
 
@@ -49,13 +56,13 @@ function pollWinRes {
 			writelog "INFO" "${FUNCNAME[0]} - Using GEOM '$GEOM' from '$GAMEGUICFG'" "$WINRESLOG"
 		else
 			touch "$GAMEGUICFG"
-			echo "WINX=\"$WINX\"" > "$GAMEGUICFG"
-			echo "WINY=\"$WINY\"" >> "$GAMEGUICFG"
-
 			if [ -z "$GEOM" ]; then
 				setGeom
 				writelog "INFO" "${FUNCNAME[0]} - Setting '$GEOM' as initial window geometry"
 			fi
+
+			echo "WINX=\"$WINX\"" > "$GAMEGUICFG"
+			echo "WINY=\"$WINY\"" >> "$GAMEGUICFG"
 
 			writelog "INFO" "${FUNCNAME[0]} - Creating initial '$GAMEGUICFG' with unused default values" "$WINRESLOG"
 		fi

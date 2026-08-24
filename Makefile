@@ -71,11 +71,4 @@ install-user:
 	@$(MAKE) --no-print-directory install PREFIX="$(HOME)/.local"
 
 uninstall:
-	rm -f "${PREFIX}/bin/tinkergame-uninstall"
-	rm -f "${PREFIX}/share/icons/hicolor/scalable/apps/tinkergame.svg"
-	rm -f "${PREFIX}/share/applications/tinkergame.desktop"
-	rm -rf "${PREFIX}/share/doc/tinkergame"
-
-	rm -rf "${PREFIX}/share/tinkergame"
-
-	rm -f "${PREFIX}/bin/tinkergame"
+	bash uninstall.sh --yes --prefix="$(PREFIX)"

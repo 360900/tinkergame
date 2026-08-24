@@ -202,15 +202,20 @@ function OpenWiki {
 export -f OpenWiki
 
 function StatusWindow {
-	YAD=yad
     TITLE="${PROGNAME}-$3"
     pollWinRes "$TITLE"
 	writelog "INFO" "${FUNCNAME[0]} - for '$1'"
 
     RUNFUNC="$2"
+    # wget (and other tools) update their progress in place using carriage
+    # returns - convert them to newlines so the read loop actually sees each
+    # tick instead of staying silent until the very end
     $RUNFUNC |
+	tr '\r' '\n' |
     while read -r line; do
-		echo "# ${line}";
+		# truncate: a long progress line widens the dialog past the screen
+		# (the progress label has no ellipsize mode)
+		echo "# ${line:0:60}"
 	done | "$YAD" --window-icon="$STLICON" --title="$TITLE" --on-top --progress --progress-text="$1..." --pulsate --center --no-buttons --auto-close "${WINDECO[@]}" "$GEOM"
 }
 
@@ -281,13 +286,13 @@ function dlCheck {
 			if [ "$DLTITLE" != "$NON" ]; then
 				writelog "INFO" "${FUNCNAME[0]} - $DLTITLE"
 				notiShow "$(strFix "$NOTY_DLCUSTOMPROTON" "$DLDST")" "S"
-				if grep -q "show-progress" <<< "$("$WGET" --help)" && [ "$ONSTEAMDECK" -eq 0 ]; then
-					writelog "INFO" "${FUNCNAME[0]} - '$WGET -q --show-progress $DLSRC -O $DLDST'"
-					"$WGET" -q --show-progress "$DLSRC" -O "$DLDST" 2>&1 | sed -u -e "s:\.::g;s:.*K::g;s:^[[:space:]]*::g" | grep -v "SSL_INIT"
-				else
-					writelog "INFO" "${FUNCNAME[0]} - '$WGET -q $DLSRC -O $DLDST'"
-					"$WGET" -q "$DLSRC" -O "$DLDST" 2>&1 | sed -u -e "s:\.::g;s:.*K::g;s:^[[:space:]]*::g" | grep -v "SSL_INIT"
-				fi
+			if grep -q "show-progress" <<< "$("$WGET" --help)" && [ "$ONSTEAMDECK" -eq 0 ]; then
+				writelog "INFO" "${FUNCNAME[0]} - '$WGET -q --show-progress $DLSRC -O $DLDST'"
+				"$WGET" -q --show-progress "$DLSRC" -O "$DLDST" 2>&1 | tr '\r' '\n' | sed -u "s:^[[:space:]]*::" | grep -v "SSL_INIT"
+			else
+				writelog "INFO" "${FUNCNAME[0]} - '$WGET -q $DLSRC -O $DLDST'"
+				"$WGET" -q "$DLSRC" -O "$DLDST" 2>&1 | tr '\r' '\n' | sed -u "s:^[[:space:]]*::" | grep -v "SSL_INIT"
+			fi
 			else
 				"$WGET" -q "$DLSRC" -O "$DLDST" 1>/dev/null 2>&1
 			fi

@@ -130,6 +130,7 @@ function setDefaultCfgValues {
 		if [ -z "$VORTEXDEVICESCALEFACTOR" ]; then		VORTEXDEVICESCALEFACTOR="1"; fi
 		if [ -z "$VORTEXARGS" ]; then		VORTEXARGS="$NON"; fi
 		if [ -z "$VORTEXNODECORATION" ]; then		VORTEXNODECORATION="0"; fi
+		if [ -z "$VORTEXDISABLEGPU" ]; then		VORTEXDISABLEGPU="1"; fi
 		if [ -z "$DISABLE_AUTOSTAGES" ]; then		DISABLE_AUTOSTAGES="0"; fi
 		if [ -z "$NOSTEAMSTLDEF" ]; then		NOSTEAMSTLDEF="0"; fi
 		if [ -z "$SGDBAPIKEY" ]; then		SGDBAPIKEY="$NON"; fi

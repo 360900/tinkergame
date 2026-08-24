@@ -148,8 +148,10 @@ function setVortexDLMime {
 	# setting mime types for nxm
 	if [ -x "$(command -v "$XDGMIME" 2>/dev/null)" ]; then
 		writelog "INFO" "${FUNCNAME[0]} - Setting download defaults for nexusmod protocol via $XDGMIME pointing at $VD"
-		"$XDGMIME" default "$VD" x-scheme-handler/nxm
-		"$XDGMIME" default "$VD" x-scheme-handler/nxm-protocol
+		# stderr silenced: xdg-mime probes for optional helpers like qtpaths
+		# and prints "command not found" noise on systems without them
+		"$XDGMIME" default "$VD" x-scheme-handler/nxm 2>/dev/null
+		"$XDGMIME" default "$VD" x-scheme-handler/nxm-protocol 2>/dev/null
 	else
 		writelog "SKIP" "${FUNCNAME[0]} - $XDGMIME not found - couldn't set download defaults for nexusmod protocol - skipping"
 	fi
@@ -537,10 +539,21 @@ function setVortSet {
 
 function runVortex {
 	cd "$VORTEXINSTDIR" >/dev/null || return
-	if [ -n "$VORTEXARGS" ] && [ "$VORTEXARGS" != "$NON" ]; then
-		wineVortexRun "$VORTEXWINE" "${VTX^}.exe" "--force-device-scale-factor=${VORTEXDEVICESCALEFACTOR}" "$VORTEXARGS" "$@"
+	# VORTEXDISABLEGPU: Vortex (Electron) can fail to composite its window under
+	# Proton on some setups (hybrid graphics, ANGLE/DXVK/Vulkan), leaving the
+	# window permanently white - Chromium's software renderer avoids that
+	if [ -z "$VORTEXDISABLEGPU" ]; then
+		VORTEXDISABLEGPU=1
+	fi
+	if [ "$VORTEXDISABLEGPU" -eq 1 ]; then
+		VORTEXGPUBUT=("--disable-gpu")
 	else
-		wineVortexRun "$VORTEXWINE" "${VTX^}.exe" "--force-device-scale-factor=${VORTEXDEVICESCALEFACTOR}" "$@"
+		VORTEXGPUBUT=()
+	fi
+	if [ -n "$VORTEXARGS" ] && [ "$VORTEXARGS" != "$NON" ]; then
+		wineVortexRun "$VORTEXWINE" "${VTX^}.exe" "--force-device-scale-factor=${VORTEXDEVICESCALEFACTOR}" "${VORTEXGPUBUT[@]}" "$VORTEXARGS" "$@"
+	else
+		wineVortexRun "$VORTEXWINE" "${VTX^}.exe" "--force-device-scale-factor=${VORTEXDEVICESCALEFACTOR}" "${VORTEXGPUBUT[@]}" "$@"
 	fi
 	cd - >/dev/null || return
 }
@@ -843,7 +856,11 @@ function setVortexConfigVdf {
 	while read -r line; do
 		BIF="$(awk '{print $2}' <<< "$line")"
 		BIF="${BIF//\"}"
-		sed "s:$BIF:Z\:$BIF:" -i "$VTXSTCFG"
+		# modern Steam keeps libraries in libraryfolders.vdf - config.vdf may
+		# not contain any BaseInstallFolder (or an empty) line to rewrite
+		if [ -n "$BIF" ]; then
+			sed "s:$BIF:Z\:$BIF:" -i "$VTXSTCFG"
+		fi
 	done <<< "$(grep "BaseInstallFolder" "$VTXSTCFG")"
 
 	VTXSTEAMDIR="$VORTEXPFX/$DRC/$PFX86S/config"
@@ -904,6 +921,11 @@ function startVortex {
 			writelog "WARN" "${FUNCNAME[0]} - VORTEXEXE '$VORTEXEXE' does not exist - installing now"
 			StatusWindow "$(strFix "$NOTY_DLCUSTOMPROTON" "${VTX^}")" "dlLatestVortex S" "DownloadVortexStatus"
 			StatusWindow "$(strFix "$NOTY_INSTSTART" "${VTX^}")" "installVortex" "InstallVortexStatus"
+			# the installer decides the final install directory (the default
+			# changed between Vortex versions) - re-resolve VORTEXEXE instead
+			# of trusting the pre-install guess from above
+			VORTEXEXE=""
+			setVortexInstallDirs
 		elif [ -n "$DISABLEVORTEXAUTOUPDATE" ] && [ "$DISABLEVORTEXAUTOUPDATE" -eq 0 ]; then
 			# A Vortex install exists - check whether an update is available before launching,
 			# so a single "Start" action keeps Vortex up-to-date instead of needing a separate
@@ -976,7 +998,7 @@ function startVortex {
 			cleanVortex
 			writelog "INFO" "${FUNCNAME[0]} - ${VTX^} exited - starting game now"
 		else
-			writelog "ERROR" "${FUNCNAME[0]} - VORTEXEXE '$VORTEXEXE' not found! - exit"
+			writelog "ERROR" "${FUNCNAME[0]} - VORTEXEXE '$VORTEXEXE' not found! - exit" "E"
 			exit
 		fi
 	fi
@@ -1230,6 +1252,15 @@ function setVortexInstallDirs {
 				break
 			fi
 		done
+		if [ -z "$VORTEXINSTDIR" ]; then
+			# last resort: locate wherever the Vortex installer actually
+			# placed the exe (the default dir changed between Vortex versions)
+			VORTEXFOUND="$(find "$VORTEXPFX/$DRC/Program Files" "$VORTEXPFX/$DRC/Program Files (x86)" -maxdepth 3 -type f -name "${VTX^}.exe" -print -quit 2>/dev/null)"
+			if [ -n "$VORTEXFOUND" ]; then
+				VORTEXINSTDIR="$(dirname "$VORTEXFOUND")"
+				writelog "INFO" "${FUNCNAME[0]} - Found ${VTX^} executable at '$VORTEXFOUND'"
+			fi
+		fi
 		if [ -z "$VORTEXINSTDIR" ]; then
 			VORTEXINSTDIR="$VORTEXPFX/$BTVP"  # fall back to the original default
 		fi

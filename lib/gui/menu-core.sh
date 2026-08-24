@@ -54,6 +54,12 @@ function saveNewRes {
 	if [ "$SAVESETSIZE" -eq 1 ] && [ -n "$3" ]; then
 		SNEWW="$1"
 		SNEWH="$2"
+		# never persist a size larger than the screen, so a window the window
+		# manager stretched beyond the screen cannot poison the next launch
+		TGCLAMPXY="$(tgClampWinXY "$SNEWW" "$SNEWH" "${TGSCRW:-}" "${TGSCRH:-}")"
+		if [ -n "$TGCLAMPXY" ]; then
+			read -r SNEWW SNEWH <<< "$TGCLAMPXY"
+		fi
 		CFG="$3"
 		touch "$CFG"
 		updateConfigEntry "WINX" "$SNEWW" "$CFG"

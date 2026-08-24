@@ -77,6 +77,12 @@ function setInitWinXY {
 	DEFRESSHM="$STLSHM/defres.txt"
 	if [ -f "$DEFRESSHM" ] ; then
 		loadCfg "$DEFRESSHM" X
+		# a cached default from a session with a bigger screen must not be
+		# reused on a smaller one - clamp it to the current screen
+		TGCLAMPXY="$(tgClampWinXY "$WINX" "$WINY" "${TGSCRW:-}" "${TGSCRH:-}")"
+		if [ -n "$TGCLAMPXY" ]; then
+			read -r WINX WINY <<< "$TGCLAMPXY"
+		fi
 		writelog "INFO" "${FUNCNAME[0]} - Using '${WINX}x${WINY}' from config '$DEFRESSHM'"
 	else
 		if [ "$ONSTEAMDECK" -eq 1 ]; then
@@ -193,111 +199,36 @@ function checkWaitRequester {
 function askSettings {
 	if ! grep -q "^WAITEDITOR=\"0\"" "$STLGAMECFG"; then
 		if [ -f "$SWRF" ]; then
-			writelog "SKIP" "${FUNCNAME[0]} - Skipping Wait-Requester because skip file was found under '$SWRF'"
+			writelog "SKIP" "${FUNCNAME[0]} - Skipping the start menu because skip file was found under '$SWRF'"
 		else
-			# open editor requester
 			if grep -q "^WAITEDITOR" "$STLGAMECFG"; then
 				WEDGAME="$(grep "^WAITEDITOR" "$STLGAMECFG"| cut -d '=' -f2)"
 				WAITEDITOR="${WEDGAME//\"/}"
-				writelog "INFO" "${FUNCNAME[0]} - Using game specific requester timeout '$WAITEDITOR'"
+				writelog "INFO" "${FUNCNAME[0]} - Using game specific requester setting '$WAITEDITOR'"
 			fi
 
 			writeAllAIMeta "$AID" &
 
 			if [ "$WAITEDITOR" -gt 0 ]; then
-				writelog "INFO" "${FUNCNAME[0]} - Opening Requester with timeout '$WAITEDITOR'"
-
-				getAvailableCfgs
-				fixShowGnAid
-				export CURWIKI="$PPW/Wait-Requester"
-				TITLE="${PROGNAME}-OpenSettings"
-				pollWinRes "$TITLE"
-
-				setShowPic
-
+				# WAITEDITOR used to show a requester asking whether the menu
+				# should be opened before the game starts - the menu is now
+				# opened directly, without the extra question
 				if [ "$STARTMENU" == "Editor" ]; then
-					REQQEST="$GUI_ASKOPENED"
-					REQBUT="$BUT_EDITORMENU"
 					LAUNCHMENU="EditorDialog"
 				elif [ "$STARTMENU" == "Favorites" ]; then
-					REQQEST="$GUI_ASKOPENFAV"
-					REQBUT="$BUT_FAV"
 					LAUNCHMENU="favoritesMenu"
 				elif [ "$STARTMENU" == "Game" ]; then
-					REQQEST="$GUI_ASKOPENGAM"
-					REQBUT="$BUT_GM"
 					LAUNCHMENU="openGameMenu"
 				else
-					REQQEST="$GUI_ASKOPENSET"
-					REQBUT="$BUT_MAINMENU"
 					LAUNCHMENU="MainMenu"
 				fi
 
-				ASKSETSTLVERS="<b>${PROGNAME} ${PROGVERS}</b>"
-
-				LAPL="$(getLaPl)"
-
-				PDBROUT=""
-				prepareProtonDBRating
-				if [ -f "$PDBRASINF" ];then
-					PDBROUT="$(cat "$PDBRASINF")"
-				fi
-
-				# Tested and this should not break Non-Steam Games - Open an issue if it does!
-				prepareSteamDeckCompatInfo
-				if [ ! -f "$STLGDECKCOMPAT/${AID}-deckcompatrating.json" ] && [ "$DLSTEAMDECKCOMPATINFO" -eq 1 ]; then
-					# If the Steam Deck compat rating json doesn't exist, assume something messed up e.g. offline or JQ is not installed
-					writelog "INFO" "${FUNCNAME[0]} - Could not retrieve Steam Deck compatibility rating, defaulting to $STEAMDECKCOMPAT_UNKNOWN - Maybe '$JQ' is missing or we are offline?"
-				fi
-
-				if [ -n "$STEAMDECKCOMPATRATING" ]; then
-					writelog "INFO" "${FUNCNAME[0]} - Fetched Steam Deck compatibility info, will show on wait requester"
-					STEAMDECKCOMPATOUT="<b>$GUI_SDCR:</b> ${STEAMDECKCOMPATRATING:$STEAMDECKCOMPAT_UNKNOWN}"
-				fi
-
-				writelog "INFO" "${FUNCNAME[0]} - Steam Deck compatibility rating string is '$STEAMDECKCOMPATOUT'"
-				writelog "INFO" "${FUNCNAME[0]} - Preparing to show Wait Requester"
-
-				"$YAD" --f1-action="$F1ACTION" --image "$SHOWPIC" "${YADIMGTOP[@]}" --window-icon="$STLICON" --form --center --on-top "${WINDECO[@]}" \
-				--title="$TITLE" \
-				--text="$(spanFont "$ASKSETSTLVERS" "H")\n\n$(spanFont "$SGNAID - $REQQEST" "H")" \
-				--field="<i>$PDBROUT</i>":LBL \
-				--field="<i>$STEAMDECKCOMPATOUT</i>":LBL \
-				--field="<i>$LAPL</i>":LBL \
-				--field="<i>(${#CfgFiles[@]} $GUI_EDITABLECFGS)</i>":LBL \
-				--field="<i>($GUI_EDITABLEGAMECFGS)</i>":LBL \
-				--button="$REQBUT":0 \
-				--button="$BUT_SKIP":1 \
-				--button="$BUT_SKIPCG":2 \
-				--timeout="$WAITEDITOR" \
-				--timeout-indicator=top \
-				"$GEOM"
-
-				WAITREQRESULT=$?
-
-				writelog "INFO" "${FUNCNAME[0]} - Wait Requester result was '$WAITREQRESULT'"
-
-				case $WAITREQRESULT in
-					0)  {
-						writelog "INFO" "${FUNCNAME[0]} - Selected $REQBUT - Starting $SETMENU"
-						"$LAUNCHMENU" "$AID"
-						}
-					;;
-					1)  writelog "INFO" "${FUNCNAME[0]} - Selected $BUT_SKIP - Starting game without opening the $SETMENU"
-						editorSkipped ;;
-					2)  writelog "INFO" "${FUNCNAME[0]} - Selected $BUT_SKIPCG - Disabling the requester and starting game without opening the $SETMENU"
-						editorDontAskAgain ;;
-					70) writelog "INFO" "${FUNCNAME[0]} - TIMEOUT - Starting game without opening the $SETMENU" ;;
-					*) {
-					   writelog "WARN" "${FUNCNAME[0]} - Wait Requester returned unknown exit code '${WAITREQRESULT}' - Defaulting to opening the $SETMENU"
-					   "$LAUNCHMENU" "$AID"
-					   }
-					;;
-				esac
+				writelog "INFO" "${FUNCNAME[0]} - WAITEDITOR is '$WAITEDITOR' - opening the '$LAUNCHMENU' start menu directly"
+				"$LAUNCHMENU" "$AID"
 			fi
 		fi
 	else
-		writelog "SKIP" "${FUNCNAME[0]} - Skipping Wait-Requester because WAITEDITOR is 0 in '$STLGAMECFG'"
+		writelog "SKIP" "${FUNCNAME[0]} - Skipping the start menu because WAITEDITOR is 0 in '$STLGAMECFG'"
 	fi
 }
 
