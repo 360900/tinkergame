@@ -1,0 +1,5 @@
+Wine/Proton automatic DPI scaling
+Change default tab
+Vortex white outline? Automatically add the game. Is library.vdf broken again? "can't write to output directory"
+Fix progress bars
+Tabs are still cluttered
