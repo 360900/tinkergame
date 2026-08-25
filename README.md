@@ -2,6 +2,8 @@
 
 [![Wiki](https://img.shields.io/badge/docs-wiki-66c0f4?logo=github)](https://github.com/360900/tinkergame/wiki)
 
+> **Warning!** This project is still in alpha! Expect bugs and major changes.
+
 TinkerGame is a Linux game-launch wrapper for Steam. It gives each game a
 small graphical control panel for Proton, Wine, Gamescope, MangoHud, mod
 managers, launch commands, environment variables, and troubleshooting tools.
