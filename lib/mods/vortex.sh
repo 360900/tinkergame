@@ -925,6 +925,10 @@ function setVortexConfigVdf {
 
 function purgeVortexCache {
 	setVortexVars
+	if [ ! -f "$VORTEXEXE" ]; then
+		writelog "ERROR" "${FUNCNAME[0]} - No ${VTX^} executable found at '$VORTEXEXE' - nothing to purge. Install/start ${VTX^} first." "E"
+		return
+	fi
 
 	# Vortex caches the Steam library list and discovery state in memory for
 	# the lifetime of the process and writes it back on exit, so a corrected
@@ -953,6 +957,10 @@ function purgeVortexCache {
 
 function resetVortexSettings {
 	setVortexVars
+	if [ ! -f "$VORTEXEXE" ]; then
+		writelog "ERROR" "${FUNCNAME[0]} - No ${VTX^} executable found at '$VORTEXEXE' - reset has nothing to configure. Install/start ${VTX^} first." "E"
+		return
+	fi
 	runVortex "--get" "settings"
 	grep -v "^info: Epic" "$VWRUN" > "$STLSHM/vortsetbefore.txt"
 	rm "$VWRUN" 2>/dev/null
@@ -1317,12 +1325,16 @@ function setNonGameSLRReap {
 # Resolve the Vortex install directory and executable based on what is actually
 # installed. Vortex changed its install location over the years: older releases
 # install to 'Program Files/Black Tree Gaming Ltd/Vortex', newer ones to
-# 'Program Files/Vortex'. The VORTEXEXE variable is used as a cache so a caller
-# that already resolved a valid path (e.g. after installation) keeps it.
+# 'Program Files/Vortex' or - because the installer is Squirrel-based - into the
+# per-user 'AppData/Local/Programs/Vortex'. The VORTEXEXE variable is used as a
+# cache so a caller that already resolved a valid path (e.g. after
+# installation) keeps it.
 function setVortexInstallDirs {
 	if [ -z "$VORTEXEXE" ] || ! grep -q "exe" <<< "$VORTEXEXE"; then
 		VORTEXINSTDIR=""
-		for VDIR in "$VORTEXPFX/$BTVP" "$VORTEXPFX/$DRC/Program Files/${VTX^}"; do
+		for VDIR in "$VORTEXPFX/$BTVP" "$VORTEXPFX/$DRC/Program Files/${VTX^}" \
+			"$VORTEXPFX/$DRC/Program Files (x86)/${VTX^}" \
+			"$VORTEXPFX/$DRCU/$STUS/$ADLO/Programs/${VTX^}"; do
 			if [ -f "$VDIR/${VTX^}.exe" ]; then
 				VORTEXINSTDIR="$VDIR"
 				break
@@ -1331,7 +1343,7 @@ function setVortexInstallDirs {
 		if [ -z "$VORTEXINSTDIR" ]; then
 			# last resort: locate wherever the Vortex installer actually
 			# placed the exe (the default dir changed between Vortex versions)
-			VORTEXFOUND="$(find "$VORTEXPFX/$DRC/Program Files" "$VORTEXPFX/$DRC/Program Files (x86)" -maxdepth 3 -type f -name "${VTX^}.exe" -print -quit 2>/dev/null)"
+			VORTEXFOUND="$(find "$VORTEXPFX/$DRC" "$VORTEXPFX/$DRC/Program Files" "$VORTEXPFX/$DRC/Program Files (x86)" "$VORTEXPFX/$DRCU" -maxdepth 8 -type f -name "${VTX^}.exe" -print -quit 2>/dev/null)"
 			if [ -n "$VORTEXFOUND" ]; then
 				VORTEXINSTDIR="$(dirname "$VORTEXFOUND")"
 				writelog "INFO" "${FUNCNAME[0]} - Found ${VTX^} executable at '$VORTEXFOUND'"
