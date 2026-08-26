@@ -151,3 +151,56 @@ run_vortex_helpers() {
 	run_vortex_helpers setVortexConfigVdf
 	grep -Fq 'reg ADD HKCU\Software\Valve\Steam /v SteamPath' "$WINE_LOG"
 }
+
+@test "purge-cache: kills running Vortex and re-runs the settings reset" {
+	# Simulate a running Vortex: the pgrep stub 'finds' the process and the
+	# pkill stub records the kill instead of actually killing anything.
+	cat >"$BATS_TEST_TMPDIR/stubbin/pgrep" <<'EOF'
+#!/bin/sh
+echo "found-vortex" >&2
+exit 0
+EOF
+	chmod +x "$BATS_TEST_TMPDIR/stubbin/pgrep"
+	KILL_LOG="$BATS_TEST_TMPDIR/killed.log"
+	cat >"$BATS_TEST_TMPDIR/stubbin/pkill" <<EOF
+#!/bin/sh
+echo "\$*" >> "$KILL_LOG"
+exit 0
+EOF
+	chmod +x "$BATS_TEST_TMPDIR/stubbin/pkill"
+
+	export KILL_LOG
+	RESET_MARKER="$BATS_TEST_TMPDIR/reset.ran"
+	export RESET_MARKER
+	# The reset itself writes files through wineVortexRun; stub it to record
+	# that it was reached so the test focuses on the purge behaviour.
+	# shellcheck source=/dev/null
+	source "$BATS_TEST_TMPDIR/workarounds.bash"
+	( set +e
+	  resetVortexSettings() { : >"$RESET_MARKER"; }
+	  purgeVortexCache
+	)
+
+[ -f "$RESET_MARKER" ]
+	grep -q "Vortex.exe" "$KILL_LOG"
+}
+
+@test "purge-cache: no Vortex running still rebuilds the reset" {
+	# pgrep stub 'finds nothing' - the kill branch is skipped
+	cat >"$BATS_TEST_TMPDIR/stubbin/pgrep" <<'EOF'
+#!/bin/sh
+exit 1
+EOF
+	chmod +x "$BATS_TEST_TMPDIR/stubbin/pgrep"
+
+	RESET_MARKER2="$BATS_TEST_TMPDIR/reset2.ran"
+	export RESET_MARKER2
+	# shellcheck source=/dev/null
+	source "$BATS_TEST_TMPDIR/workarounds.bash"
+	( set +e
+	  resetVortexSettings() { : >"$RESET_MARKER2"; }
+	  purgeVortexCache
+	)
+
+	[ -f "$RESET_MARKER2" ]
+}

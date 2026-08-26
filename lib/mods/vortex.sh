@@ -798,7 +798,7 @@ function prepareVortexGame {
 				VGAMEDIR="$(getGameDirFromAID "$VAID")"
 				writelog "INFO" "${FUNCNAME[0]} - Game dir for '$VAID' found is: '$VGAMEDIR')"
 				setInstPathReg
-				checkVortexRegs "HKEY_LOCAL_MACHINE\\Software\\\Wow6432Node\\\Valve\\\Steam\\\Apps\\$VAID" "Installed Path" "Z:${VGAMEDIR//\//\\\\}"
+				checkVortexRegs "HKEY_LOCAL_MACHINE\Software\Wow6432Node\Valve\Steam\Apps\$VAID" "Installed Path" "Z:${VGAMEDIR//\//\\\\}"
 				setModGameReg "$VORTEXPFX" "$VORTEXWINE"
 			fi
 
@@ -923,17 +923,45 @@ function setVortexConfigVdf {
 	wineVortexRun "$VORTEXWINE" reg ADD "HKCU\\Software\\Valve\\Steam" /v SteamPath /t REG_SZ /d "C:\\${PFX86S//\//\\}" /f >/dev/null 2>&1
 }
 
+function purgeVortexCache {
+	setVortexVars
+
+	# Vortex caches the Steam library list and discovery state in memory for
+	# the lifetime of the process and writes it back on exit, so a corrected
+	# libraryfolders.vdf/SteamPath is ignored until the app is restarted.
+	# Kill every Vortex instance plus the prefix wineserver (which holds the
+	# tray/background helpers alive and can re-write stale state), then re-run
+	# the settings reset so the next Vortex start re-scans from scratch.
+	writelog "INFO" "${FUNCNAME[0]} - Killing any running ${VTX^} instances to clear the stale Steam inventory cache"
+	if [ -n "$PGREP" ] && "$PGREP" -f "$VORTEXINSTDIR/Vortex.exe" >/dev/null 2>&1; then
+		"$PKILL" -9 -f "$VORTEXINSTDIR/Vortex.exe" 2>/dev/null
+	fi
+	if [ -n "$PGREP" ] && "$PGREP" -f "Black Tree Gaming" >/dev/null 2>&1; then
+		"$PKILL" -9 -f "Black Tree Gaming" 2>/dev/null
+	fi
+
+	if [ -n "$VORTEXWINE" ] && [ -d "$VORTEXPFX" ]; then
+		if command -v wineserver >/dev/null 2>&1; then
+			writelog "INFO" "${FUNCNAME[0]} - Stopping the ${VTX^} prefix wineserver"
+			WINEPREFIX="$VORTEXPFX" wineserver -k >/dev/null 2>&1
+		fi
+	fi
+
+	writelog "INFO" "${FUNCNAME[0]} - Rebuilding ${VTX^} Steam detection and game registration"
+	resetVortexSettings
+}
+
 function resetVortexSettings {
 	setVortexVars
 	runVortex "--get" "settings"
-	grep -v "^info\: Epic" "$VWRUN" > "$STLSHM/vortsetbefore.txt"
+	grep -v "^info: Epic" "$VWRUN" > "$STLSHM/vortsetbefore.txt"
 	rm "$VWRUN" 2>/dev/null
 	setVortexDLPath
 	setVortexConfigVdf
 	rm "$SEENVORTEXGAMES" 2>/dev/null
 	prepareAllInstalledVortexGames
 	runVortex "--get" "settings"
-	grep -v "^info\: Epic" "$VWRUN" > "$STLSHM/vortsetafter.txt"
+	grep -v "^info: Epic" "$VWRUN" > "$STLSHM/vortsetafter.txt"
 
 	writelog "INFO" "${FUNCNAME[0]} - Diff between ${VTX^} settings before and after reset:" "E"
 	diff -u "$STLSHM/vortsetbefore.txt" "$STLSHM/vortsetafter.txt"

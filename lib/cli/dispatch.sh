@@ -711,6 +711,10 @@ function tgCmdVortex {
 			writelog "INFO" "${FUNCNAME[0]} - (Re)setting ${VTX^} .desktop file entries and MimeType associations"
 			echo "(Re)setting ${VTX^} .desktop file entries and MimeType associations"
 			setVortexDLMime
+		elif [ "$TG_SUB" == "purge-cache" ] || [ "$TG_SUB" == "pc" ]; then
+			writelog "INFO" "${FUNCNAME[0]} - Purging ${VTX^} instances and rebuilding detection settings"
+			echo "Purging ${VTX^} instances and rebuilding detection settings"
+			purgeVortexCache
 		else
 			writelog "INFO" "${FUNCNAME[0]} - sub-command '$TG_SUB' is no valid command"
 			howto

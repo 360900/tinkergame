@@ -231,6 +231,8 @@ function howto {
 	echo "           url|u <url>                 Open nxm url with ${VTX^}"
 	echo "           getset                      Show config of installed ${VTX^}"
 	echo "           reset                       Reset all autodetected settings in ${VTX^}"
+	echo "           purge-cache|pc              Kill running ${VTX^} to clear the stale Steam cache,"
+	echo "                                        then rebuild detection settings (same as reset)"
 	echo "           stage <path>                Add ${VTX^} stage via dialog"
 	echo "                                        or directly the one given in <path>"
 	echo "           resetmime                   (Re)set MimeType and application menu entries"
