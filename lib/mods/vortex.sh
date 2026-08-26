@@ -847,6 +847,47 @@ function setVortexNoDecoration {
 	fi
 }
 
+function listVortexSteamLibraries {
+	# Modern Vortex parses libraryfolders.vdf with the simple-vdf package and
+	# expects the nested per-library format Steam has written since ~2020:
+	#
+	#   "libraryfolders"
+	#   {
+	#       "0"
+	#       {
+	#           "path"   "Z:\\home\\...\\Steam"
+	#       }
+	#   }
+	#
+	# The legacy flat form ("1" "Z:\\path") once written here is no longer
+	# understood, which left Vortex with an empty Steam playground.  Keep the
+	# legacy emitter (listWinSteamLibraries) for MO2, which still reads it.
+	listSteamLibraries
+
+	unset SLARR
+	SL1="${SROOT%*/}"
+	mapfile -t -O "${#SLARR[@]}" SLARR <<< "$SL1"
+
+	while read -r line; do
+		W1="${line//\/steamapps/}"
+		mapfile -t -O "${#SLARR[@]}" SLARR <<< "$W1"
+	done < "$STELILIST"
+
+	unset SLARRU
+	while IFS= read -r SLC; do
+		if ! grep -qx "$SLC" <<< "$(printf "%s\n" "${SLARRU[@]-}")"; then
+			mapfile -t -O "${#SLARRU[@]}" SLARRU <<< "$SLC"
+		fi
+	done <<< "$(printf "%s\n" "${SLARR[@]-}")"
+
+	COUNTER=0
+	for W1 in "${SLARRU[@]}"; do
+		W2="${W1//\//\\\\}"
+		printf "\"%s\"\n{\n\t\"path\"\t\t\"Z:%s\"\n\t\"label\"\t\t\"\"\n}\n" "$COUNTER" "$W2"
+		COUNTER=$((COUNTER+1))
+	done
+}
+
 function setVortexConfigVdf {
 	mkdir -p "$VORTEXPFX/$DRC/$PFX86S/config"
 	mkdir -p "$VORTEXPFX/$DRC/$PFX86S/$SAC"
@@ -868,11 +909,18 @@ function setVortexConfigVdf {
 	writelog "INFO" "${FUNCNAME[0]} - Updating '$LIFOVDF' in the ${VTX^} pfx, so ${VTX^} can find the Steam game libraries"
 	rm "$VTXLFVD" 2>/dev/null
 	{
-		echo "\"LibraryFolders\""
+		echo "\"libraryfolders\""
 		echo "{"
-		listWinSteamLibraries
+		listVortexSteamLibraries
 		echo "}"
 	} >> "$VTXLFVD"
+
+	# Vortex resolves its Steam base folder from HKCU\Software\Valve\Steam,
+	# value SteamPath, before it reads libraryfolders.vdf.  No real Steam is
+	# installed into this prefix, so that key is missing and Vortex ends up
+	# with no libraries at all - point it at the virtual Steam dir we just
+	# populated (C:\Program Files (x86)\Steam inside this prefix).
+	wineVortexRun "$VORTEXWINE" reg ADD "HKCU\\Software\\Valve\\Steam" /v SteamPath /t REG_SZ /d "C:\\${PFX86S//\//\\}" /f >/dev/null 2>&1
 }
 
 function resetVortexSettings {
