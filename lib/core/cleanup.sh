@@ -32,7 +32,7 @@ function setCloseVars {
 
 #STARTCLOSESTL ###
 function closeSTL {
-	writelog "INFO" "${FUNCNAME[0]} - closing STL"
+	writelog "INFO" "${FUNCNAME[0]} - closing TinkerGame"
 
 	updateConfigEntry "CUSTOMCMD" "$DUMMYBIN" "$STLDEFGAMECFG"
 

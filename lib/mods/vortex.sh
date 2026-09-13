@@ -1264,7 +1264,7 @@ function setModWine {
 			DLURL="$(printf "%s\n" "${ProtonDLList[@]}" | grep -m1 "$USEDNPROTON")"
 			if [ -n "$DLURL" ]; then
 				writelog "INFO" "${FUNCNAME[0]} - Downloading: '$DLURL'" "E"
-				StatusWindow "$GUI_DLCUSTPROT" "dlCustomProton ${DLURL//|/\"}" "DownloadCustomProtonStatus"
+				StatusWindow "$(dlCustProtonStatusText "${DLURL//|/\"}")" "dlCustomProton ${DLURL//|/\"}" "DownloadCustomProtonStatus"
 				DNPROTON="$(getProtPathFromCSV "$USEDNPROTON")"
 			else
 				writelog "SKIP" "${FUNCNAME[0]} - No download URL found for requested '$USEDNPROTON' - skipping" "E"

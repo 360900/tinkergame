@@ -148,3 +148,24 @@ rm -rf /dev/shm/steamtinkerlaunch
 
 Do not remove the backup until all per-game settings and downloaded tools have
 been verified.
+
+## Running Side by Side with SteamTinkerLaunch
+
+Both tools can be installed at the same time. TinkerGame keeps its data
+completely separate from SteamTinkerLaunch:
+
+```text
+~/.config/steamtinkerlaunch     ~/.config/tinkergame
+/dev/shm/steamtinkerlaunch      /dev/shm/tinkergame
+/usr/local/share/steamtinkerlaunch  /usr/share/tinkergame
+```
+
+All TinkerGame data lives under `~/.config/tinkergame` (including logs,
+downloads, and game configs), with runtime files under `/dev/shm/tinkergame`
+and system files under `$PREFIX/share/tinkergame`.
+
+The Steam compatibility tool entries are separate as well
+(`steamtinkerlaunch` vs `tinkergame`), so each game launch uses whichever
+tool is selected in that game's Steam launch options. Per-game settings are
+not shared: a game configured through one tool keeps those settings only in
+that tool's config directory.

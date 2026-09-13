@@ -827,8 +827,8 @@ function getCompatData {
 
 	unset FCOMPDAT
 
-	# If no symlink found in STL dir, check the game's library folder, with fallback to the Steam root library folder (i.e. Non-Steam Games)
-	writelog "INFO" "${FUNCNAME[0]} - Could not find compatdata named in STL symlink dir, searching with getGameLibraryFolder..."
+	# If no symlink found in the compatdata symlink dir, check the game's library folder, with fallback to the Steam root library folder (i.e. Non-Steam Games)
+	writelog "INFO" "${FUNCNAME[0]} - Could not find compatdata named in the compatdata symlink dir, searching with getGameLibraryFolder..."
 	SEARCHGAMEDIR="$( getGameDir "$1" )"
 
 	COMPATGAMESTR=""  # Final output string

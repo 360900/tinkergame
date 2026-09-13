@@ -69,7 +69,7 @@ function startGame {
 		"$RUNCONTY" "${RUNCMD[@]}"
 	else
 		writelog "INFO" "${FUNCNAME[0]} - ## ORIGINAL INCOMING LAUNCH COMMAND: '${INGCMD[*]}'"
-		writelog "INFO" "${FUNCNAME[0]} - ## STL LAUNCH COMMAND: '${RUNCMD[*]}'"
+		writelog "INFO" "${FUNCNAME[0]} - ## TINKERGAME LAUNCH COMMAND: '${RUNCMD[*]}'"
 		writelog "INFO" "${FUNCNAME[0]} - ## GAMESTART HERE ###"
 
 		restoreOrgVars

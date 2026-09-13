@@ -741,7 +741,7 @@ function switchProton {
 			DLURL="$(printf "%s\n" "${ProtonDLList[@]}" | grep -m1 "$1")"
 			if [ -n "$DLURL" ]; then
 				writelog "INFO" "${FUNCNAME[0]} - Download for requested '$1' found: '$DLURL'"
-				StatusWindow "$GUI_DLCUSTPROT" "dlCustomProton ${DLURL//|/\"}" "DownloadCustomProtonStatus"
+				StatusWindow "$(dlCustProtonStatusText "${DLURL//|/\"}")" "dlCustomProton ${DLURL//|/\"}" "DownloadCustomProtonStatus"
 			else
 				writelog "SKIP" "${FUNCNAME[0]} - No download URL found for requested '$1' - skipping"
 			fi

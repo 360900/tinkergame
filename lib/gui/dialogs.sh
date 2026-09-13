@@ -199,17 +199,26 @@ function checkWaitRequester {
 function askSettings {
 	if ! grep -q "^WAITEDITOR=\"0\"" "$STLGAMECFG"; then
 		if [ -f "$SWRF" ]; then
-			writelog "SKIP" "${FUNCNAME[0]} - Skipping the start menu because skip file was found under '$SWRF'"
+			writelog "SKIP" "${FUNCNAME[0]} - Skipping the start menu because skip file was found under '$SWRF' - remove the file to get the start menu back"
 		else
 			if grep -q "^WAITEDITOR" "$STLGAMECFG"; then
 				WEDGAME="$(grep "^WAITEDITOR" "$STLGAMECFG"| cut -d '=' -f2)"
-				WAITEDITOR="${WEDGAME//\"/}"
-				writelog "INFO" "${FUNCNAME[0]} - Using game specific requester setting '$WAITEDITOR'"
+				WEDGAME="${WEDGAME//\"/}"
+				if [[ "$WEDGAME" =~ ^[0-9]+$ ]]; then
+					WAITEDITOR="$WEDGAME"
+					writelog "INFO" "${FUNCNAME[0]} - Using game specific requester setting '$WAITEDITOR'"
+				else
+					writelog "WARN" "${FUNCNAME[0]} - Game specific WAITEDITOR '$WEDGAME' in '$STLGAMECFG' is not a number - using the global setting '$WAITEDITOR' instead"
+				fi
 			fi
 
 			writeAllAIMeta "$AID" &
 
-			if [ "$WAITEDITOR" -gt 0 ]; then
+			if ! [[ "$WAITEDITOR" =~ ^[0-9]+$ ]]; then
+				writelog "WARN" "${FUNCNAME[0]} - WAITEDITOR '$WAITEDITOR' is not a number - skipping the start menu - check 'WAITEDITOR' in '$STLDEFGLOBALCFG' and '$STLGAMECFG'"
+			elif [ "$WAITEDITOR" -eq 0 ]; then
+				writelog "SKIP" "${FUNCNAME[0]} - Skipping the start menu because WAITEDITOR is 0 - set it to a value higher than 0 to open the start menu again"
+			else
 				# WAITEDITOR used to show a requester asking whether the menu
 				# should be opened before the game starts - the menu is now
 				# opened directly, without the extra question
@@ -228,7 +237,7 @@ function askSettings {
 			fi
 		fi
 	else
-		writelog "SKIP" "${FUNCNAME[0]} - Skipping the start menu because WAITEDITOR is 0 in '$STLGAMECFG'"
+		writelog "SKIP" "${FUNCNAME[0]} - Skipping the start menu because WAITEDITOR is 0 in '$STLGAMECFG' - set it to a value higher than 0 to open the start menu again"
 	fi
 }
 

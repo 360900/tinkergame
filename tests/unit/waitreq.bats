@@ -141,3 +141,19 @@ teardown() {
 	run bash -c 'grep "^WAITEDITOR" "$0" | cut -d "=" -f2' "$GAMECFG"
 	[ "$(tr -d '"' <<< "$output")" = "2" ]
 }
+
+@test "askSettings: non-numeric game specific WAITEDITOR falls back to the global setting" {
+	printf 'WAITEDITOR=""\n' > "$GAMECFG"
+	run askSettings
+	[ "$status" -eq 0 ]
+	[ -f "$MARK/MainMenu" ]
+}
+
+@test "askSettings: non-numeric global WAITEDITOR skips the menu without a crash" {
+	# no game specific WAITEDITOR - the broken global value is used as-is
+	printf 'OTHEROPTION="1"\n' > "$GAMECFG"
+	WAITEDITOR="broken"
+	run askSettings
+	[ "$status" -eq 0 ]
+	[ ! -f "$MARK/MainMenu" ]
+}

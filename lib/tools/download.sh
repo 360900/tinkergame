@@ -5,6 +5,23 @@
 #  cross-module references are invisible to per-file analysis)
 # TinkerGame library module -- sourced by the "tinkergame" entry point. Do not execute directly.
 
+# progress label for a custom proton download - derive the proton name from its
+# download url so the StatusWindow shows which version is being downloaded
+function dlCustProtonStatusText {
+	local CPURL="${1//\"/}"
+	if [ -z "$CPURL" ]; then
+		echo "$GUI_DLCUSTPROT"
+		return
+	fi
+	local PROTNAME="${CPURL##*/}"
+	PROTNAME="${PROTNAME%%.tar*}"
+	PROTNAME="${PROTNAME//.zip/}"
+	if [ -z "$PROTNAME" ]; then
+		PROTNAME="$CPURL"
+	fi
+	echo "${GUI_DLCUSTPROT}: ${PROTNAME}"
+}
+
 function dlCustomProton {
 	if [[ -n "$CUPROTOCOMPAT" && "$CUPROTOCOMPAT" -eq 1 ]]; then
 		CUPROEXTDIR="$STEAMCOMPATOOLS"
@@ -173,11 +190,11 @@ function dlCustomProtonGUI {
 	if [ -n "${DLDISPCUSTPROT}" ]; then
 		if grep -q "^http" <<< "${DLDISPCUSTPROT}"; then
 			writelog "INFO" "${FUNCNAME[0]} - The URL '$DLDISPCUSTPROT' was entered manually - downloading directly"
-			StatusWindow "$GUI_DLCUSTPROT" "dlCustomProton ${DLDISPCUSTPROT}" "DownloadCustomProtonStatus"
+			StatusWindow "$(dlCustProtonStatusText "$DLDISPCUSTPROT")" "dlCustomProton ${DLDISPCUSTPROT}" "DownloadCustomProtonStatus"
 		else
 			DLURL="$(printf "%s\n" "${ProtonDLList[@]}" | grep -m1 "${DLDISPCUSTPROT}")"
 			writelog "INFO" "${FUNCNAME[0]} - '${DLDISPCUSTPROT}' was selected - downloading '$DLURL'"
-			StatusWindow "$GUI_DLCUSTPROT" "dlCustomProton ${DLURL}" "DownloadCustomProtonStatus"
+			StatusWindow "$(dlCustProtonStatusText "$DLURL")" "dlCustomProton ${DLURL}" "DownloadCustomProtonStatus"
 		fi
 
 		createProtonList
@@ -390,7 +407,7 @@ function addCustomProtonToList {
 			if grep -q "|http" <<< "$NEWCUSTPROT"; then
 				CPURLWIP="$(tr '|' '"' <<< "$NEWCUSTPROT" | sed "s:\"http:\";\"http:g")"
 				CPURL="$(cut -d ';' -f2 <<< "$CPURLWIP")"
-				StatusWindow "$GUI_DLCUSTPROT" "dlCustomProton ${CPURL}" "DownloadCustomProtonStatus"
+				StatusWindow "$(dlCustProtonStatusText "$CPURL")" "dlCustomProton ${CPURL}" "DownloadCustomProtonStatus"
 			else
 				CPWIP="$(tr -s '|' <<< "$NEWCUSTPROT" | tr '|' '"')"
 				if [ -f "${CPWIP//\"/}" ]; then
@@ -401,7 +418,7 @@ function addCustomProtonToList {
 			if grep -q "|http" <<< "$NEWCUSTPROT"; then
 				CPURLWIP="$(tr '|' '"' <<< "$NEWCUSTPROT" | sed "s:\"http:\";\"http:g")"
 				CPURL="$(cut -d ';' -f2 <<< "$CPURLWIP")"
-				StatusWindow "$GUI_DLCUSTPROT" "dlCustomProton ${CPURL}" "DownloadCustomProtonStatus"
+				StatusWindow "$(dlCustProtonStatusText "$CPURL")" "dlCustomProton ${CPURL}" "DownloadCustomProtonStatus"
 			else
 				CPWIP="$(tr '|' '"' <<< "$NEWCUSTPROT" | sed "s:\"/:\";\"/:g")"
 				CPWIPF="$(cut -d ';' -f2 <<< "$CPWIP")"
@@ -429,7 +446,7 @@ function dlLatestGE {
 		else
 			writelog "INFO" "${FUNCNAME[0]} - Downloading latest custom Proton ${ProtonDLDispList[0]//\"/}"
 		fi
-		StatusWindow "$GUI_DLCUSTPROT" "dlCustomProton ${ProtonDLList[0]//\"/} $2" "DownloadCustomProtonStatus"
+		StatusWindow "$(dlCustProtonStatusText "${ProtonDLList[0]//\"/}")" "dlCustomProton ${ProtonDLList[0]//\"/} $2" "DownloadCustomProtonStatus"
 	else
 		writelog "ERROR" "${FUNCNAME[0]} - Could not create list of downloadable Proton-Versions"
 	fi
@@ -441,14 +458,14 @@ function dlCustomProtonGate {
 	else
 		if grep -q "^http" <<< "$1"; then
 			writelog "INFO" "${FUNCNAME[0]} - '$1' is an URL - sending directly to dlCustomProton"
-			StatusWindow "$GUI_DLCUSTPROT" "dlCustomProton $1" "DownloadCustomProtonStatus"
+			StatusWindow "$(dlCustProtonStatusText "$1")" "dlCustomProton $1" "DownloadCustomProtonStatus"
 		else
 			if [ "$1" == "latest" ] || [ "$1" == "l" ] || [ "$1" == "latestge" ] || [ "$1" == "lge" ]; then
 				dlLatestGE "$1"
 			elif [ "$1" == "latesttkg" ] || [ "$1" == "ltkg" ]; then
 				createDLProtList
 				writelog "INFO" "${FUNCNAME[0]} - Downloading latest Proton TKG"
-				StatusWindow "$GUI_DLCUSTPROT" "dlCustomProton $(printf "%s\n" "${ProtonDLList[@]}" | grep -im1 "tkg")" "DownloadCustomProtonStatus"
+				StatusWindow "$(dlCustProtonStatusText "$(printf "%s\n" "${ProtonDLList[@]}" | grep -im1 "tkg")")" "dlCustomProton $(printf "%s\n" "${ProtonDLList[@]}" | grep -im1 "tkg")" "DownloadCustomProtonStatus"
 			else
 				writelog "SKIP" "${FUNCNAME[0]} - Don't know what to do with argument '$1'"
 			fi

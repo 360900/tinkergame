@@ -377,13 +377,13 @@ function installFilesSteamDeck {
 
 		# Offline installation of STL was previously installed/attempted - With check to try and ensure scriptdir is a valid STL install and not a standalone script
 		if ! [ -d "$SCRIPTDIR/lang" ] && ! [ -d "$SCRIPTDIR/misc" ] && ! [ -d "$SCRIPTDIR/guicfgs" ]; then
-			writelog "WARN" "${FUNCNAME[0]} - Script dir '$SCRIPTDIR' does not look like a valid TinkerGame installation directory! Not copying files in case this script is not in a proper STL folder"
+			writelog "WARN" "${FUNCNAME[0]} - Script dir '$SCRIPTDIR' does not look like a valid TinkerGame installation directory! Not copying files in case this script is not in a proper TinkerGame folder"
 			echo "WARNING: Not updating offline filees - It looks like you're trying to install TinkerGame as a standalone script outside of its downloaded files."
 		elif [ -f "$PREFIX/tinkergame" ]; then
 			writelog "INFO" "${FUNCNAME[0]} - Found existing TinkerGame files at '$PREFIX', checking if we need to update"
 			INSTALLEDPROGVERS="$( grep -i "^PROGVERS=.*." "$PREFIX/tinkergame" | cut -d '"' -f 2 )"
-			writelog "INFO" "${FUNCNAME[0]} - Currently installed STL version: $INSTALLEDPROGVERS"
-			writelog "INFO" "${FUNCNAME[0]} - This script's STL version: $PROGVERS"
+			writelog "INFO" "${FUNCNAME[0]} - Currently installed TinkerGame version: $INSTALLEDPROGVERS"
+			writelog "INFO" "${FUNCNAME[0]} - This script's TinkerGame version: $PROGVERS"
 			# Check if we actually need to update (running script ver > currently installed script ver)
 			# Not a fool-proof test, sometimes PROGVERS isn't bumped, but a user can always manually copy the files if they want to - We'll assume they downloaded the latest version ahead of time and want to manually install that
 			if [[ "$PROGVERS" > "$INSTALLEDPROGVERS" ]]; then
@@ -397,9 +397,9 @@ function installFilesSteamDeck {
 				STEAMDECKDIDINSTALL=0
 			fi
 		else
-			# No existing STL installation - Let's create one using the files downloaded with the script currently running!
-			writelog "INFO" "${FUNCNAME[0]} - No existing STL installation found - Installation will continue by copying downloaded files at '$SCRIPTDIR' to '$PREFIX'"
-			echo "No existing STL installation found, so copying installation files to '$PREFIX' for offline installation..."
+			# No existing TinkerGame installation - Let's create one using the files downloaded with the script currently running!
+			writelog "INFO" "${FUNCNAME[0]} - No existing TinkerGame installation found - Installation will continue by copying downloaded files at '$SCRIPTDIR' to '$PREFIX'"
+			echo "No existing TinkerGame installation found, so copying installation files to '$PREFIX' for offline installation..."
 			cp -R "$SCRIPTDIR"/* "$PREFIX"
 		fi
 	fi
@@ -737,8 +737,8 @@ function clearDeckDeps {
 			writelog "INFO" "${FUNCNAME[0]} - Successfully removed '$STLDEPS'"
 			echo "Removed Steam Deck dependencies, they will be re-downloaded on next launch."
 		else
-			writelog "SKIP" "${FUNCNAME[0]} - Could not find STL Steam Deck dependencies directory, STLDEPS is '$STLDEPS' - Nothing to do."
-			echo "Could not find STL Steam Deck dependencies directory, skipping"
+			writelog "SKIP" "${FUNCNAME[0]} - Could not find the Steam Deck dependencies directory, STLDEPS is '$STLDEPS' - Nothing to do."
+			echo "Could not find the Steam Deck dependencies directory, skipping"
 		fi
 	else
 		writelog "SKIP" "${FUNCNAME[0]} - Not on Steam Deck, nothing to do"
