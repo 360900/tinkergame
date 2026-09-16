@@ -6,7 +6,8 @@
 # TinkerGame library module -- sourced by the "tinkergame" entry point. Do not execute directly.
 
 function findNonSteamGameIcon {
-	find "${STUIDPATH}/config/grid/" -name "${NOSTAIDGRID}_icon.*" | head -n1 2>/dev/null
+	FNSGI_AID="$1"  # Non-Steam AppID to locate a downloaded icon for
+	find "${STUIDPATH}/config/grid/" -name "${FNSGI_AID}_icon.*" | head -n1 2>/dev/null
 }
 
 function addNonSteamGame {
@@ -343,7 +344,7 @@ function addNonSteamGame {
 
 		# Icon -- Only set if we successfully download an icon from SteamGridDB
 		getSteamGridDBNonSteamIcon "$NOSTAIDGRID" "$NOSTSGDBAPIGAMEID"
-		NOSTSGDBICON="$( findNonSteamGameIcon )"
+		NOSTSGDBICON="$( findNonSteamGameIcon "$NOSTAIDGRID" )"
 		if [ -f "$NOSTSGDBICON" ]; then
 			writelog "INFO" "${FUNCNAME[0]} - Found SteamGridDB icon path to '$NOSTSGDBICON' -- Using this as Non-Steam Game Icon"
 			NOSTICONPATH="$NOSTSGDBICON"
