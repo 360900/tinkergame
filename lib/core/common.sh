@@ -12,7 +12,7 @@
 PREFIX="/usr"
 PROGNAME="TinkerGame"
 NICEPROGNAME="TinkerGame"
-PROGVERS="v0.1.0-alpha.4"
+PROGVERS="v0.1.0-alpha.5"
 PROGCMD="${0##*/}"
 SHOSTL="tg"
 # Must match the internal name written into 'compatibilitytool.vdf' ('Proton-tg'),
@@ -67,6 +67,7 @@ PERES="peres"
 GDB="gdb"
 XDGMIME="xdg-mime"
 XDGO="xdg-open"
+SYSTEMCTL="systemctl"
 OBSCAP="obs-gamecapture"
 
 CHECKHMD=1
