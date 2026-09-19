@@ -47,7 +47,18 @@ function tgWatchWriteUnits {
 		return 1
 	fi
 
+	# A unit with an empty or unusable ExecStart would be accepted by systemd and
+	# then fail on every trigger, so refuse to write one in the first place
+	if [ -z "$TG_ENTRYPOINT" ] || [ ! -x "$TG_ENTRYPOINT" ]; then
+		writelog "ERROR" "${FUNCNAME[0]} - Cannot resolve the TinkerGame executable ('${TG_ENTRYPOINT:-unset}') - not writing units that would never start" "E"
+		return 1
+	fi
+
 	mkProjDir "$TGW_DIR"
+	if [ ! -d "$TGW_DIR" ]; then
+		writelog "ERROR" "${FUNCNAME[0]} - Cannot create the systemd user unit directory '$TGW_DIR'" "E"
+		return 1
+	fi
 
 	# ${PROGNAME,,} rather than $PROGCMD: the unit outlives the invocation that
 	# wrote it, so the hint must not depend on how TinkerGame happened to be called
@@ -79,6 +90,16 @@ function tgWatchWriteUnits {
 		printf '[Timer]\nOnCalendar=daily\nPersistent=true\n\n'
 		printf '[Install]\nWantedBy=timers.target\n'
 	} > "$TGW_DIR/${TGWATCHUNIT}.timer"
+
+	# Redirections above fail silently without 'set -e'; an incomplete unit set is
+	# worse than none, because 'systemctl enable' would then fail with a confusing error
+	local TGW_SUFFIX
+	for TGW_SUFFIX in service path timer; do
+		if [ ! -s "$TGW_DIR/${TGWATCHUNIT}.${TGW_SUFFIX}" ]; then
+			writelog "ERROR" "${FUNCNAME[0]} - Failed to write '$TGW_DIR/${TGWATCHUNIT}.${TGW_SUFFIX}'" "E"
+			return 1
+		fi
+	done
 
 	writelog "INFO" "${FUNCNAME[0]} - Wrote '$TGWATCHUNIT' units to '$TGW_DIR', watching ${#TGW_PATHS[@]} '$SCVDF' location(s)"
 	return 0

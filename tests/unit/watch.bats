@@ -17,7 +17,11 @@ setup() {
 	XDG_CONFIG_HOME="$BATS_TEST_TMPDIR/config"
 	TG_UNITDIR="$XDG_CONFIG_HOME/systemd/user"
 
-	TG_ENTRYPOINT="/opt/tinkergame/tinkergame"
+	# A real executable: unit generation refuses to write an ExecStart it cannot resolve
+	mkdir -p "$BATS_TEST_TMPDIR/bin"
+	TG_ENTRYPOINT="$BATS_TEST_TMPDIR/bin/tinkergame"
+	: >"$TG_ENTRYPOINT"
+	chmod +x "$TG_ENTRYPOINT"
 
 	# Record the systemctl invocations instead of touching the real user manager
 	TG_SCTLLOG="$BATS_TEST_TMPDIR/systemctl.calls"
@@ -70,7 +74,7 @@ setup() {
 
 @test "tgWatchWriteUnits: the service calls back into this installation" {
 	tgWatchWriteUnits "$TG_UNITDIR"
-	grep -qx "ExecStart=/opt/tinkergame/tinkergame -q update grid nonsteam" "$TG_UNITDIR/tinkergame-artwork.service"
+	grep -qx "ExecStart=$TG_ENTRYPOINT -q update grid nonsteam" "$TG_UNITDIR/tinkergame-artwork.service"
 	# oneshot is what debounces a burst of shortcut writes into a single refresh
 	grep -qx "Type=oneshot" "$TG_UNITDIR/tinkergame-artwork.service"
 }
@@ -139,4 +143,35 @@ setup() {
 	commandline artwork watch enable
 	[ -f "$MARK/howto" ]
 	[ ! -f "$MARK/install" ]
+}
+
+@test "tgWatchWriteUnits: refuses to write when the executable cannot be resolved" {
+	# An empty ExecStart is accepted by systemd and then fails on every single
+	# trigger -- catching it here keeps that failure out of the journal
+	TG_ENTRYPOINT=""
+	run tgWatchWriteUnits "$TG_UNITDIR"
+	[ "$status" -ne 0 ]
+	[ ! -e "$TG_UNITDIR/tinkergame-artwork.service" ]
+}
+
+@test "tgWatchWriteUnits: refuses to write when the executable is gone" {
+	rm -f "$TG_ENTRYPOINT"
+	run tgWatchWriteUnits "$TG_UNITDIR"
+	[ "$status" -ne 0 ]
+	[ ! -e "$TG_UNITDIR/tinkergame-artwork.service" ]
+}
+
+@test "tgWatchWriteUnits: an undeliverable unit directory is an error, not a success" {
+	# A regular file in place of a parent directory makes mkdir -p fail
+	touch "$BATS_TEST_TMPDIR/blocker"
+	run tgWatchWriteUnits "$BATS_TEST_TMPDIR/blocker/systemd/user"
+	[ "$status" -ne 0 ]
+}
+
+@test "tgWatchInstall: does not enable anything when generation failed" {
+	TG_ENTRYPOINT=""
+	run tgWatchInstall
+	[ "$status" -ne 0 ]
+	# systemctl must not have been touched at all
+	[ ! -s "$TG_SCTLLOG" ]
 }
