@@ -319,6 +319,7 @@ function initAID {
 
 STLFAVMENUCFG="$STLCFGDIR/$FACO"															# optional config (in fact just a list with variables) which holds all entries for the individual favorites menu
 STLMENUSORTCFG="$STLCFGDIR/$MENSO"															# holds the category sort order for all menus
+STLSGDBNAMESCFG="$STLCFGDIR/$SGDBNAMES"									# remembers which SteamGridDB game a Non-Steam entry belongs to, decided once by the user
 STLMENUBLOCKCFG="$STLCFGDIR/$MENUBLOCK"
 #STARTEDITORCFGLIST
 STLDEFGLOBALCFG="$STLCFGDIR/global.conf"													# global config

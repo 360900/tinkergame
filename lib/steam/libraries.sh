@@ -1225,10 +1225,26 @@ function getGridsForNonSteamGames {
 			SVDFEAID="$( parseSteamShortcutEntryAppID "$SCVDFE" )"
 			SVDFENAME="$( parseSteamShortcutEntryAppName "$SCVDFE" )"
 
-			writelog "INFO" "${FUNCNAME[0]} - Updating artwork for game '$SVDFENAME ('$SVDFEAID')'"
-			echo "Updating artwork for game '$SVDFENAME ('$SVDFEAID')'"
+			# A decision the user made in 'artwork resolve' wins over guessing by name.
+			# An empty stored value is a deliberate "there is no artwork for this"
+			# and must not fall back to a search, or the entry would keep coming back.
+			if SVDFEGAMEID="$( tgSgdbDecision "$SVDFENAME" )"; then
+				if [ -z "$SVDFEGAMEID" ]; then
+					writelog "INFO" "${FUNCNAME[0]} - '$SVDFENAME ($SVDFEAID)' is marked as 'never look up' in '$SGDBNAMES' - skipping"
+					echo "Skipping '$SVDFENAME ('$SVDFEAID')' - marked as having no SteamGridDB match"
+					continue
+				fi
 
-			commandlineGetSteamGridDBArtwork --search-name="$SVDFENAME" --filename-appid="$SVDFEAID" --nonsteam
+				writelog "INFO" "${FUNCNAME[0]} - Updating artwork for game '$SVDFENAME ('$SVDFEAID')' using stored SteamGridDB Game ID '$SVDFEGAMEID'"
+				echo "Updating artwork for game '$SVDFENAME ('$SVDFEAID')'"
+
+				commandlineGetSteamGridDBArtwork --search-id="$SVDFEGAMEID" --filename-appid="$SVDFEAID" --nonsteam
+			else
+				writelog "INFO" "${FUNCNAME[0]} - Updating artwork for game '$SVDFENAME ('$SVDFEAID')'"
+				echo "Updating artwork for game '$SVDFENAME ('$SVDFEAID')'"
+
+				commandlineGetSteamGridDBArtwork --search-name="$SVDFENAME" --filename-appid="$SVDFEAID" --nonsteam
+			fi
 
 			CMDLINEGETSGDBARTAID="$( cat "$NOSTSGDBIDSHMFILE" )"
 			# No has-file override, so the icon follows the same SGDBHASFILE setting as the artwork fetched above

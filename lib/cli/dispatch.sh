@@ -823,6 +823,11 @@ function tgCmdArtwork {
 	"gameid")
 		getSGDBGameIDFromTitle "$1"
 	;;
+	"resolve")
+		# Optional entry name: re-deciding a settled entry must stay possible,
+		# because a wrong SteamGridDB match looks exactly like a successful one
+		tgSgdbResolve "$1"
+	;;
 	"watch")
 		# Deliberately only install/uninstall: once the units exist, enabling and
 		# disabling them is 'systemctl --user' and needs no TinkerGame verb
