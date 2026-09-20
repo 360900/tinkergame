@@ -244,3 +244,59 @@ function tgSgdbResolve {
 	fi
 	return 0
 }
+
+function tgSgdbResolveTerminal {
+	# Opens the interactive resolver in the terminal the user configured.
+	# USETERM/TERMARGS is the same pair TinkerGame already uses to run GDB.
+	local TGSN_CMD
+
+	if [ -z "$USETERM" ] || ! command -v "$USETERM" > /dev/null 2>&1; then
+		writelog "WARN" "${FUNCNAME[0]} - Configured terminal '${USETERM:-unset}' not found - cannot open the resolver" "E"
+		return 1
+	fi
+
+	if [ -z "$TG_ENTRYPOINT" ] || [ ! -x "$TG_ENTRYPOINT" ]; then
+		writelog "WARN" "${FUNCNAME[0]} - Cannot resolve the TinkerGame executable - not opening a terminal" "E"
+		return 1
+	fi
+
+	# The trailing read keeps the window up after the last entry, so the summary
+	# does not vanish together with the terminal
+	TGSN_CMD="'$TG_ENTRYPOINT' artwork resolve; printf '\n%s' 'Press Enter to close'; read -r"
+	"$USETERM" "$TERMARGS" "bash -c \"$TGSN_CMD\""
+}
+
+function tgSgdbNotifyUndecided {
+	# Tells the user that new entries need a decision and offers to open the
+	# resolver. Only for runs without a terminal (i.e. the systemd watcher) --
+	# an interactive run has already printed the same thing to stdout.
+	local TGSN_COUNT="$1"
+	local -a TGSN_NARGS=()
+
+	if [ -z "$TGSN_COUNT" ] || [ "$TGSN_COUNT" -eq 0 ]; then
+		return 0
+	fi
+
+	if [ -t 1 ]; then
+		return 0
+	fi
+
+	if [ -z "$USENOTIFIER" ] || [ "$USENOTIFIER" -ne 1 ] || [ ! -x "$(command -v "$NOTY")" ]; then
+		writelog "INFO" "${FUNCNAME[0]} - Notifier unavailable - '$TGSN_COUNT' entries stay on the list for '${PROGNAME,,} artwork resolve'"
+		return 0
+	fi
+
+	mapfile -d " " -t TGSN_NARGS < <(printf '%s' "$NOTYARGS")
+
+	# '-A' implies '--wait': notify-send stays alive until the notification is
+	# acted on or dismissed. Detached, so the (oneshot) caller can finish now --
+	# the generated service uses KillMode=process so this survives its exit.
+	(
+		if [ "$( "$NOTY" "${TGSN_NARGS[@]}" -A "resolve=$GUI_SGDBRESOLVENOW" "$( strFix "$NOTY_SGDBUNDECIDED" "$TGSN_COUNT" )" 2>/dev/null )" == "resolve" ]; then
+			tgSgdbResolveTerminal
+		fi
+	) &
+	disown 2>/dev/null
+
+	return 0
+}

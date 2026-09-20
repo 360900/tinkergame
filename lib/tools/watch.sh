@@ -69,7 +69,9 @@ function tgWatchWriteUnits {
 		printf '[Unit]\nDescription=Update Steam artwork for Non-Steam games\n\n'
 		# Type=oneshot also debounces: while a run is in progress systemd will not
 		# start a second one, so a burst of shortcut writes collapses into one refresh.
-		printf '[Service]\nType=oneshot\nExecStart=%s -q update grid nonsteam\n' "$TG_ENTRYPOINT"
+		# KillMode=process: the run may leave a notification waiting for the user.
+		# The default would kill it together with the service the moment the run ends.
+		printf '[Service]\nType=oneshot\nKillMode=process\nExecStart=%s update grid nonsteam\n' "$TG_ENTRYPOINT"
 	} > "$TGW_DIR/${TGWATCHUNIT}.service"
 
 	{

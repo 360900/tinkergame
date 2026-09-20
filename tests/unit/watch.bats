@@ -74,7 +74,9 @@ setup() {
 
 @test "tgWatchWriteUnits: the service calls back into this installation" {
 	tgWatchWriteUnits "$TG_UNITDIR"
-	grep -qx "ExecStart=$TG_ENTRYPOINT -q update grid nonsteam" "$TG_UNITDIR/tinkergame-artwork.service"
+	grep -qx "ExecStart=$TG_ENTRYPOINT update grid nonsteam" "$TG_UNITDIR/tinkergame-artwork.service"
+	# A notification may outlive the run; the default KillMode would take it down with the service
+	grep -qx "KillMode=process" "$TG_UNITDIR/tinkergame-artwork.service"
 	# oneshot is what debounces a burst of shortcut writes into a single refresh
 	grep -qx "Type=oneshot" "$TG_UNITDIR/tinkergame-artwork.service"
 }

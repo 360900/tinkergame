@@ -15,6 +15,10 @@ setup() {
 
 	SGDBAPIKEY="testkey"
 	checkSGDbApi() { return 0; }
+
+	# the notification text comes from the real language file, as in production
+	# shellcheck source=/dev/null
+	source "$TG_ROOT/lang/english.txt"
 }
 
 @test "tgSgdbDecision: an undecided entry is reported as undecided" {
@@ -210,4 +214,99 @@ setup() {
 	[ "$(cat "$MARK/arg")" = "Eden" ]
 
 	[ ! -f "$MARK/howto" ]
+}
+
+@test "tgSgdbNotifyUndecided: a non-interactive run offers to open the resolver" {
+	# bats captures stdout, so this is the systemd case: no terminal to print to
+	NOTY="$BATS_TEST_TMPDIR/fakenoty"
+	printf '#!/bin/sh\nprintf "%%s\\n" "$@" > "%s/noty.call"\nprintf ""\n' "$BATS_TEST_TMPDIR" > "$NOTY"
+	chmod +x "$NOTY"
+	USENOTIFIER=1
+	NOTYARGS="-a TinkerGame"
+
+	tgSgdbNotifyUndecided "3"
+
+	local waited=0
+	while [ ! -e "$BATS_TEST_TMPDIR/noty.call" ] && [ "$waited" -lt 50 ]; do
+		sleep 0.1
+		waited=$(( waited + 1 ))
+	done
+
+	[ -e "$BATS_TEST_TMPDIR/noty.call" ]
+	grep -q -- "-A" "$BATS_TEST_TMPDIR/noty.call"
+	grep -q "3" "$BATS_TEST_TMPDIR/noty.call"
+}
+
+@test "tgSgdbNotifyUndecided: acting on the notification opens the resolver" {
+	NOTY="$BATS_TEST_TMPDIR/fakenoty"
+	# notify-send prints the chosen action name on stdout
+	printf '#!/bin/sh\nprintf "resolve"\n' > "$NOTY"
+	chmod +x "$NOTY"
+	USENOTIFIER=1
+	NOTYARGS="-a TinkerGame"
+
+	USETERM="$BATS_TEST_TMPDIR/faketerm"
+	printf '#!/bin/sh\necho "$@" > "%s/term.call"\n' "$BATS_TEST_TMPDIR" > "$USETERM"
+	chmod +x "$USETERM"
+	TERMARGS="-e"
+	TG_ENTRYPOINT="$BATS_TEST_TMPDIR/tinkergame"
+	: > "$TG_ENTRYPOINT"
+	chmod +x "$TG_ENTRYPOINT"
+
+	tgSgdbNotifyUndecided "2"
+
+	local waited=0
+	while [ ! -e "$BATS_TEST_TMPDIR/term.call" ] && [ "$waited" -lt 50 ]; do
+		sleep 0.1
+		waited=$(( waited + 1 ))
+	done
+
+	[ -e "$BATS_TEST_TMPDIR/term.call" ]
+	grep -q "artwork resolve" "$BATS_TEST_TMPDIR/term.call"
+}
+
+@test "tgSgdbNotifyUndecided: nothing to decide means no notification" {
+	NOTY="$BATS_TEST_TMPDIR/fakenoty"
+	printf '#!/bin/sh\necho fired >> "%s/noty.calls"\n' "$BATS_TEST_TMPDIR" > "$NOTY"
+	chmod +x "$NOTY"
+	USENOTIFIER=1
+
+	tgSgdbNotifyUndecided "0"
+	[ ! -e "$BATS_TEST_TMPDIR/noty.calls" ]
+}
+
+@test "tgSgdbNotifyUndecided: a disabled notifier is not an error" {
+	USENOTIFIER=0
+	run tgSgdbNotifyUndecided "3"
+	[ "$status" -eq 0 ]
+}
+
+@test "tgSgdbResolveTerminal: refuses when no terminal is configured" {
+	USETERM=""
+	run tgSgdbResolveTerminal
+	[ "$status" -ne 0 ]
+}
+
+@test "tgSgdbResolveTerminal: refuses when the executable cannot be resolved" {
+	USETERM="$BATS_TEST_TMPDIR/faketerm"
+	printf '#!/bin/sh\nexit 0\n' > "$USETERM"
+	chmod +x "$USETERM"
+	TG_ENTRYPOINT=""
+	run tgSgdbResolveTerminal
+	[ "$status" -ne 0 ]
+}
+
+@test "tgSgdbResolveTerminal: launches the resolver in the configured terminal" {
+	USETERM="$BATS_TEST_TMPDIR/faketerm"
+	printf '#!/bin/sh\necho "$@" > "%s/term.call"\n' "$BATS_TEST_TMPDIR" > "$USETERM"
+	chmod +x "$USETERM"
+	TERMARGS="-e"
+	TG_ENTRYPOINT="$BATS_TEST_TMPDIR/tinkergame"
+	: > "$TG_ENTRYPOINT"
+	chmod +x "$TG_ENTRYPOINT"
+
+	run tgSgdbResolveTerminal
+	[ "$status" -eq 0 ]
+	grep -q -- "-e" "$BATS_TEST_TMPDIR/term.call"
+	grep -q "artwork resolve" "$BATS_TEST_TMPDIR/term.call"
 }
