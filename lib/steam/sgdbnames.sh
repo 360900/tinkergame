@@ -132,6 +132,109 @@ function tgSgdbUndecidedEntries {
 	done <<< "$( getSteamShortcutHex )"
 }
 
+function tgSgdbSplitCamelCase {
+	# "EmulationStationDE" -> "Emulation Station DE". SteamGridDB's search matches
+	# on words, so a run-together shortcut name reaches fewer titles: "HollowKnight"
+	# ranks "Hollow Knight: Silksong" first, "Hollow Knight" ranks the right one.
+	# Names that already contain a space are left alone.
+	local TGSN_IN="$1"
+
+	case "$TGSN_IN" in
+		*" "*) printf '%s' "$TGSN_IN" ; return 0 ;;
+	esac
+
+	# lower/digit followed by upper, and an acronym run followed by a word
+	sed -E 's/([a-z0-9])([A-Z])/\1 \2/g; s/([A-Z]+)([A-Z][a-z])/\1 \2/g' <<< "$TGSN_IN"
+}
+
+function tgSgdbSelectKeys {
+	# Arrow-key selection. Draws the candidate list on stderr, redrawing it on
+	# every keypress, and prints the chosen token on stdout: a 1-based number,
+	# one of s/x/t/q, or '!' for an unusable key.
+	local -a TGSN_OPTS=("$@")
+	local TGSN_CUR=0
+	local TGSN_KEY TGSN_SEQ TGSN_I TGSN_MARK
+	local TGSN_COUNT="${#TGSN_OPTS[@]}"
+
+	printf '\e[?25l' >&2   # hide the cursor while the list is being redrawn
+
+	while : ; do
+		for TGSN_I in "${!TGSN_OPTS[@]}"; do
+			if [ "$TGSN_I" -eq "$TGSN_CUR" ]; then
+				TGSN_MARK="> "
+			else
+				TGSN_MARK="  "
+			fi
+			printf '\e[2K\r  %s%s\n' "$TGSN_MARK" "${TGSN_OPTS[$TGSN_I]}" >&2
+		done
+		printf '\e[2K\r  %s\n' "up/down + Enter to pick  s) skip  x) never look this up  t) another search term  q) quit" >&2
+
+		if ! IFS= read -rsn1 TGSN_KEY; then
+			printf '\e[?25h' >&2
+			printf 'q'
+			return 0
+		fi
+
+		case "$TGSN_KEY" in
+			"")   # Enter
+				printf '\e[?25h' >&2
+				if [ "$TGSN_COUNT" -eq 0 ]; then
+					printf 's'
+				else
+					printf '%s' "$(( TGSN_CUR + 1 ))"
+				fi
+				return 0 ;;
+			s|S|x|X|t|T|q|Q)
+				printf '\e[?25h' >&2
+				printf '%s' "${TGSN_KEY,,}"
+				return 0 ;;
+			$'\e')
+				# Arrow keys arrive as ESC [ A / ESC [ B; a bare Escape just redraws
+				IFS= read -rsn2 -t 0.05 TGSN_SEQ
+				case "$TGSN_SEQ" in
+					"[A") [ "$TGSN_CUR" -gt 0 ] && TGSN_CUR=$(( TGSN_CUR - 1 )) ;;
+					"[B") [ "$TGSN_CUR" -lt $(( TGSN_COUNT - 1 )) ] && TGSN_CUR=$(( TGSN_CUR + 1 )) ;;
+				esac ;;
+		esac
+
+		# Step back over the list and the hint line to draw them again in place
+		printf '\e[%dA' "$(( TGSN_COUNT + 1 ))" >&2
+	done
+}
+
+function tgSgdbSelectLine {
+	# Fallback for runs without a terminal (pipes, scripts): numbered list, one
+	# line of input. Same token vocabulary as tgSgdbSelectKeys.
+	local -a TGSN_OPTS=("$@")
+	local TGSN_REPLY TGSN_I
+
+	for TGSN_I in "${!TGSN_OPTS[@]}"; do
+		printf '  %2d) %s\n' "$(( TGSN_I + 1 ))" "${TGSN_OPTS[$TGSN_I]}" >&2
+	done
+	printf '%s\n' "  [number] pick  s) skip  x) never look this up  t) another search term  q) quit" >&2
+	printf '%s' "  > " >&2
+
+	if ! read -r TGSN_REPLY; then
+		printf 'q'
+		return 0
+	fi
+
+	case "$TGSN_REPLY" in
+		q|Q)        printf 'q' ;;
+		s|S|"")     printf 's' ;;
+		x|X)        printf 'x' ;;
+		t|T)        printf 't' ;;
+		*[!0-9]*)   printf '!' ;;
+		*)
+			if [ "$TGSN_REPLY" -lt 1 ] || [ "$TGSN_REPLY" -gt "${#TGSN_OPTS[@]}" ]; then
+				printf '!'
+			else
+				printf '%s' "$TGSN_REPLY"
+			fi ;;
+	esac
+	return 0
+}
+
 function tgSgdbPrompt {
 	# One entry, one decision. Returns 2 when the user wants to stop the whole run,
 	# so a long backlog does not have to be worked through in one sitting.
@@ -139,7 +242,7 @@ function tgSgdbPrompt {
 	local TGSN_TERM="${2:-$1}"
 	local -a TGSN_IDS=()
 	local -a TGSN_NAMES=()
-	local TGSN_LINE TGSN_REPLY TGSN_IDX
+	local TGSN_LINE TGSN_TOKEN TGSN_IDX TGSN_SPLIT TGSN_SEEN
 
 	while IFS=$'\t' read -r TGSN_IDX TGSN_LINE; do
 		[ -z "$TGSN_IDX" ] && continue
@@ -147,54 +250,64 @@ function tgSgdbPrompt {
 		TGSN_NAMES+=("$TGSN_LINE")
 	done <<< "$( tgSgdbCandidates "$TGSN_TERM" )"
 
+	# A run-together name reaches fewer titles, so also offer what the spaced
+	# spelling finds. Appended rather than merged by rank: the literal spelling
+	# sometimes ranks better, and dropping its order would bury the right answer.
+	TGSN_SPLIT="$( tgSgdbSplitCamelCase "$TGSN_TERM" )"
+	if [ "$TGSN_SPLIT" != "$TGSN_TERM" ]; then
+		while IFS=$'\t' read -r TGSN_IDX TGSN_LINE; do
+			[ -z "$TGSN_IDX" ] && continue
+			for TGSN_SEEN in "${TGSN_IDS[@]}"; do
+				if [ "$TGSN_SEEN" == "$TGSN_IDX" ]; then
+					continue 2
+				fi
+			done
+			TGSN_IDS+=("$TGSN_IDX")
+			TGSN_NAMES+=("$TGSN_LINE")
+		done <<< "$( tgSgdbCandidates "$TGSN_SPLIT" )"
+	fi
+
 	printf '\n%s\n' "Non-Steam entry: $TGSN_NAME"
 	if [ "$TGSN_TERM" != "$TGSN_NAME" ]; then
 		printf '%s\n' "  searched for: $TGSN_TERM"
 	fi
-
 	if [ "${#TGSN_IDS[@]}" -eq 0 ]; then
 		printf '%s\n' "  no matches on SteamGridDB"
-	else
-		for TGSN_IDX in "${!TGSN_IDS[@]}"; do
-			printf '  %2d) %s\n' "$(( TGSN_IDX + 1 ))" "${TGSN_NAMES[$TGSN_IDX]}"
-		done
 	fi
 
-	printf '%s\n' "  [number] pick  s) skip for now  x) never look this up  t) type another search term  q) quit"
-	printf '%s' "  > "
-	read -r TGSN_REPLY || return 2
+	# Redrawing a list only works on a terminal; anything else gets the numbered prompt
+	if [ -t 0 ]; then
+		TGSN_TOKEN="$( tgSgdbSelectKeys "${TGSN_NAMES[@]}" )"
+	else
+		TGSN_TOKEN="$( tgSgdbSelectLine "${TGSN_NAMES[@]}" )"
+	fi
 
-	case "$TGSN_REPLY" in
-		q|Q)
+	case "$TGSN_TOKEN" in
+		q)
 			return 2 ;;
-		s|S|"")
+		s)
 			writelog "INFO" "${FUNCNAME[0]} - '$TGSN_NAME' skipped for now - will be asked again"
 			return 1 ;;
-		x|X)
+		x)
 			# Stored as an empty value, so the entry counts as decided and stops
 			# coming back -- this is the 'there simply is no artwork' case
 			tgSgdbSetDecision "$TGSN_NAME" ""
 			printf '%s\n' "  -> never looking this one up again"
 			return 0 ;;
-		t|T)
+		t)
 			printf '%s' "  search term: "
-			read -r TGSN_REPLY || return 2
-			if [ -z "$TGSN_REPLY" ]; then
+			read -r TGSN_LINE || return 2
+			if [ -z "$TGSN_LINE" ]; then
 				return 1
 			fi
-			tgSgdbPrompt "$TGSN_NAME" "$TGSN_REPLY"
+			tgSgdbPrompt "$TGSN_NAME" "$TGSN_LINE"
 			return $? ;;
-		*[!0-9]*)
-			printf '%s\n' "  '$TGSN_REPLY' is not one of the options - skipping for now"
+		"!"|"")
+			printf '%s\n' "  not one of the options - skipping for now"
 			return 1 ;;
 	esac
 
-	if [ "$TGSN_REPLY" -lt 1 ] || [ "$TGSN_REPLY" -gt "${#TGSN_IDS[@]}" ]; then
-		printf '%s\n' "  '$TGSN_REPLY' is out of range - skipping for now"
-		return 1
-	fi
-
-	TGSN_IDX="$(( TGSN_REPLY - 1 ))"
+	TGSN_IDX="$(( TGSN_TOKEN - 1 ))"
 	tgSgdbSetDecision "$TGSN_NAME" "${TGSN_IDS[$TGSN_IDX]}"
 	printf '%s\n' "  -> ${TGSN_NAMES[$TGSN_IDX]} (SteamGridDB ID ${TGSN_IDS[$TGSN_IDX]})"
 	return 0

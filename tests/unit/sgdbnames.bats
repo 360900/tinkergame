@@ -310,3 +310,79 @@ setup() {
 	grep -q -- "-e" "$BATS_TEST_TMPDIR/term.call"
 	grep -q "artwork resolve" "$BATS_TEST_TMPDIR/term.call"
 }
+
+@test "tgSgdbSplitCamelCase: splits run-together names" {
+	[ "$(tgSgdbSplitCamelCase "HollowKnight")" = "Hollow Knight" ]
+	[ "$(tgSgdbSplitCamelCase "EmulationStationDE")" = "Emulation Station DE" ]
+	[ "$(tgSgdbSplitCamelCase "Portal2")" = "Portal2" ]
+}
+
+@test "tgSgdbSplitCamelCase: leaves names that already have spaces alone" {
+	[ "$(tgSgdbSplitCamelCase "Dead Cells")" = "Dead Cells" ]
+	[ "$(tgSgdbSplitCamelCase "Eden")" = "Eden" ]
+	# dots are not word breaks we should touch
+	[ "$(tgSgdbSplitCamelCase "S.T.A.L.K.E.R.")" = "S.T.A.L.K.E.R." ]
+}
+
+@test "tgSgdbPrompt: also offers what the spaced spelling finds" {
+	tgSgdbCandidates() {
+		case "$1" in
+			"HollowKnight")  printf '1\tHollow Knight: Silksong\n' ;;
+			"Hollow Knight") printf '1\tHollow Knight: Silksong\n2\tHollow Knight\n' ;;
+		esac
+	}
+	run tgSgdbPrompt "HollowKnight" <<< "2"
+	[ "$status" -eq 0 ]
+	run tgSgdbDecision "HollowKnight"
+	# the literal spelling alone would never have offered this one
+	[ "$output" = "2" ]
+}
+
+@test "tgSgdbPrompt: a candidate found by both spellings is listed once" {
+	tgSgdbCandidates() { printf '1\tHollow Knight\n'; }
+	run tgSgdbPrompt "HollowKnight" <<< "2"
+	# only one candidate exists, so '2' must be out of range
+	[ "$status" -eq 1 ]
+}
+
+@test "tgSgdbSelectLine: maps replies to tokens" {
+	[ "$(tgSgdbSelectLine "a" "b" <<< "2" 2>/dev/null)" = "2" ]
+	[ "$(tgSgdbSelectLine "a" "b" <<< "s" 2>/dev/null)" = "s" ]
+	[ "$(tgSgdbSelectLine "a" "b" <<< "x" 2>/dev/null)" = "x" ]
+	[ "$(tgSgdbSelectLine "a" "b" <<< "q" 2>/dev/null)" = "q" ]
+	[ "$(tgSgdbSelectLine "a" "b" <<< "" 2>/dev/null)" = "s" ]
+	[ "$(tgSgdbSelectLine "a" "b" <<< "nope" 2>/dev/null)" = "!" ]
+	[ "$(tgSgdbSelectLine "a" "b" <<< "9" 2>/dev/null)" = "!" ]
+}
+
+@test "tgSgdbSelectKeys: Enter picks the first entry" {
+	[ "$(tgSgdbSelectKeys "a" "b" "c" < <(printf '\n') 2>/dev/null)" = "1" ]
+}
+
+@test "tgSgdbSelectKeys: arrow down moves the selection" {
+	[ "$(tgSgdbSelectKeys "a" "b" "c" < <(printf '\e[B\n') 2>/dev/null)" = "2" ]
+	[ "$(tgSgdbSelectKeys "a" "b" "c" < <(printf '\e[B\e[B\n') 2>/dev/null)" = "3" ]
+}
+
+@test "tgSgdbSelectKeys: arrow up moves back and stops at the top" {
+	[ "$(tgSgdbSelectKeys "a" "b" "c" < <(printf '\e[B\e[A\n') 2>/dev/null)" = "1" ]
+	[ "$(tgSgdbSelectKeys "a" "b" "c" < <(printf '\e[A\e[A\n') 2>/dev/null)" = "1" ]
+}
+
+@test "tgSgdbSelectKeys: the selection stops at the bottom" {
+	[ "$(tgSgdbSelectKeys "a" "b" < <(printf '\e[B\e[B\e[B\n') 2>/dev/null)" = "2" ]
+}
+
+@test "tgSgdbSelectKeys: letter keys act immediately" {
+	[ "$(tgSgdbSelectKeys "a" "b" < <(printf 'x') 2>/dev/null)" = "x" ]
+	[ "$(tgSgdbSelectKeys "a" "b" < <(printf 'q') 2>/dev/null)" = "q" ]
+	[ "$(tgSgdbSelectKeys "a" "b" < <(printf 'S') 2>/dev/null)" = "s" ]
+}
+
+@test "tgSgdbSelectKeys: Enter with no candidates is a skip, not a pick" {
+	[ "$(tgSgdbSelectKeys < <(printf '\n') 2>/dev/null)" = "s" ]
+}
+
+@test "tgSgdbSelectKeys: exhausted input ends the run instead of looping" {
+	[ "$(tgSgdbSelectKeys "a" "b" < /dev/null 2>/dev/null)" = "q" ]
+}
