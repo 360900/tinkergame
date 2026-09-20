@@ -184,7 +184,7 @@ function tgSgdbPrompt {
 			fi
 			tgSgdbPrompt "$TGSN_NAME" "$TGSN_REPLY"
 			return $? ;;
-		*[!0-9]*|"")
+		*[!0-9]*)
 			printf '%s\n' "  '$TGSN_REPLY' is not one of the options - skipping for now"
 			return 1 ;;
 	esac
