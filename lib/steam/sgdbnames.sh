@@ -148,26 +148,34 @@ function tgSgdbSplitCamelCase {
 }
 
 function tgSgdbSelectKeys {
-	# Arrow-key selection. Draws the candidate list on stderr, redrawing it on
-	# every keypress, and prints the chosen token on stdout: a 1-based number,
-	# one of s/x/t/q, or '!' for an unusable key.
+	# Arrow-key selection: up/down and Enter, no letter keys. The actions are rows
+	# in the same list, bracketed so they do not read as search results.
+	# Prints the chosen token on stdout: a 1-based candidate number, or s/x/t/q.
 	local -a TGSN_OPTS=("$@")
-	local TGSN_CUR=0
-	local TGSN_KEY TGSN_SEQ TGSN_I TGSN_MARK
 	local TGSN_COUNT="${#TGSN_OPTS[@]}"
+	local -a TGSN_ACTKEY=("s" "x" "t" "q")
+	local -a TGSN_ACTLBL=("skip for now" "never look this up" "search under a different name" "quit")
+	local TGSN_CUR=0
+	local TGSN_ROWS=$(( TGSN_COUNT + ${#TGSN_ACTKEY[@]} ))
+	local TGSN_KEY TGSN_SEQ TGSN_I TGSN_MARK
 
 	printf '\e[?25l' >&2   # hide the cursor while the list is being redrawn
 
 	while : ; do
-		for TGSN_I in "${!TGSN_OPTS[@]}"; do
+		for TGSN_I in $( seq 0 $(( TGSN_ROWS - 1 )) ); do
 			if [ "$TGSN_I" -eq "$TGSN_CUR" ]; then
 				TGSN_MARK="> "
 			else
 				TGSN_MARK="  "
 			fi
-			printf '\e[2K\r  %s%s\n' "$TGSN_MARK" "${TGSN_OPTS[$TGSN_I]}" >&2
+			if [ "$TGSN_I" -lt "$TGSN_COUNT" ]; then
+				printf '\e[2K\r  %s%s\n' "$TGSN_MARK" "${TGSN_OPTS[$TGSN_I]}" >&2
+			else
+				# Bracketed on both sides: these are choices, not titles from SteamGridDB
+				printf '\e[2K\r  %s-- %s --\n' "$TGSN_MARK" "${TGSN_ACTLBL[$(( TGSN_I - TGSN_COUNT ))]}" >&2
+			fi
 		done
-		printf '\e[2K\r  %s\n' "up/down + Enter to pick  s) skip  x) never look this up  t) another search term  q) quit" >&2
+		printf '\e[2K\r  %s\n' "up/down to move, Enter to choose" >&2
 
 		if ! IFS= read -rsn1 TGSN_KEY; then
 			printf '\e[?25h' >&2
@@ -178,27 +186,23 @@ function tgSgdbSelectKeys {
 		case "$TGSN_KEY" in
 			"")   # Enter
 				printf '\e[?25h' >&2
-				if [ "$TGSN_COUNT" -eq 0 ]; then
-					printf 's'
-				else
+				if [ "$TGSN_CUR" -lt "$TGSN_COUNT" ]; then
 					printf '%s' "$(( TGSN_CUR + 1 ))"
+				else
+					printf '%s' "${TGSN_ACTKEY[$(( TGSN_CUR - TGSN_COUNT ))]}"
 				fi
-				return 0 ;;
-			s|S|x|X|t|T|q|Q)
-				printf '\e[?25h' >&2
-				printf '%s' "${TGSN_KEY,,}"
 				return 0 ;;
 			$'\e')
 				# Arrow keys arrive as ESC [ A / ESC [ B; a bare Escape just redraws
 				IFS= read -rsn2 -t 0.05 TGSN_SEQ
 				case "$TGSN_SEQ" in
 					"[A") [ "$TGSN_CUR" -gt 0 ] && TGSN_CUR=$(( TGSN_CUR - 1 )) ;;
-					"[B") [ "$TGSN_CUR" -lt $(( TGSN_COUNT - 1 )) ] && TGSN_CUR=$(( TGSN_CUR + 1 )) ;;
+					"[B") [ "$TGSN_CUR" -lt $(( TGSN_ROWS - 1 )) ] && TGSN_CUR=$(( TGSN_CUR + 1 )) ;;
 				esac ;;
 		esac
 
 		# Step back over the list and the hint line to draw them again in place
-		printf '\e[%dA' "$(( TGSN_COUNT + 1 ))" >&2
+		printf '\e[%dA' "$(( TGSN_ROWS + 1 ))" >&2
 	done
 }
 

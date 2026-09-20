@@ -369,14 +369,31 @@ setup() {
 	[ "$(tgSgdbSelectKeys "a" "b" "c" < <(printf '\e[A\e[A\n') 2>/dev/null)" = "1" ]
 }
 
-@test "tgSgdbSelectKeys: the selection stops at the bottom" {
-	[ "$(tgSgdbSelectKeys "a" "b" < <(printf '\e[B\e[B\e[B\n') 2>/dev/null)" = "2" ]
+@test "tgSgdbSelectKeys: the selection stops at the last row" {
+	# 3 candidates + 4 action rows: pressing down past the end stays on 'quit'
+	[ "$(tgSgdbSelectKeys "a" "b" "c" < <(printf '\e[B\e[B\e[B\e[B\e[B\e[B\e[B\e[B\n') 2>/dev/null)" = "q" ]
 }
 
-@test "tgSgdbSelectKeys: letter keys act immediately" {
-	[ "$(tgSgdbSelectKeys "a" "b" < <(printf 'x') 2>/dev/null)" = "x" ]
-	[ "$(tgSgdbSelectKeys "a" "b" < <(printf 'q') 2>/dev/null)" = "q" ]
-	[ "$(tgSgdbSelectKeys "a" "b" < <(printf 'S') 2>/dev/null)" = "s" ]
+@test "tgSgdbSelectKeys: every action is reachable with the arrow keys alone" {
+	# The actions are rows in the same list, so no letter key is ever needed
+	[ "$(tgSgdbSelectKeys "a" "b" "c" < <(printf '\e[B\e[B\e[B\n') 2>/dev/null)" = "s" ]
+	[ "$(tgSgdbSelectKeys "a" "b" "c" < <(printf '\e[B\e[B\e[B\e[B\n') 2>/dev/null)" = "x" ]
+	[ "$(tgSgdbSelectKeys "a" "b" "c" < <(printf '\e[B\e[B\e[B\e[B\e[B\n') 2>/dev/null)" = "t" ]
+	[ "$(tgSgdbSelectKeys "a" "b" "c" < <(printf '\e[B\e[B\e[B\e[B\e[B\e[B\n') 2>/dev/null)" = "q" ]
+}
+
+@test "tgSgdbSelectKeys: a letter key does not decide anything" {
+	# Typing 'x' must not silently mark an entry as 'never look this up'
+	[ "$(tgSgdbSelectKeys "a" "b" "c" < <(printf 'x\n') 2>/dev/null)" = "1" ]
+}
+
+@test "tgSgdbSelectKeys: the action rows are set apart from the candidates" {
+	# drawn on stderr, so the token on stdout stays usable in a command substitution
+	tgSgdbSelectKeys "Hollow Knight" < <(printf '\n') 2>"$BATS_TEST_TMPDIR/ui" >/dev/null
+	grep -q -- "-- skip for now --" "$BATS_TEST_TMPDIR/ui"
+	grep -q -- "-- never look this up --" "$BATS_TEST_TMPDIR/ui"
+	grep -q -- "-- search under a different name --" "$BATS_TEST_TMPDIR/ui"
+	grep -q -- "-- quit --" "$BATS_TEST_TMPDIR/ui"
 }
 
 @test "tgSgdbSelectKeys: Enter with no candidates is a skip, not a pick" {
