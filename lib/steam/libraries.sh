@@ -1256,12 +1256,12 @@ function getGridsForNonSteamGames {
 			fi
 		done <<< "$( getSteamShortcutHex )"
 
-		# Entries nobody has decided on were matched by name alone, which is a guess.
-		# Say so, rather than leaving a wrong match looking like a success.
+		# Entries still missing artwork after this run were matched by name alone,
+		# which is a guess. Say so, rather than leaving the gap unexplained.
 		GRIDNOSTUNDECIDED="$( tgSgdbUndecidedEntries | grep -c . )"
 		if [ "$GRIDNOSTUNDECIDED" -gt 0 ]; then
-			writelog "INFO" "${FUNCNAME[0]} - '$GRIDNOSTUNDECIDED' Non-Steam entry/entries have no stored SteamGridDB match - artwork for them was guessed from the name"
-			echo "$GRIDNOSTUNDECIDED Non-Steam entry/entries were matched by name only - run '${PROGNAME,,} artwork resolve' to confirm or correct them"
+			writelog "INFO" "${FUNCNAME[0]} - '$GRIDNOSTUNDECIDED' Non-Steam entry/entries are still missing artwork and have no stored SteamGridDB match"
+			echo "$GRIDNOSTUNDECIDED Non-Steam entry/entries are still missing artwork - run '${PROGNAME,,} artwork resolve' to pick the right game for them"
 			tgSgdbNotifyUndecided "$GRIDNOSTUNDECIDED"
 		fi
 	fi

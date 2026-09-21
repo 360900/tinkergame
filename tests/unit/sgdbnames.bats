@@ -169,11 +169,104 @@ setup() {
 	parseSteamShortcutEntryAppName() {
 		case "$1" in a) printf 'Eden' ;; b) printf 'Caustic' ;; c) printf 'Celeste' ;; esac
 	}
+	parseSteamShortcutEntryAppID() {
+		case "$1" in a) printf '1' ;; b) printf '2' ;; c) printf '3' ;; esac
+	}
+	tgSgdbArtworkMissing() { printf 'logo\n'; }
 	tgSgdbSetDecision "Caustic" ""
 	tgSgdbSetDecision "Celeste" "5"
 
 	run tgSgdbUndecidedEntries
-	[ "$output" = "Eden" ]
+	[ "$output" = "$(printf '1\tEden')" ]
+}
+
+@test "tgSgdbUndecidedEntries: an entry with all its artwork is not asked about" {
+	haveAnySteamShortcuts() { return 0; }
+	getSteamShortcutHex() { printf 'a\nb\n'; }
+	parseSteamShortcutEntryAppName() {
+		case "$1" in a) printf 'Eden' ;; b) printf 'Caustic' ;; esac
+	}
+	parseSteamShortcutEntryAppID() {
+		case "$1" in a) printf '1' ;; b) printf '2' ;; esac
+	}
+	# Eden is complete, Caustic has nothing
+	tgSgdbArtworkMissing() { [ "$1" = "1" ] && return 0; printf 'boxart\nhero\nlogo\nicon\ntenfoot\n'; }
+
+	run tgSgdbUndecidedEntries
+	[ "$output" = "$(printf '2\tCaustic')" ]
+}
+
+@test "tgSgdbUndecidedEntries: 'all' includes entries that already have artwork" {
+	haveAnySteamShortcuts() { return 0; }
+	getSteamShortcutHex() { printf 'a\nb\n'; }
+	parseSteamShortcutEntryAppName() {
+		case "$1" in a) printf 'Eden' ;; b) printf 'Caustic' ;; esac
+	}
+	parseSteamShortcutEntryAppID() {
+		case "$1" in a) printf '1' ;; b) printf '2' ;; esac
+	}
+	tgSgdbArtworkMissing() { return 0; }
+
+	run tgSgdbUndecidedEntries "1"
+	[ "$(printf '%s\n' "$output" | wc -l)" -eq 2 ]
+}
+
+@test "tgSgdbArtworkMissing: reports the types with no file" {
+	STUIDPATH="$BATS_TEST_TMPDIR/user"
+	mkdir -p "$STUIDPATH/config/grid"
+	touch "$STUIDPATH/config/grid/1234p.png"
+	touch "$STUIDPATH/config/grid/1234_hero.jpg"
+
+	run tgSgdbArtworkMissing "1234"
+	printf '%s\n' "$output" | grep -qx "tenfoot"
+	printf '%s\n' "$output" | grep -qx "logo"
+	printf '%s\n' "$output" | grep -qx "icon"
+	printf '%s\n' "$output" | grep -qvx "boxart"
+	printf '%s\n' "$output" | grep -qvx "hero"
+}
+
+@test "tgSgdbArtworkMissing: a complete set reports nothing" {
+	STUIDPATH="$BATS_TEST_TMPDIR/user"
+	mkdir -p "$STUIDPATH/config/grid"
+	for f in 1234p.png 1234.png 1234_hero.png 1234_logo.png 1234_icon.png; do
+		touch "$STUIDPATH/config/grid/$f"
+	done
+
+	run tgSgdbArtworkMissing "1234"
+	[ -z "$output" ]
+}
+
+@test "tgSgdbArtworkMissing: a longer AppID's files do not count as ours" {
+	STUIDPATH="$BATS_TEST_TMPDIR/user"
+	mkdir -p "$STUIDPATH/config/grid"
+	touch "$STUIDPATH/config/grid/1234p.png"
+
+	run tgSgdbArtworkMissing "123"
+	printf '%s\n' "$output" | grep -qx "boxart"
+}
+
+@test "tgSgdbPrompt: says which artwork is already there" {
+	STUIDPATH="$BATS_TEST_TMPDIR/user"
+	mkdir -p "$STUIDPATH/config/grid"
+	touch "$STUIDPATH/config/grid/77p.png"
+	tgSgdbCandidates() { printf '10\tEden\n'; }
+
+	run tgSgdbPrompt "Eden" "77" <<< "s"
+	printf '%s\n' "$output" | grep -q "artwork missing:"
+	printf '%s\n' "$output" | grep -q "logo"
+	printf '%s\n' "$output" | grep -qv "boxart"
+}
+
+@test "tgSgdbPrompt: says so when nothing is missing" {
+	STUIDPATH="$BATS_TEST_TMPDIR/user"
+	mkdir -p "$STUIDPATH/config/grid"
+	for f in 77p.png 77.png 77_hero.png 77_logo.png 77_icon.png; do
+		touch "$STUIDPATH/config/grid/$f"
+	done
+	tgSgdbCandidates() { printf '10\tEden\n'; }
+
+	run tgSgdbPrompt "Eden" "77" <<< "s"
+	printf '%s\n' "$output" | grep -q "all five types present"
 }
 
 @test "tgSgdbResolve: reports nothing to do when everything is decided" {
@@ -193,7 +286,7 @@ setup() {
 }
 
 @test "tgSgdbResolve: quitting leaves the remaining entries on the list" {
-	tgSgdbUndecidedEntries() { printf 'Eden\nCaustic\n'; }
+	tgSgdbUndecidedEntries() { printf '1\tEden\n2\tCaustic\n'; }
 	tgSgdbCandidates() { printf '10\tEden\n'; }
 	run tgSgdbResolve <<< "q"
 	[ "$status" -eq 0 ]

@@ -114,21 +114,60 @@ function tgSgdbCandidates {
 	"$JQ" -r '.data[]? | "\(.id)\t\(.name)"' <<< "$TGSN_RESP"
 }
 
+function tgSgdbArtworkMissing {
+	# Prints the artwork types a Non-Steam AppID has no file for, one per line.
+	# No output means everything is there.
+	local TGSN_AID="$1"
+	local TGSN_DIR
+	local TGSN_SUFFIX TGSN_LABEL
+
+	if [ -z "$TGSN_AID" ]; then
+		return 0
+	fi
+
+	if [ -z "$STUIDPATH" ]; then
+		setSteamPaths
+	fi
+	TGSN_DIR="${STUIDPATH}/config/grid"
+
+	# The extension varies, hence the glob. The '.' anchors it, so "1234.*" cannot
+	# match "1234p.png" or "1234_hero.png" -- each type is checked on its own.
+	for TGSN_SUFFIX in "p:boxart" ":tenfoot" "_hero:hero" "_logo:logo" "_icon:icon"; do
+		TGSN_LABEL="${TGSN_SUFFIX#*:}"
+		TGSN_SUFFIX="${TGSN_SUFFIX%%:*}"
+		if ! compgen -G "${TGSN_DIR}/${TGSN_AID}${TGSN_SUFFIX}.*" > /dev/null; then
+			printf '%s\n' "$TGSN_LABEL"
+		fi
+	done
+}
+
 function tgSgdbUndecidedEntries {
 	# Non-Steam entry names that have never been decided on. Used to tell the user
 	# there is something to do without asking about entries already settled.
 	local TGSN_ENTRY
 	local TGSN_NAME
+	local TGSN_ALL="$1"
 
 	if ! haveAnySteamShortcuts ; then
 		return 0
 	fi
 
+	local TGSN_AID
 	while read -r TGSN_ENTRY; do
 		TGSN_NAME="$( parseSteamShortcutEntryAppName "$TGSN_ENTRY" )"
-		if [ -n "$TGSN_NAME" ] && ! tgSgdbDecision "$TGSN_NAME" > /dev/null; then
-			printf '%s\n' "$TGSN_NAME"
+		TGSN_AID="$( parseSteamShortcutEntryAppID "$TGSN_ENTRY" )"
+		if [ -z "$TGSN_NAME" ] || tgSgdbDecision "$TGSN_NAME" > /dev/null; then
+			continue
 		fi
+
+		# Default to the entries that actually lack artwork. An entry that already
+		# has all five types is not worth asking about, and an entry settled as
+		# "never look this up" is deliberately empty and must never come back.
+		if [ "$TGSN_ALL" != "1" ] && [ -z "$( tgSgdbArtworkMissing "$TGSN_AID" )" ]; then
+			continue
+		fi
+
+		printf '%s\t%s\n' "$TGSN_AID" "$TGSN_NAME"
 	done <<< "$( getSteamShortcutHex )"
 }
 
@@ -243,10 +282,11 @@ function tgSgdbPrompt {
 	# One entry, one decision. Returns 2 when the user wants to stop the whole run,
 	# so a long backlog does not have to be worked through in one sitting.
 	local TGSN_NAME="$1"
-	local TGSN_TERM="${2:-$1}"
+	local TGSN_AID="$2"
+	local TGSN_TERM="${3:-$1}"
 	local -a TGSN_IDS=()
 	local -a TGSN_NAMES=()
-	local TGSN_LINE TGSN_TOKEN TGSN_IDX TGSN_SPLIT TGSN_SEEN
+	local TGSN_LINE TGSN_TOKEN TGSN_IDX TGSN_SPLIT TGSN_SEEN TGSN_MISS
 
 	while IFS=$'\t' read -r TGSN_IDX TGSN_LINE; do
 		[ -z "$TGSN_IDX" ] && continue
@@ -274,6 +314,18 @@ function tgSgdbPrompt {
 	printf '\n%s\n' "Non-Steam entry: $TGSN_NAME"
 	if [ "$TGSN_TERM" != "$TGSN_NAME" ]; then
 		printf '%s\n' "  searched for: $TGSN_TERM"
+	fi
+
+	# Say what is already on disk, so it is obvious whether this entry needs
+	# anything at all and which of the five types is actually missing
+	if [ -n "$TGSN_AID" ]; then
+		TGSN_MISS="$( tgSgdbArtworkMissing "$TGSN_AID" | tr '\n' ' ' )"
+		TGSN_MISS="${TGSN_MISS% }"
+		if [ -z "$TGSN_MISS" ]; then
+			printf '%s\n' "  artwork: all five types present"
+		else
+			printf '%s\n' "  artwork missing: $TGSN_MISS"
+		fi
 	fi
 	if [ "${#TGSN_IDS[@]}" -eq 0 ]; then
 		printf '%s\n' "  no matches on SteamGridDB"
@@ -304,7 +356,7 @@ function tgSgdbPrompt {
 			if [ -z "$TGSN_LINE" ]; then
 				return 1
 			fi
-			tgSgdbPrompt "$TGSN_NAME" "$TGSN_LINE"
+			tgSgdbPrompt "$TGSN_NAME" "$TGSN_AID" "$TGSN_LINE"
 			return $? ;;
 		"!"|"")
 			printf '%s\n' "  not one of the options - skipping for now"
@@ -320,33 +372,59 @@ function tgSgdbPrompt {
 function tgSgdbResolve {
 	# With a name, re-decide that one entry even if it was settled before -- a
 	# wrong match looks like a success, so the user must be able to come back to it.
-	# Without one, work through everything not yet decided.
+	# With "all", walk every undecided entry including those that already have
+	# artwork. Otherwise only the undecided entries that are actually missing
+	# something, which is the list worth working through.
 	local TGSN_TARGET="$1"
+	local TGSN_ALL=""
 	local -a TGSN_TODO=()
-	local TGSN_NAME TGSN_RC
+	local TGSN_NAME TGSN_AID TGSN_RC TGSN_LINE
 	local TGSN_DONE=0
 
 	if ! tgSgdbEnsureApiKey; then
 		return 1
 	fi
 
+	if [ "$TGSN_TARGET" == "all" ]; then
+		TGSN_ALL="1"
+		TGSN_TARGET=""
+	fi
+
 	if [ -n "$TGSN_TARGET" ]; then
-		TGSN_TODO=("$TGSN_TARGET")
+		# A single named entry: look up its AppID so the artwork status still shows
+		TGSN_AID=""
+		if haveAnySteamShortcuts ; then
+			while read -r TGSN_LINE; do
+				if [ "$( parseSteamShortcutEntryAppName "$TGSN_LINE" )" == "$TGSN_TARGET" ]; then
+					TGSN_AID="$( parseSteamShortcutEntryAppID "$TGSN_LINE" )"
+					break
+				fi
+			done <<< "$( getSteamShortcutHex )"
+		fi
+		TGSN_TODO=("${TGSN_AID}"$'\t'"${TGSN_TARGET}")
 	else
-		while IFS= read -r TGSN_NAME; do
-			[ -n "$TGSN_NAME" ] && TGSN_TODO+=("$TGSN_NAME")
-		done <<< "$( tgSgdbUndecidedEntries )"
+		while IFS= read -r TGSN_LINE; do
+			[ -n "$TGSN_LINE" ] && TGSN_TODO+=("$TGSN_LINE")
+		done <<< "$( tgSgdbUndecidedEntries "$TGSN_ALL" )"
 	fi
 
 	if [ "${#TGSN_TODO[@]}" -eq 0 ]; then
-		printf '%s\n' "Every Non-Steam entry has been decided on - nothing to do."
+		if [ -n "$TGSN_ALL" ]; then
+			printf '%s\n' "Every Non-Steam entry has been decided on - nothing to do."
+		else
+			printf '%s\n' "Every Non-Steam entry either has its artwork or has been decided on - nothing to do."
+			printf '%s\n' "Use '${PROGNAME,,} artwork resolve all' to go through the ones that already have artwork too."
+		fi
 		return 0
 	fi
 
 	printf '%s\n' "${#TGSN_TODO[@]} Non-Steam entry/entries to decide on."
 
-	for TGSN_NAME in "${TGSN_TODO[@]}"; do
-		tgSgdbPrompt "$TGSN_NAME"
+	for TGSN_LINE in "${TGSN_TODO[@]}"; do
+		TGSN_AID="${TGSN_LINE%%$'\t'*}"
+		TGSN_NAME="${TGSN_LINE#*$'\t'}"
+
+		tgSgdbPrompt "$TGSN_NAME" "$TGSN_AID"
 		TGSN_RC=$?
 		if [ "$TGSN_RC" -eq 2 ]; then
 			printf '\n%s\n' "Stopped. The rest stays on the list."
