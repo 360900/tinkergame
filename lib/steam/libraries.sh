@@ -1246,7 +1246,16 @@ function getGridsForNonSteamGames {
 				writelog "INFO" "${FUNCNAME[0]} - Updating artwork for game '$SVDFENAME ('$SVDFEAID')' using stored SteamGridDB Game ID '$SVDFEGAMEID'"
 				echo "Updating artwork for game '$SVDFENAME ('$SVDFEAID')'"
 
-				commandlineGetSteamGridDBArtwork --search-id="$SVDFEGAMEID" --filename-appid="$SVDFEAID" --nonsteam
+				# '--apply' in the automatic pass: SGDBDLTOSTEAM defaults to 0, which
+				# parks artwork in the download cache instead of Steam's grid folder.
+				# "keep Steam's Non-Steam artwork up to date" is the whole point of
+				# this pass, and artwork Steam never sees does not satisfy it -- the
+				# entry would keep counting as incomplete on every later run.
+				if [ "$GRIDNOSTASK" == "ask" ]; then
+					commandlineGetSteamGridDBArtwork --search-id="$SVDFEGAMEID" --filename-appid="$SVDFEAID" --nonsteam --apply
+				else
+					commandlineGetSteamGridDBArtwork --search-id="$SVDFEGAMEID" --filename-appid="$SVDFEAID" --nonsteam
+				fi
 			elif [ "$GRIDNOSTASK" == "ask" ]; then
 				writelog "INFO" "${FUNCNAME[0]} - '$SVDFENAME ($SVDFEAID)' has no stored SteamGridDB match - leaving it for '${PROGNAME,,} artwork resolve'"
 				echo "Leaving '$SVDFENAME ('$SVDFEAID')' for you to match - no stored SteamGridDB game"

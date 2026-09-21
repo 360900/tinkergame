@@ -83,3 +83,17 @@ setup() {
 	getGridsForNonSteamGames "ask" >/dev/null
 	[ ! -e "$BATS_TEST_TMPDIR/notified" ]
 }
+
+@test "getGridsForNonSteamGames: the automatic pass puts artwork where Steam looks" {
+	# SGDBDLTOSTEAM defaults to 0, which parks artwork in the download cache.
+	# An automatic pass that leaves it there has done nothing a user can see.
+	tgSgdbSetDecision "Eden" "9981"
+	getGridsForNonSteamGames "ask" >/dev/null
+	grep -q -- "--apply" "$TG_FETCHLOG"
+}
+
+@test "getGridsForNonSteamGames: 'update grid nonsteam' keeps honouring SGDBDLTOSTEAM" {
+	tgSgdbSetDecision "Eden" "9981"
+	getGridsForNonSteamGames >/dev/null
+	grep -qv -- "--apply" "$TG_FETCHLOG"
+}
