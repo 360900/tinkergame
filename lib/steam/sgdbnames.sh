@@ -434,9 +434,16 @@ function tgSgdbResolve {
 	done
 
 	printf '\n%s\n' "$TGSN_DONE decision(s) stored in '$STLSGDBNAMESCFG'."
+
 	if [ "$TGSN_DONE" -gt 0 ]; then
-		printf '%s\n' "Run '${PROGNAME,,} update grid nonsteam' to fetch artwork with them."
+		# Deciding and then having to run a second command by hand is a step for
+		# nothing. Fetching everything rather than just the entries just decided
+		# is deliberate and cheap: artwork already on disk is not requested again,
+		# so the rest of the library costs a few file checks and no API calls.
+		printf '%s\n' "Fetching artwork with them..."
+		getGridsForNonSteamGames
 	fi
+
 	return 0
 }
 
@@ -473,6 +480,19 @@ function tgSgdbNotifyUndecided {
 	fi
 
 	if [ -t 1 ]; then
+		return 0
+	fi
+
+	# Honour the same suppressions as notiShow. Game Mode has no desktop to show
+	# a notification on and no terminal to open, and '-q' is a request for silence
+	# that a second notification path must not quietly ignore.
+	if [ "${ONSTEAMDECK:-0}" -eq 1 ] && [ "${FIXGAMESCOPE:-0}" -eq 1 ]; then
+		writelog "INFO" "${FUNCNAME[0]} - Skipping notifier on SteamDeck Game Mode - '$TGSN_COUNT' entries stay on the list"
+		return 0
+	fi
+
+	if [ "${STLQUIET:-0}" -eq 1 ]; then
+		writelog "INFO" "${FUNCNAME[0]} - Quiet mode - '$TGSN_COUNT' entries stay on the list"
 		return 0
 	fi
 

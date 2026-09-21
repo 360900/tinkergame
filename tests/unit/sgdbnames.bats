@@ -584,3 +584,60 @@ setup() {
 	# but it must still have been stored
 	grep -q 'SGDBAPIKEY="supersecretkey"' "$STLCFGDIR/global.conf"
 }
+
+@test "tgSgdbNotifyUndecided: Game Mode is left alone, like notiShow does" {
+	# No desktop to notify on and no terminal to open there
+	NOTY="$BATS_TEST_TMPDIR/fakenoty"
+	printf '#!/bin/sh\ntouch "%s/noty.call"\n' "$BATS_TEST_TMPDIR" > "$NOTY"
+	chmod +x "$NOTY"
+	USENOTIFIER=1
+	ONSTEAMDECK=1
+	FIXGAMESCOPE=1
+
+	tgSgdbNotifyUndecided "3"
+	sleep 0.3
+	[ ! -e "$BATS_TEST_TMPDIR/noty.call" ]
+}
+
+@test "tgSgdbNotifyUndecided: quiet mode really is quiet" {
+	NOTY="$BATS_TEST_TMPDIR/fakenoty"
+	printf '#!/bin/sh\ntouch "%s/noty.call"\n' "$BATS_TEST_TMPDIR" > "$NOTY"
+	chmod +x "$NOTY"
+	USENOTIFIER=1
+	STLQUIET=1
+
+	tgSgdbNotifyUndecided "3"
+	sleep 0.3
+	[ ! -e "$BATS_TEST_TMPDIR/noty.call" ]
+}
+
+@test "tgSgdbResolve: fetches the artwork itself once something was decided" {
+	tgSgdbUndecidedEntries() { printf '1\tEden\n'; }
+	tgSgdbCandidates() { printf '10\tEden\n'; }
+	getGridsForNonSteamGames() { touch "$BATS_TEST_TMPDIR/fetched"; }
+
+	run tgSgdbResolve <<< "1"
+	[ "$status" -eq 0 ]
+	[ -e "$BATS_TEST_TMPDIR/fetched" ]
+}
+
+@test "tgSgdbResolve: decides nothing, fetches nothing" {
+	tgSgdbUndecidedEntries() { printf '1\tEden\n'; }
+	tgSgdbCandidates() { printf '10\tEden\n'; }
+	getGridsForNonSteamGames() { touch "$BATS_TEST_TMPDIR/fetched"; }
+
+	run tgSgdbResolve <<< "s"
+	[ "$status" -eq 0 ]
+	[ ! -e "$BATS_TEST_TMPDIR/fetched" ]
+}
+
+@test "tgSgdbResolve: quitting still fetches what was decided before" {
+	tgSgdbUndecidedEntries() { printf '1\tEden\n2\tCaustic\n'; }
+	tgSgdbCandidates() { printf '10\tEden\n'; }
+	getGridsForNonSteamGames() { touch "$BATS_TEST_TMPDIR/fetched"; }
+
+	# pick for the first entry, then quit on the second
+	run tgSgdbResolve < <(printf '1\nq\n')
+	[ "$status" -eq 0 ]
+	[ -e "$BATS_TEST_TMPDIR/fetched" ]
+}
