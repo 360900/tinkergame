@@ -835,6 +835,10 @@ function tgCmdArtwork {
 			tgWatchInstall
 		elif [ "$1" == "uninstall" ] || [ "$1" == "remove" ]; then
 			tgWatchUninstall
+		elif [ "$1" == "run" ]; then
+			# What the generated unit calls. Deliberately not 'update grid nonsteam':
+			# nobody reviews an automatic run, so it never matches an entry by name
+			getGridsForNonSteamGames "ask"
 		else
 			writelog "INFO" "${FUNCNAME[0]} - 'artwork watch' needs 'install' or 'uninstall' as argument, got '$1'"
 			howto

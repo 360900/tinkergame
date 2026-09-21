@@ -71,7 +71,7 @@ function tgWatchWriteUnits {
 		# start a second one, so a burst of shortcut writes collapses into one refresh.
 		# KillMode=process: the run may leave a notification waiting for the user.
 		# The default would kill it together with the service the moment the run ends.
-		printf '[Service]\nType=oneshot\nKillMode=process\nExecStart=%s update grid nonsteam\n' "$TG_ENTRYPOINT"
+		printf '[Service]\nType=oneshot\nKillMode=process\nExecStart=%s artwork watch run\n' "$TG_ENTRYPOINT"
 	} > "$TGW_DIR/${TGWATCHUNIT}.service"
 
 	{

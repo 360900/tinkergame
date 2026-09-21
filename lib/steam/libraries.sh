@@ -1206,6 +1206,14 @@ function getGridsForInstalledGames {
 	fi
 }
 function getGridsForNonSteamGames {
+	# "ask" is the automatic pass: entries with a stored SteamGridDB match are
+	# fetched, entries without one are left untouched and reported instead.
+	# Matching by name is a guess, and a wrong guess is harder to undo than a
+	# blank entry is to fill -- it looks correct and nothing reports it. Nobody
+	# reviews an automatic run, so it must not make that call on its own.
+	# Without the argument this behaves exactly as it always has.
+	GRIDNOSTASK="$1"
+
 	if ! haveAnySteamShortcuts ; then
 		writelog "SKIP" "${FUNCNAME[0]} - No Non-Steam Games found, skipping"
 		echo "No Non-Steam Games found, not downloading grids"
@@ -1239,6 +1247,10 @@ function getGridsForNonSteamGames {
 				echo "Updating artwork for game '$SVDFENAME ('$SVDFEAID')'"
 
 				commandlineGetSteamGridDBArtwork --search-id="$SVDFEGAMEID" --filename-appid="$SVDFEAID" --nonsteam
+			elif [ "$GRIDNOSTASK" == "ask" ]; then
+				writelog "INFO" "${FUNCNAME[0]} - '$SVDFENAME ($SVDFEAID)' has no stored SteamGridDB match - leaving it for '${PROGNAME,,} artwork resolve'"
+				echo "Leaving '$SVDFENAME ('$SVDFEAID')' for you to match - no stored SteamGridDB game"
+				continue
 			else
 				writelog "INFO" "${FUNCNAME[0]} - Updating artwork for game '$SVDFENAME ('$SVDFEAID')'"
 				echo "Updating artwork for game '$SVDFENAME ('$SVDFEAID')'"
@@ -1258,7 +1270,9 @@ function getGridsForNonSteamGames {
 
 		# Entries still missing artwork after this run were matched by name alone,
 		# which is a guess. Say so, rather than leaving the gap unexplained.
-		GRIDNOSTUNDECIDED="$( tgSgdbUndecidedEntries | grep -c . )"
+		# '|| true': grep -c exits 1 when it counts nothing, which is the normal
+		# "everything is settled" case and must not look like a failure here
+		GRIDNOSTUNDECIDED="$( tgSgdbUndecidedEntries | grep -c . || true )"
 		if [ "$GRIDNOSTUNDECIDED" -gt 0 ]; then
 			writelog "INFO" "${FUNCNAME[0]} - '$GRIDNOSTUNDECIDED' Non-Steam entry/entries are still missing artwork and have no stored SteamGridDB match"
 			echo "$GRIDNOSTUNDECIDED Non-Steam entry/entries are still missing artwork - run '${PROGNAME,,} artwork resolve' to pick the right game for them"

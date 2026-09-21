@@ -440,8 +440,10 @@ function tgSgdbResolve {
 		# nothing. Fetching everything rather than just the entries just decided
 		# is deliberate and cheap: artwork already on disk is not requested again,
 		# so the rest of the library costs a few file checks and no API calls.
+		# "ask": an entry the user just chose to skip must not be guessed at
+		# one second later by the fetch that follows
 		printf '%s\n' "Fetching artwork with them..."
-		getGridsForNonSteamGames
+		getGridsForNonSteamGames "ask"
 	fi
 
 	return 0
