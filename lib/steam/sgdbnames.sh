@@ -428,10 +428,14 @@ function tgSgdbPromptApiKey {
 	printf '\n    %s\n\n' "$SGDBAPIKEYURL"
 	printf '%s' "Paste the key here (or press Enter to cancel): "
 
-	if ! read -r TGSN_KEY || [ -z "$TGSN_KEY" ]; then
+	# Read silently: a key echoed into the terminal ends up in the scrollback, in
+	# any session transcript and in whatever is recording the terminal. A mistyped
+	# paste is caught by the check below rather than by reading it back.
+	if ! read -rs TGSN_KEY || [ -z "$TGSN_KEY" ]; then
 		printf '\n%s\n' "No key entered - nothing was changed."
 		return 1
 	fi
+	printf '\n'
 
 	# Trim stray whitespace from copy/paste rather than storing a key that
 	# silently fails on every request afterwards

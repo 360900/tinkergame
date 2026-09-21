@@ -477,3 +477,17 @@ setup() {
 	# used to return 1 with nothing on screen at all
 	[ -n "$output" ]
 }
+
+@test "tgSgdbPromptApiKey: the key is not echoed back to the terminal" {
+	# It would otherwise land in the scrollback and in any session transcript
+	STLDEFGLOBALCFG="$STLCFGDIR/global.conf"
+	WGET="$BATS_TEST_TMPDIR/fakewget"
+	printf '#!/bin/sh\nprintf "%%s" "{\\"success\\":true,\\"data\\":[]}"\n' > "$WGET"
+	chmod +x "$WGET"
+
+	run tgSgdbPromptApiKey <<< "supersecretkey"
+	[ "$status" -eq 0 ]
+	printf '%s\n' "$output" | grep -qv "supersecretkey"
+	# but it must still have been stored
+	grep -q 'SGDBAPIKEY="supersecretkey"' "$STLCFGDIR/global.conf"
+}
