@@ -97,3 +97,16 @@ setup() {
 	getGridsForNonSteamGames >/dev/null
 	grep -qv -- "--apply" "$TG_FETCHLOG"
 }
+
+@test "getGridsForNonSteamGames: a complete entry is not reported as needing a match" {
+	# Saying "leaving this for you" about entries that need nothing buries the ones that do
+	tgSgdbArtworkMissing() { return 0; }
+	run getGridsForNonSteamGames "ask"
+	printf '%s\n' "$output" | grep -qv "Leaving"
+}
+
+@test "getGridsForNonSteamGames: an incomplete entry is reported" {
+	tgSgdbArtworkMissing() { printf 'hero\n'; }
+	run getGridsForNonSteamGames "ask"
+	printf '%s\n' "$output" | grep -q "Leaving 'Eden ("
+}

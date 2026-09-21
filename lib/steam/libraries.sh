@@ -1258,7 +1258,12 @@ function getGridsForNonSteamGames {
 				fi
 			elif [ "$GRIDNOSTASK" == "ask" ]; then
 				writelog "INFO" "${FUNCNAME[0]} - '$SVDFENAME ($SVDFEAID)' has no stored SteamGridDB match - leaving it for '${PROGNAME,,} artwork resolve'"
-				echo "Leaving '$SVDFENAME ('$SVDFEAID')' for you to match - no stored SteamGridDB game"
+				# Only worth mentioning when something is actually missing. An entry
+				# that already has all five types needs nothing, and saying so for
+				# every one of them buries the entries that do.
+				if [ -n "$( tgSgdbArtworkMissing "$SVDFEAID" )" ]; then
+					echo "Leaving '$SVDFENAME ('$SVDFEAID')' for you to match - no stored SteamGridDB game"
+				fi
 				continue
 			else
 				writelog "INFO" "${FUNCNAME[0]} - Updating artwork for game '$SVDFENAME ('$SVDFEAID')'"
