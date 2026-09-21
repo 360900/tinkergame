@@ -403,3 +403,77 @@ setup() {
 @test "tgSgdbSelectKeys: exhausted input ends the run instead of looping" {
 	[ "$(tgSgdbSelectKeys "a" "b" < /dev/null 2>/dev/null)" = "q" ]
 }
+
+@test "tgSgdbEnsureApiKey: an existing key is left alone" {
+	SGDBAPIKEY="alreadythere"
+	STLDEFGLOBALCFG="$STLCFGDIR/global.conf"
+	run tgSgdbEnsureApiKey
+	[ "$status" -eq 0 ]
+	[ ! -e "$STLDEFGLOBALCFG" ]
+}
+
+@test "tgSgdbEnsureApiKey: without a terminal it says so instead of blocking" {
+	# The systemd watcher must fail fast, not sit waiting for someone to type
+	SGDBAPIKEY=""
+	checkSGDbApi() { return 1; }
+	run tgSgdbEnsureApiKey
+	[ "$status" -ne 0 ]
+	printf '%s\n' "$output" | grep -q "artwork resolve"
+	printf '%s\n' "$output" | grep -qv "Paste the key"
+}
+
+@test "tgSgdbPromptApiKey: names the page to get a key from" {
+	STLDEFGLOBALCFG="$STLCFGDIR/global.conf"
+	run tgSgdbPromptApiKey <<< ""
+	printf '%s\n' "$output" | grep -q "steamgriddb.com/profile/preferences/api"
+}
+
+@test "tgSgdbPromptApiKey: an empty answer changes nothing" {
+	STLDEFGLOBALCFG="$STLCFGDIR/global.conf"
+	run tgSgdbPromptApiKey <<< ""
+	[ "$status" -ne 0 ]
+	[ ! -e "$STLCFGDIR/global.conf" ]
+}
+
+@test "tgSgdbPromptApiKey: a rejected key is not stored" {
+	STLDEFGLOBALCFG="$STLCFGDIR/global.conf"
+	WGET="$BATS_TEST_TMPDIR/fakewget"
+	printf '#!/bin/sh\nprintf "%%s" "{\\"success\\":false}"\n' > "$WGET"
+	chmod +x "$WGET"
+
+	run tgSgdbPromptApiKey <<< "badkey"
+	[ "$status" -ne 0 ]
+	[ ! -e "$STLCFGDIR/global.conf" ]
+	printf '%s\n' "$output" | grep -qi "did not accept"
+}
+
+@test "tgSgdbPromptApiKey: an accepted key lands in the global config" {
+	STLDEFGLOBALCFG="$STLCFGDIR/global.conf"
+	WGET="$BATS_TEST_TMPDIR/fakewget"
+	printf '#!/bin/sh\nprintf "%%s" "{\\"success\\":true,\\"data\\":[]}"\n' > "$WGET"
+	chmod +x "$WGET"
+
+	run tgSgdbPromptApiKey <<< "goodkey"
+	[ "$status" -eq 0 ]
+	grep -q 'SGDBAPIKEY="goodkey"' "$STLCFGDIR/global.conf"
+}
+
+@test "tgSgdbPromptApiKey: whitespace around a pasted key is trimmed" {
+	STLDEFGLOBALCFG="$STLCFGDIR/global.conf"
+	WGET="$BATS_TEST_TMPDIR/fakewget"
+	printf '#!/bin/sh\nprintf "%%s" "{\\"success\\":true,\\"data\\":[]}"\n' > "$WGET"
+	chmod +x "$WGET"
+
+	run tgSgdbPromptApiKey <<< "   goodkey   "
+	[ "$status" -eq 0 ]
+	grep -q 'SGDBAPIKEY="goodkey"' "$STLCFGDIR/global.conf"
+}
+
+@test "tgSgdbResolve: a missing key is reported instead of failing silently" {
+	SGDBAPIKEY=""
+	checkSGDbApi() { return 1; }
+	run tgSgdbResolve
+	[ "$status" -ne 0 ]
+	# used to return 1 with nothing on screen at all
+	[ -n "$output" ]
+}

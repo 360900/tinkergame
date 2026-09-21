@@ -326,7 +326,7 @@ function tgSgdbResolve {
 	local TGSN_NAME TGSN_RC
 	local TGSN_DONE=0
 
-	if ! checkSGDbApi; then
+	if ! tgSgdbEnsureApiKey; then
 		return 1
 	fi
 
@@ -416,4 +416,66 @@ function tgSgdbNotifyUndecided {
 	disown 2>/dev/null
 
 	return 0
+}
+
+function tgSgdbPromptApiKey {
+	# Asks for a key, verifies it against SteamGridDB and stores it. Split from
+	# tgSgdbEnsureApiKey so the prompt itself can be exercised without a terminal.
+	local TGSN_KEY TGSN_PROBE
+
+	printf '\n%s\n' "No SteamGridDB API key is configured, so artwork cannot be looked up."
+	printf '%s\n' "Create one here (free, needs a SteamGridDB account):"
+	printf '\n    %s\n\n' "$SGDBAPIKEYURL"
+	printf '%s' "Paste the key here (or press Enter to cancel): "
+
+	if ! read -r TGSN_KEY || [ -z "$TGSN_KEY" ]; then
+		printf '\n%s\n' "No key entered - nothing was changed."
+		return 1
+	fi
+
+	# Trim stray whitespace from copy/paste rather than storing a key that
+	# silently fails on every request afterwards
+	TGSN_KEY="${TGSN_KEY#"${TGSN_KEY%%[![:space:]]*}"}"
+	TGSN_KEY="${TGSN_KEY%"${TGSN_KEY##*[![:space:]]}"}"
+
+	# Try it before storing it: a typo here is otherwise only visible as
+	# "no artwork found" much later on
+	printf '%s\n' "Checking the key..."
+	TGSN_PROBE="$( "$WGET" --timeout="${SGDBTIMEOUT}" --tries=1 --content-on-error --header="Authorization: Bearer $TGSN_KEY" -q "${BASESTEAMGRIDDBAPI}/search/autocomplete/portal" -O - 2> >(grep -v "SSL_INIT") )"
+
+	if ! "$JQ" -e '.success' 1> /dev/null 2>&1 <<< "$TGSN_PROBE"; then
+		printf '%s\n' "SteamGridDB did not accept that key - nothing was stored."
+		writelog "SKIP" "${FUNCNAME[0]} - SteamGridDB rejected the supplied API key"
+		return 1
+	fi
+
+	mkProjDir "$STLCFGDIR"
+	if [ ! -f "$STLDEFGLOBALCFG" ]; then
+		printf '%s\n' "SGDBAPIKEY=\"$TGSN_KEY\"" > "$STLDEFGLOBALCFG"
+	else
+		updateConfigEntry "SGDBAPIKEY" "$TGSN_KEY" "$STLDEFGLOBALCFG"
+	fi
+
+	SGDBAPIKEY="$TGSN_KEY"
+	printf '%s\n' "Key accepted and saved in '$STLDEFGLOBALCFG'."
+	writelog "INFO" "${FUNCNAME[0]} - Stored a working SteamGridDB API key in the global config"
+	return 0
+}
+
+function tgSgdbEnsureApiKey {
+	# Everything here needs a SteamGridDB API key. Without one checkSGDbApi only
+	# writes to the log, so an interactive run used to end silently with no hint
+	# of what went wrong.
+	if checkSGDbApi; then
+		return 0
+	fi
+
+	if [ ! -t 0 ]; then
+		# The watcher runs without a terminal and must never block on input
+		writelog "SKIP" "${FUNCNAME[0]} - No SteamGridDB API key - run '${PROGNAME,,} artwork resolve' in a terminal to set one up" "E"
+		printf '%s\n' "No SteamGridDB API key is configured - run '${PROGNAME,,} artwork resolve' in a terminal to set one up."
+		return 1
+	fi
+
+	tgSgdbPromptApiKey
 }
