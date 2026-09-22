@@ -12,7 +12,7 @@
 PREFIX="/usr"
 PROGNAME="TinkerGame"
 NICEPROGNAME="TinkerGame"
-PROGVERS="v0.1.0-alpha.6"
+PROGVERS="v0.1.0-alpha.7"
 PROGCMD="${0##*/}"
 SHOSTL="tg"
 # Must match the internal name written into 'compatibilitytool.vdf' ('Proton-tg'),
