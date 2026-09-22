@@ -66,7 +66,11 @@ function tgWatchWriteUnits {
 
 	{
 		printf '%s\n' "$TGW_STAMP"
-		printf '[Unit]\nDescription=Update Steam artwork for Non-Steam games\n\n'
+		# The run itself needs no GUI, but TinkerGame's dependency check probes yad,
+		# and a user manager that starts before the desktop hands it a DISPLAY that
+		# points at nothing yet. yad then fails, its version reads back empty, and
+		# the whole run aborts with "Yad version '' is too old" on every boot.
+		printf '[Unit]\nDescription=Update Steam artwork for Non-Steam games\nAfter=graphical-session.target\n\n'
 		# Type=oneshot also debounces: while a run is in progress systemd will not
 		# start a second one, so a burst of shortcut writes collapses into one refresh.
 		# KillMode=process: the run may leave a notification waiting for the user.
@@ -82,7 +86,10 @@ function tgWatchWriteUnits {
 		for TGW_P in "${TGW_PATHS[@]}"; do
 			printf 'PathChanged=%s\n' "$TGW_P"
 		done
-		printf '\n[Install]\nWantedBy=default.target\n'
+		# graphical-session.target, not default.target: the trigger only ever fires
+		# while someone is logged in and Steam is writing, and a run before the
+		# session exists cannot notify anyone anyway
+		printf '\n[Install]\nWantedBy=graphical-session.target\n'
 	} > "$TGW_DIR/${TGWATCHUNIT}.path"
 
 	{
@@ -90,7 +97,9 @@ function tgWatchWriteUnits {
 		printf '[Unit]\nDescription=Refresh Steam artwork for Non-Steam games regularly\n\n'
 		# Persistent so a machine that was off at the scheduled time still catches up
 		printf '[Timer]\nOnCalendar=daily\nPersistent=true\n\n'
-		printf '[Install]\nWantedBy=timers.target\n'
+		# Also tied to the session, so the Persistent= catch-up lands once the
+		# desktop is up rather than during boot
+		printf '[Install]\nWantedBy=graphical-session.target\n'
 	} > "$TGW_DIR/${TGWATCHUNIT}.timer"
 
 	# Redirections above fail silently without 'set -e'; an incomplete unit set is

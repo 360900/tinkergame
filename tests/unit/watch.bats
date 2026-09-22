@@ -189,3 +189,31 @@ setup() {
 	[ "$(cat "$MARK/mode")" = "ask" ]
 	[ ! -f "$MARK/howto" ]
 }
+
+@test "tgWatchWriteUnits: the units wait for the desktop session" {
+	# A run before the session exists inherits a DISPLAY pointing at nothing,
+	# which makes TinkerGame's yad probe fail and aborts the whole run with
+	# "Yad version '' is too old" on every single boot.
+	tgWatchWriteUnits "$TG_UNITDIR"
+
+	grep -qx "After=graphical-session.target" "$TG_UNITDIR/tinkergame-artwork.service"
+	grep -qx "WantedBy=graphical-session.target" "$TG_UNITDIR/tinkergame-artwork.path"
+	grep -qx "WantedBy=graphical-session.target" "$TG_UNITDIR/tinkergame-artwork.timer"
+}
+
+@test "tgWatchWriteUnits: nothing is pulled in by a boot target any more" {
+	tgWatchWriteUnits "$TG_UNITDIR"
+
+	# default.target and timers.target are both reached before a desktop exists
+	run grep -l "WantedBy=default.target" "$TG_UNITDIR/tinkergame-artwork.path" "$TG_UNITDIR/tinkergame-artwork.timer"
+	[ "$status" -ne 0 ]
+	run grep -l "WantedBy=timers.target" "$TG_UNITDIR/tinkergame-artwork.path" "$TG_UNITDIR/tinkergame-artwork.timer"
+	[ "$status" -ne 0 ]
+}
+
+@test "tgWatchWriteUnits: the timer still catches up on a missed run" {
+	# Persistent= is what makes the daily run happen at all on a machine that is
+	# off overnight -- tying the timer to the session must not drop it
+	tgWatchWriteUnits "$TG_UNITDIR"
+	grep -qx "Persistent=true" "$TG_UNITDIR/tinkergame-artwork.timer"
+}
