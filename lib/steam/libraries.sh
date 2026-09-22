@@ -1218,7 +1218,7 @@ function getGridsForNonSteamGames {
 
 			CMDLINEGETSGDBARTAID="$( cat "$NOSTSGDBIDSHMFILE" )"
 			getSteamGridDBNonSteamIcon "$SVDFEAID" "$CMDLINEGETSGDBARTAID"
-			SVDFEICON="$( findNonSteamGameIcon )"  # Return icon path )"
+			SVDFEICON="$( findNonSteamGameIcon "$SVDFEAID" )"  # Return icon path
 			if [ -n "$SVDFEICON" ]; then  # Need this check because sometimes we don't get anything back from SGDB i.e. unknown name
 				writelog "INFO" "${FUNCNAME[0]} - Found icon for game '${SVDFENAME} (${SVDFEAID})' at '$SVDFEICON'"
 				editSteamShortcutEntry "$SVDFEAID" "icon" "$SVDFEICON"
