@@ -895,6 +895,29 @@ function downloadArtFromSteamGridDB {
 		DASGDB_HASFILE="${10:-$SGDBHASFILE}"  # Option to override action to take when file already exists
 		FORCESGDBDLTOSTEAM="${11}"  # Option to force downloading artwork to Steam Grid folder
 
+		# The destination does not depend on the response, so resolve it up front.
+		# That lets us notice artwork we already have before spending a request on it.
+		if [ "${SGDBDLTOSTEAM:-0}" -eq 1 ] || [ "${FORCESGDBDLTOSTEAM:-0}" -eq 1 ]; then
+			if [ -z "$SUSDA" ]; then
+				setSteamPaths
+			fi
+			if [ -d "$SUIC" ]; then
+				GRIDDLDIR="${SUIC}/grid"
+			fi
+		else
+			GRIDDLDIR="$STLDLDIR/steamgriddb"
+		fi
+
+		# The extension is only known once the response arrives, hence the glob. The '.'
+		# anchors it, so "1234.*" cannot match "1234p.png" or "1234_hero.png" -- each
+		# artwork type is checked on its own, so a game with boxart but no logo still
+		# gets its logo fetched.
+		# Skipped for a batched request, where SGDBFILENAME holds a whole list of AppIDs.
+		if [ "$DASGDB_HASFILE" == "skip" ] && [ "$( wc -l <<< "$SGDBFILENAME" )" -eq 1 ] && compgen -G "${GRIDDLDIR}/${SGDBFILENAME}.*" > /dev/null; then
+			writelog "INFO" "${FUNCNAME[0]} - Artwork '$SGDBFILENAME' already present in '$GRIDDLDIR' - not requesting it from SteamGridDB"
+			return 0
+		fi
+
 		SGDB_ENDPOINT_STR="${SEARCHENDPOINT}/$(echo "$SEARCHID" | awk '{print $1}' | paste -s -d, -)?"
 		# Only include query params if provided
 		# e.g.: "?styles=${SEARCHSTYLES}&dimensions=${SEARCHDIMS}&types=${SGDBTYPES}&nsfw=${SEARCHNSFW}&humor=${SEARCHHUMOR}"
@@ -953,18 +976,7 @@ function downloadArtFromSteamGridDB {
 			if grep -q "^https" <<< "$GRIDDLURL"; then
 				DLSRC="${GRIDDLURL//\"}"
 
-				if [ "$SGDBDLTOSTEAM" -eq 1 ] || [ "$FORCESGDBDLTOSTEAM" -eq 1 ]; then
-					if [ -z "$SUSDA" ]; then
-						setSteamPaths
-					fi
-					if [ -d "$SUIC" ]; then
-						GRIDDLDIR="${SUIC}/grid"
-					fi
-				else
-					GRIDDLDIR="$STLDLDIR/steamgriddb"
-				fi
-
-				mkProjDir "$GRIDDLDIR"
+				mkProjDir "$GRIDDLDIR"  # GRIDDLDIR is resolved before the request, see above
 				DLDST="${GRIDDLDIR}/${SGDBFILENAME}.${GRIDDLURL##*.}"  # Makes filename like <appid>.<org_extension>, which could be something like "70_logo.png" (with full path preceding this, so something like "~/Games/Grids/Half-Life/70_logo.png")
 				STARTDL=1
 
