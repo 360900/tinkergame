@@ -234,7 +234,17 @@ function prepareGUI {
 	# multiply every requested geometry and silently change between sessions.
 	# The wrapper only affects yad - the game itself keeps the session backend.
 	YADX11WRAPPER="$STLSHM/yad-x11"
-	if YADX11TMP="$(mktemp "${YADX11WRAPPER}.XXXXXX")"; then
+
+	# Never wrap a yad that cannot run. The wrapper would exec an empty command,
+	# and because it is itself an existing, executable file, $YAD then looks
+	# perfectly healthy to checkIntDeps: neither its "YAD is empty" nor its
+	# "YAD does not exist" recovery fires, and the version probe reads back an
+	# empty version and aborts. That leaves no way out from the command line --
+	# 'set YAD global ...' aborts in the same dependency check before it can
+	# write anything. Leaving $YAD untouched instead lets that recovery work.
+	if [ -z "$YAD" ] || ! command -v "$YAD" > /dev/null 2>&1; then
+		writelog "WARN" "${FUNCNAME[0]} - Configured yad ('${YAD:-unset}') is not usable - not creating the X11 wrapper, leaving detection to checkIntDeps"
+	elif YADX11TMP="$(mktemp "${YADX11WRAPPER}.XXXXXX")"; then
 		{
 			printf '#!/usr/bin/env bash\n'
 			printf 'export GDK_BACKEND=x11\n'
