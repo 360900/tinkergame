@@ -6,6 +6,10 @@
 # This next line is rewritten by "make install" (PREFIX):
 PREFIX="/usr"
 
+# Absolute path of this entry point, so generated launchers (systemd units)
+# call back into the installation they were generated from:
+TG_ENTRYPOINT="$(realpath -- "${BASH_SOURCE[0]}")"
+
 # ---- library resolution -------------------------------------------------
 # 1. $TINKERGAME_LIBDIR (explicit override, e.g. DESTDIR install tests)
 # 2. lib/ next to this script (development checkout)
@@ -88,6 +92,7 @@ source "$TG_LIBDIR/cli/help.sh"
 source "$TG_LIBDIR/cli/dispatch.sh"
 source "$TG_LIBDIR/launch/postrun.sh"
 source "$TG_LIBDIR/tools/debug.sh"
+source "$TG_LIBDIR/tools/watch.sh"
 source "$TG_LIBDIR/core/vdf.sh"
 source "$TG_LIBDIR/steam/config-vdf.sh"
 source "$TG_LIBDIR/gui/settings.sh"

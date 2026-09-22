@@ -823,6 +823,18 @@ function tgCmdArtwork {
 	"gameid")
 		getSGDBGameIDFromTitle "$1"
 	;;
+	"watch")
+		# Deliberately only install/uninstall: once the units exist, enabling and
+		# disabling them is 'systemctl --user' and needs no TinkerGame verb
+		if [ "$1" == "install" ]; then
+			tgWatchInstall
+		elif [ "$1" == "uninstall" ] || [ "$1" == "remove" ]; then
+			tgWatchUninstall
+		else
+			writelog "INFO" "${FUNCNAME[0]} - 'artwork watch' needs 'install' or 'uninstall' as argument, got '$1'"
+			howto
+		fi
+	;;
 	*)
 		writelog "INFO" "${FUNCNAME[0]} - sub-command '$TG_SUB' is no valid command"
 		howto
