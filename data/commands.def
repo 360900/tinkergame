@@ -81,7 +81,8 @@ artwork	set	<gameid> [args]	Set artwork for a game by AppID using absolute paths
 artwork	clear	<appid|all>	Remove downloaded game grids
 artwork	open		Open the Steam Grid folder with xdg-open
 artwork	gameid	<title>	Get SteamGridDB Game ID for title
-artwork	watch	<install|uninstall>	Install/remove systemd user units that refresh Non-Steam artwork when Steam shortcuts change
+artwork	resolve	[name|all]	Pick the SteamGridDB game for Non-Steam entries missing artwork
+artwork	watch	<install|uninstall|run>	Install/remove the systemd user units that refresh Non-Steam artwork, or do one such pass now
 get	exe	<gameid/title>	Print the Game Exe
 get	id	<gametitle>	Print the SteamAppId for gametitle
 get	title	<gameid>	Print the Game Title for gameid

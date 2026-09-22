@@ -74,7 +74,10 @@ setup() {
 
 @test "tgWatchWriteUnits: the service calls back into this installation" {
 	tgWatchWriteUnits "$TG_UNITDIR"
-	grep -qx "ExecStart=$TG_ENTRYPOINT -q update grid nonsteam" "$TG_UNITDIR/tinkergame-artwork.service"
+	# not "update grid nonsteam": the automatic pass never matches an entry by name
+	grep -qx "ExecStart=$TG_ENTRYPOINT artwork watch run" "$TG_UNITDIR/tinkergame-artwork.service"
+	# A notification may outlive the run; the default KillMode would take it down with the service
+	grep -qx "KillMode=process" "$TG_UNITDIR/tinkergame-artwork.service"
 	# oneshot is what debounces a burst of shortcut writes into a single refresh
 	grep -qx "Type=oneshot" "$TG_UNITDIR/tinkergame-artwork.service"
 }
@@ -174,4 +177,15 @@ setup() {
 	[ "$status" -ne 0 ]
 	# systemctl must not have been touched at all
 	[ ! -s "$TG_SCTLLOG" ]
+}
+
+@test "cli: 'artwork watch run' does a pass that never matches by name" {
+	local MARK="$BATS_TEST_TMPDIR/marks"
+	mkdir -p "$MARK"
+	howto() { touch "$MARK/howto"; }
+	getGridsForNonSteamGames() { printf '%s' "$1" > "$MARK/mode"; }
+
+	commandline artwork watch run
+	[ "$(cat "$MARK/mode")" = "ask" ]
+	[ ! -f "$MARK/howto" ]
 }

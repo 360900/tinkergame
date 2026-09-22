@@ -1,0 +1,643 @@
+#!/usr/bin/env bash
+# Unit tests for the stored "which SteamGridDB game is this" decisions.
+#
+# The point of the store is that the user is asked once per entry and never
+# again -- including for entries that have no artwork anywhere, which are kept
+# as a decision with an empty value rather than as a repeated failure.
+
+setup() {
+	load helpers
+	tg_load
+
+	STLCFGDIR="$BATS_TEST_TMPDIR/cfg"
+	STLSGDBNAMESCFG="$STLCFGDIR/sgdbnames.conf"
+	mkdir -p "$STLCFGDIR"
+
+	SGDBAPIKEY="testkey"
+	checkSGDbApi() { return 0; }
+
+	# the notification text comes from the real language file, as in production
+	# shellcheck source=/dev/null
+	source "$TG_ROOT/lang/english.txt"
+}
+
+@test "tgSgdbDecision: an undecided entry is reported as undecided" {
+	run tgSgdbDecision "Eden"
+	[ "$status" -ne 0 ]
+}
+
+@test "tgSgdbDecision: a stored game ID comes back" {
+	tgSgdbSetDecision "Eden" "9981"
+	run tgSgdbDecision "Eden"
+	[ "$status" -eq 0 ]
+	[ "$output" = "9981" ]
+}
+
+@test "tgSgdbDecision: 'never' is a decision, not a missing one" {
+	# This is what stops an entry without artwork from being asked about forever
+	tgSgdbSetDecision "Caustic" ""
+	run tgSgdbDecision "Caustic"
+	[ "$status" -eq 0 ]
+	[ "$output" = "" ]
+}
+
+@test "tgSgdbDecision: entry names are matched literally, not as a regex" {
+	tgSgdbSetDecision "S.T.A.L.K.E.R." "42"
+	run tgSgdbDecision "SXTXAXLXKXEXRX"
+	[ "$status" -ne 0 ]
+}
+
+@test "tgSgdbDecision: a name that is a prefix of another does not borrow its decision" {
+	tgSgdbSetDecision "Half-Life 2" "77"
+	run tgSgdbDecision "Half-Life"
+	[ "$status" -ne 0 ]
+}
+
+@test "tgSgdbSetDecision: re-deciding replaces instead of appending" {
+	tgSgdbSetDecision "Eden" "1111"
+	tgSgdbSetDecision "Eden" "9981"
+	[ "$(grep -c "^Eden=" "$STLSGDBNAMESCFG")" -eq 1 ]
+	run tgSgdbDecision "Eden"
+	[ "$output" = "9981" ]
+}
+
+@test "tgSgdbSetDecision: other entries survive a rewrite" {
+	tgSgdbSetDecision "Eden" "1"
+	tgSgdbSetDecision "Caustic" ""
+	tgSgdbSetDecision "Eden" "2"
+	run tgSgdbDecision "Caustic"
+	[ "$status" -eq 0 ]
+}
+
+@test "tgSgdbSetDecision: the file explains itself" {
+	tgSgdbSetDecision "Eden" "1"
+	grep -q "^#" "$STLSGDBNAMESCFG"
+}
+
+@test "tgSgdbSetDecision: refuses an empty entry name" {
+	run tgSgdbSetDecision "" "123"
+	[ "$status" -ne 0 ]
+}
+
+@test "tgSgdbCandidates: keeps the whole ranked list, not just the first hit" {
+	WGET="$BATS_TEST_TMPDIR/fakewget"
+	{
+		printf '#!/bin/sh\n'
+		printf '%s\n' 'printf "%s" "{\"success\":true,\"data\":[{\"id\":10,\"name\":\"Eden\"},{\"id\":20,\"name\":\"Eden Emulator\"}]}"'
+	} >"$WGET"
+	chmod +x "$WGET"
+
+	run tgSgdbCandidates "Eden"
+	[ "$status" -eq 0 ]
+	[ "$(printf '%s\n' "$output" | wc -l)" -eq 2 ]
+	printf '%s\n' "$output" | grep -q "20.*Eden Emulator"
+}
+
+@test "tgSgdbCandidates: an unsuccessful response is an error, not an empty list" {
+	WGET="$BATS_TEST_TMPDIR/fakewget"
+	{
+		printf '#!/bin/sh\n'
+		printf '%s\n' 'printf "%s" "{\"success\":false}"'
+	} >"$WGET"
+	chmod +x "$WGET"
+
+	run tgSgdbCandidates "Eden"
+	[ "$status" -ne 0 ]
+}
+
+@test "tgSgdbPrompt: picking a number stores that game ID" {
+	tgSgdbCandidates() { printf '10\tEden\n20\tEden Emulator\n'; }
+	run tgSgdbPrompt "Eden" <<< "2"
+	[ "$status" -eq 0 ]
+	run tgSgdbDecision "Eden"
+	[ "$output" = "20" ]
+}
+
+@test "tgSgdbPrompt: 'x' stores the never-look-up decision" {
+	tgSgdbCandidates() { printf ''; }
+	run tgSgdbPrompt "Caustic" <<< "x"
+	[ "$status" -eq 0 ]
+	run tgSgdbDecision "Caustic"
+	[ "$status" -eq 0 ]
+	[ "$output" = "" ]
+}
+
+@test "tgSgdbPrompt: 's' leaves the entry undecided so it comes back" {
+	tgSgdbCandidates() { printf '10\tEden\n'; }
+	run tgSgdbPrompt "Eden" <<< "s"
+	[ "$status" -eq 1 ]
+	run tgSgdbDecision "Eden"
+	[ "$status" -ne 0 ]
+}
+
+@test "tgSgdbPrompt: 'q' asks for the whole run to stop" {
+	tgSgdbCandidates() { printf '10\tEden\n'; }
+	run tgSgdbPrompt "Eden" <<< "q"
+	[ "$status" -eq 2 ]
+}
+
+@test "tgSgdbPrompt: an out of range number decides nothing" {
+	tgSgdbCandidates() { printf '10\tEden\n'; }
+	run tgSgdbPrompt "Eden" <<< "9"
+	[ "$status" -eq 1 ]
+	run tgSgdbDecision "Eden"
+	[ "$status" -ne 0 ]
+}
+
+@test "tgSgdbPrompt: garbage input decides nothing" {
+	tgSgdbCandidates() { printf '10\tEden\n'; }
+	run tgSgdbPrompt "Eden" <<< "ja bitte"
+	[ "$status" -eq 1 ]
+	run tgSgdbDecision "Eden"
+	[ "$status" -ne 0 ]
+}
+
+@test "tgSgdbPrompt: 't' searches again under a different term" {
+	# The whole reason overrides existed: the shortcut name is not the store name
+	tgSgdbCandidates() {
+		if [ "$1" = "Eden Emulator" ]; then printf '20\tEden Emulator\n'; else printf '10\tEden\n'; fi
+	}
+	run tgSgdbPrompt "Eden" < <(printf 't\nEden Emulator\n1\n')
+	[ "$status" -eq 0 ]
+	run tgSgdbDecision "Eden"
+	[ "$output" = "20" ]
+}
+
+@test "tgSgdbUndecidedEntries: lists only what has not been decided" {
+	haveAnySteamShortcuts() { return 0; }
+	getSteamShortcutHex() { printf 'a\nb\nc\n'; }
+	parseSteamShortcutEntryAppName() {
+		case "$1" in a) printf 'Eden' ;; b) printf 'Caustic' ;; c) printf 'Celeste' ;; esac
+	}
+	parseSteamShortcutEntryAppID() {
+		case "$1" in a) printf '1' ;; b) printf '2' ;; c) printf '3' ;; esac
+	}
+	tgSgdbArtworkMissing() { printf 'logo\n'; }
+	tgSgdbSetDecision "Caustic" ""
+	tgSgdbSetDecision "Celeste" "5"
+
+	run tgSgdbUndecidedEntries
+	[ "$output" = "$(printf '1\tEden')" ]
+}
+
+@test "tgSgdbUndecidedEntries: an entry with all its artwork is not asked about" {
+	haveAnySteamShortcuts() { return 0; }
+	getSteamShortcutHex() { printf 'a\nb\n'; }
+	parseSteamShortcutEntryAppName() {
+		case "$1" in a) printf 'Eden' ;; b) printf 'Caustic' ;; esac
+	}
+	parseSteamShortcutEntryAppID() {
+		case "$1" in a) printf '1' ;; b) printf '2' ;; esac
+	}
+	# Eden is complete, Caustic has nothing
+	tgSgdbArtworkMissing() { [ "$1" = "1" ] && return 0; printf 'boxart\nhero\nlogo\nicon\ntenfoot\n'; }
+
+	run tgSgdbUndecidedEntries
+	[ "$output" = "$(printf '2\tCaustic')" ]
+}
+
+@test "tgSgdbUndecidedEntries: 'all' includes entries that already have artwork" {
+	haveAnySteamShortcuts() { return 0; }
+	getSteamShortcutHex() { printf 'a\nb\n'; }
+	parseSteamShortcutEntryAppName() {
+		case "$1" in a) printf 'Eden' ;; b) printf 'Caustic' ;; esac
+	}
+	parseSteamShortcutEntryAppID() {
+		case "$1" in a) printf '1' ;; b) printf '2' ;; esac
+	}
+	tgSgdbArtworkMissing() { return 0; }
+
+	run tgSgdbUndecidedEntries "1"
+	[ "$(printf '%s\n' "$output" | wc -l)" -eq 2 ]
+}
+
+@test "tgSgdbArtworkMissing: reports the types with no file" {
+	STUIDPATH="$BATS_TEST_TMPDIR/user"
+	mkdir -p "$STUIDPATH/config/grid"
+	touch "$STUIDPATH/config/grid/1234p.png"
+	touch "$STUIDPATH/config/grid/1234_hero.jpg"
+
+	run tgSgdbArtworkMissing "1234"
+	printf '%s\n' "$output" | grep -qx "tenfoot"
+	printf '%s\n' "$output" | grep -qx "logo"
+	printf '%s\n' "$output" | grep -qx "icon"
+	printf '%s\n' "$output" | grep -qvx "boxart"
+	printf '%s\n' "$output" | grep -qvx "hero"
+}
+
+@test "tgSgdbArtworkMissing: a complete set reports nothing" {
+	STUIDPATH="$BATS_TEST_TMPDIR/user"
+	mkdir -p "$STUIDPATH/config/grid"
+	for f in 1234p.png 1234.png 1234_hero.png 1234_logo.png 1234_icon.png; do
+		touch "$STUIDPATH/config/grid/$f"
+	done
+
+	run tgSgdbArtworkMissing "1234"
+	[ -z "$output" ]
+}
+
+@test "tgSgdbArtworkMissing: a longer AppID's files do not count as ours" {
+	STUIDPATH="$BATS_TEST_TMPDIR/user"
+	mkdir -p "$STUIDPATH/config/grid"
+	touch "$STUIDPATH/config/grid/1234p.png"
+
+	run tgSgdbArtworkMissing "123"
+	printf '%s\n' "$output" | grep -qx "boxart"
+}
+
+@test "tgSgdbPrompt: says which artwork is already there" {
+	STUIDPATH="$BATS_TEST_TMPDIR/user"
+	mkdir -p "$STUIDPATH/config/grid"
+	touch "$STUIDPATH/config/grid/77p.png"
+	tgSgdbCandidates() { printf '10\tEden\n'; }
+
+	run tgSgdbPrompt "Eden" "77" <<< "s"
+	printf '%s\n' "$output" | grep -q "artwork missing:"
+	printf '%s\n' "$output" | grep -q "logo"
+	printf '%s\n' "$output" | grep -qv "boxart"
+}
+
+@test "tgSgdbPrompt: says so when nothing is missing" {
+	STUIDPATH="$BATS_TEST_TMPDIR/user"
+	mkdir -p "$STUIDPATH/config/grid"
+	for f in 77p.png 77.png 77_hero.png 77_logo.png 77_icon.png; do
+		touch "$STUIDPATH/config/grid/$f"
+	done
+	tgSgdbCandidates() { printf '10\tEden\n'; }
+
+	run tgSgdbPrompt "Eden" "77" <<< "s"
+	printf '%s\n' "$output" | grep -q "all five types present"
+}
+
+@test "tgSgdbResolve: reports nothing to do when everything is decided" {
+	tgSgdbUndecidedEntries() { printf ''; }
+	run tgSgdbResolve
+	[ "$status" -eq 0 ]
+	printf '%s\n' "$output" | grep -qi "nothing to do"
+}
+
+@test "tgSgdbResolve: a named entry is re-decided even though it was settled" {
+	tgSgdbSetDecision "Eden" "10"
+	tgSgdbCandidates() { printf '20\tEden Emulator\n'; }
+	run tgSgdbResolve "Eden" <<< "1"
+	[ "$status" -eq 0 ]
+	run tgSgdbDecision "Eden"
+	[ "$output" = "20" ]
+}
+
+@test "tgSgdbResolve: quitting leaves the remaining entries on the list" {
+	tgSgdbUndecidedEntries() { printf '1\tEden\n2\tCaustic\n'; }
+	tgSgdbCandidates() { printf '10\tEden\n'; }
+	run tgSgdbResolve <<< "q"
+	[ "$status" -eq 0 ]
+	run tgSgdbDecision "Caustic"
+	[ "$status" -ne 0 ]
+}
+
+@test "cli: 'artwork resolve' routes through, with and without a name" {
+	local MARK="$BATS_TEST_TMPDIR/marks"
+	mkdir -p "$MARK"
+	howto() { touch "$MARK/howto"; }
+	tgSgdbResolve() { printf '%s' "${1:-ALL}" > "$MARK/arg"; }
+
+	commandline artwork resolve
+	[ "$(cat "$MARK/arg")" = "ALL" ]
+
+	commandline artwork resolve "Eden"
+	[ "$(cat "$MARK/arg")" = "Eden" ]
+
+	[ ! -f "$MARK/howto" ]
+}
+
+@test "tgSgdbNotifyUndecided: a non-interactive run offers to open the resolver" {
+	# bats captures stdout, so this is the systemd case: no terminal to print to
+	NOTY="$BATS_TEST_TMPDIR/fakenoty"
+	printf '#!/bin/sh\nprintf "%%s\\n" "$@" > "%s/noty.call"\nprintf ""\n' "$BATS_TEST_TMPDIR" > "$NOTY"
+	chmod +x "$NOTY"
+	USENOTIFIER=1
+	NOTYARGS="-a TinkerGame"
+
+	tgSgdbNotifyUndecided "3"
+
+	local waited=0
+	while [ ! -e "$BATS_TEST_TMPDIR/noty.call" ] && [ "$waited" -lt 50 ]; do
+		sleep 0.1
+		waited=$(( waited + 1 ))
+	done
+
+	[ -e "$BATS_TEST_TMPDIR/noty.call" ]
+	grep -q -- "-A" "$BATS_TEST_TMPDIR/noty.call"
+	grep -q "3" "$BATS_TEST_TMPDIR/noty.call"
+}
+
+@test "tgSgdbNotifyUndecided: acting on the notification opens the resolver" {
+	NOTY="$BATS_TEST_TMPDIR/fakenoty"
+	# notify-send prints the chosen action name on stdout
+	printf '#!/bin/sh\nprintf "resolve"\n' > "$NOTY"
+	chmod +x "$NOTY"
+	USENOTIFIER=1
+	NOTYARGS="-a TinkerGame"
+
+	USETERM="$BATS_TEST_TMPDIR/faketerm"
+	printf '#!/bin/sh\necho "$@" > "%s/term.call"\n' "$BATS_TEST_TMPDIR" > "$USETERM"
+	chmod +x "$USETERM"
+	TERMARGS="-e"
+	TG_ENTRYPOINT="$BATS_TEST_TMPDIR/tinkergame"
+	: > "$TG_ENTRYPOINT"
+	chmod +x "$TG_ENTRYPOINT"
+
+	tgSgdbNotifyUndecided "2"
+
+	local waited=0
+	while [ ! -e "$BATS_TEST_TMPDIR/term.call" ] && [ "$waited" -lt 50 ]; do
+		sleep 0.1
+		waited=$(( waited + 1 ))
+	done
+
+	[ -e "$BATS_TEST_TMPDIR/term.call" ]
+	grep -q "artwork resolve" "$BATS_TEST_TMPDIR/term.call"
+}
+
+@test "tgSgdbNotifyUndecided: nothing to decide means no notification" {
+	NOTY="$BATS_TEST_TMPDIR/fakenoty"
+	printf '#!/bin/sh\necho fired >> "%s/noty.calls"\n' "$BATS_TEST_TMPDIR" > "$NOTY"
+	chmod +x "$NOTY"
+	USENOTIFIER=1
+
+	tgSgdbNotifyUndecided "0"
+	[ ! -e "$BATS_TEST_TMPDIR/noty.calls" ]
+}
+
+@test "tgSgdbNotifyUndecided: a disabled notifier is not an error" {
+	USENOTIFIER=0
+	run tgSgdbNotifyUndecided "3"
+	[ "$status" -eq 0 ]
+}
+
+@test "tgSgdbResolveTerminal: refuses when no terminal is configured" {
+	USETERM=""
+	run tgSgdbResolveTerminal
+	[ "$status" -ne 0 ]
+}
+
+@test "tgSgdbResolveTerminal: refuses when the executable cannot be resolved" {
+	USETERM="$BATS_TEST_TMPDIR/faketerm"
+	printf '#!/bin/sh\nexit 0\n' > "$USETERM"
+	chmod +x "$USETERM"
+	TG_ENTRYPOINT=""
+	run tgSgdbResolveTerminal
+	[ "$status" -ne 0 ]
+}
+
+@test "tgSgdbResolveTerminal: launches the resolver in the configured terminal" {
+	USETERM="$BATS_TEST_TMPDIR/faketerm"
+	printf '#!/bin/sh\necho "$@" > "%s/term.call"\n' "$BATS_TEST_TMPDIR" > "$USETERM"
+	chmod +x "$USETERM"
+	TERMARGS="-e"
+	TG_ENTRYPOINT="$BATS_TEST_TMPDIR/tinkergame"
+	: > "$TG_ENTRYPOINT"
+	chmod +x "$TG_ENTRYPOINT"
+
+	run tgSgdbResolveTerminal
+	[ "$status" -eq 0 ]
+	grep -q -- "-e" "$BATS_TEST_TMPDIR/term.call"
+	grep -q "artwork resolve" "$BATS_TEST_TMPDIR/term.call"
+}
+
+@test "tgSgdbSplitCamelCase: splits run-together names" {
+	[ "$(tgSgdbSplitCamelCase "HollowKnight")" = "Hollow Knight" ]
+	[ "$(tgSgdbSplitCamelCase "EmulationStationDE")" = "Emulation Station DE" ]
+	[ "$(tgSgdbSplitCamelCase "Portal2")" = "Portal2" ]
+}
+
+@test "tgSgdbSplitCamelCase: leaves names that already have spaces alone" {
+	[ "$(tgSgdbSplitCamelCase "Dead Cells")" = "Dead Cells" ]
+	[ "$(tgSgdbSplitCamelCase "Eden")" = "Eden" ]
+	# dots are not word breaks we should touch
+	[ "$(tgSgdbSplitCamelCase "S.T.A.L.K.E.R.")" = "S.T.A.L.K.E.R." ]
+}
+
+@test "tgSgdbPrompt: also offers what the spaced spelling finds" {
+	tgSgdbCandidates() {
+		case "$1" in
+			"HollowKnight")  printf '1\tHollow Knight: Silksong\n' ;;
+			"Hollow Knight") printf '1\tHollow Knight: Silksong\n2\tHollow Knight\n' ;;
+		esac
+	}
+	run tgSgdbPrompt "HollowKnight" <<< "2"
+	[ "$status" -eq 0 ]
+	run tgSgdbDecision "HollowKnight"
+	# the literal spelling alone would never have offered this one
+	[ "$output" = "2" ]
+}
+
+@test "tgSgdbPrompt: a candidate found by both spellings is listed once" {
+	tgSgdbCandidates() { printf '1\tHollow Knight\n'; }
+	run tgSgdbPrompt "HollowKnight" <<< "2"
+	# only one candidate exists, so '2' must be out of range
+	[ "$status" -eq 1 ]
+}
+
+@test "tgSgdbSelectLine: maps replies to tokens" {
+	[ "$(tgSgdbSelectLine "a" "b" <<< "2" 2>/dev/null)" = "2" ]
+	[ "$(tgSgdbSelectLine "a" "b" <<< "s" 2>/dev/null)" = "s" ]
+	[ "$(tgSgdbSelectLine "a" "b" <<< "x" 2>/dev/null)" = "x" ]
+	[ "$(tgSgdbSelectLine "a" "b" <<< "q" 2>/dev/null)" = "q" ]
+	[ "$(tgSgdbSelectLine "a" "b" <<< "" 2>/dev/null)" = "s" ]
+	[ "$(tgSgdbSelectLine "a" "b" <<< "nope" 2>/dev/null)" = "!" ]
+	[ "$(tgSgdbSelectLine "a" "b" <<< "9" 2>/dev/null)" = "!" ]
+}
+
+@test "tgSgdbSelectKeys: Enter picks the first entry" {
+	[ "$(tgSgdbSelectKeys "a" "b" "c" < <(printf '\n') 2>/dev/null)" = "1" ]
+}
+
+@test "tgSgdbSelectKeys: arrow down moves the selection" {
+	[ "$(tgSgdbSelectKeys "a" "b" "c" < <(printf '\e[B\n') 2>/dev/null)" = "2" ]
+	[ "$(tgSgdbSelectKeys "a" "b" "c" < <(printf '\e[B\e[B\n') 2>/dev/null)" = "3" ]
+}
+
+@test "tgSgdbSelectKeys: arrow up moves back and stops at the top" {
+	[ "$(tgSgdbSelectKeys "a" "b" "c" < <(printf '\e[B\e[A\n') 2>/dev/null)" = "1" ]
+	[ "$(tgSgdbSelectKeys "a" "b" "c" < <(printf '\e[A\e[A\n') 2>/dev/null)" = "1" ]
+}
+
+@test "tgSgdbSelectKeys: the selection stops at the last row" {
+	# 3 candidates + 4 action rows: pressing down past the end stays on 'quit'
+	[ "$(tgSgdbSelectKeys "a" "b" "c" < <(printf '\e[B\e[B\e[B\e[B\e[B\e[B\e[B\e[B\n') 2>/dev/null)" = "q" ]
+}
+
+@test "tgSgdbSelectKeys: every action is reachable with the arrow keys alone" {
+	# The actions are rows in the same list, so no letter key is ever needed
+	[ "$(tgSgdbSelectKeys "a" "b" "c" < <(printf '\e[B\e[B\e[B\n') 2>/dev/null)" = "s" ]
+	[ "$(tgSgdbSelectKeys "a" "b" "c" < <(printf '\e[B\e[B\e[B\e[B\n') 2>/dev/null)" = "x" ]
+	[ "$(tgSgdbSelectKeys "a" "b" "c" < <(printf '\e[B\e[B\e[B\e[B\e[B\n') 2>/dev/null)" = "t" ]
+	[ "$(tgSgdbSelectKeys "a" "b" "c" < <(printf '\e[B\e[B\e[B\e[B\e[B\e[B\n') 2>/dev/null)" = "q" ]
+}
+
+@test "tgSgdbSelectKeys: a letter key does not decide anything" {
+	# Typing 'x' must not silently mark an entry as 'never look this up'
+	[ "$(tgSgdbSelectKeys "a" "b" "c" < <(printf 'x\n') 2>/dev/null)" = "1" ]
+}
+
+@test "tgSgdbSelectKeys: the action rows are set apart from the candidates" {
+	# drawn on stderr, so the token on stdout stays usable in a command substitution
+	tgSgdbSelectKeys "Hollow Knight" < <(printf '\n') 2>"$BATS_TEST_TMPDIR/ui" >/dev/null
+	grep -q -- "-- skip for now --" "$BATS_TEST_TMPDIR/ui"
+	grep -q -- "-- never look this up --" "$BATS_TEST_TMPDIR/ui"
+	grep -q -- "-- search under a different name --" "$BATS_TEST_TMPDIR/ui"
+	grep -q -- "-- quit --" "$BATS_TEST_TMPDIR/ui"
+}
+
+@test "tgSgdbSelectKeys: Enter with no candidates is a skip, not a pick" {
+	[ "$(tgSgdbSelectKeys < <(printf '\n') 2>/dev/null)" = "s" ]
+}
+
+@test "tgSgdbSelectKeys: exhausted input ends the run instead of looping" {
+	[ "$(tgSgdbSelectKeys "a" "b" < /dev/null 2>/dev/null)" = "q" ]
+}
+
+@test "tgSgdbEnsureApiKey: an existing key is left alone" {
+	SGDBAPIKEY="alreadythere"
+	STLDEFGLOBALCFG="$STLCFGDIR/global.conf"
+	run tgSgdbEnsureApiKey
+	[ "$status" -eq 0 ]
+	[ ! -e "$STLDEFGLOBALCFG" ]
+}
+
+@test "tgSgdbEnsureApiKey: without a terminal it says so instead of blocking" {
+	# The systemd watcher must fail fast, not sit waiting for someone to type
+	SGDBAPIKEY=""
+	checkSGDbApi() { return 1; }
+	run tgSgdbEnsureApiKey
+	[ "$status" -ne 0 ]
+	printf '%s\n' "$output" | grep -q "artwork resolve"
+	printf '%s\n' "$output" | grep -qv "Paste the key"
+}
+
+@test "tgSgdbPromptApiKey: names the page to get a key from" {
+	STLDEFGLOBALCFG="$STLCFGDIR/global.conf"
+	run tgSgdbPromptApiKey <<< ""
+	printf '%s\n' "$output" | grep -q "steamgriddb.com/profile/preferences/api"
+}
+
+@test "tgSgdbPromptApiKey: an empty answer changes nothing" {
+	STLDEFGLOBALCFG="$STLCFGDIR/global.conf"
+	run tgSgdbPromptApiKey <<< ""
+	[ "$status" -ne 0 ]
+	[ ! -e "$STLCFGDIR/global.conf" ]
+}
+
+@test "tgSgdbPromptApiKey: a rejected key is not stored" {
+	STLDEFGLOBALCFG="$STLCFGDIR/global.conf"
+	WGET="$BATS_TEST_TMPDIR/fakewget"
+	printf '#!/bin/sh\nprintf "%%s" "{\\"success\\":false}"\n' > "$WGET"
+	chmod +x "$WGET"
+
+	run tgSgdbPromptApiKey <<< "badkey"
+	[ "$status" -ne 0 ]
+	[ ! -e "$STLCFGDIR/global.conf" ]
+	printf '%s\n' "$output" | grep -qi "did not accept"
+}
+
+@test "tgSgdbPromptApiKey: an accepted key lands in the global config" {
+	STLDEFGLOBALCFG="$STLCFGDIR/global.conf"
+	WGET="$BATS_TEST_TMPDIR/fakewget"
+	printf '#!/bin/sh\nprintf "%%s" "{\\"success\\":true,\\"data\\":[]}"\n' > "$WGET"
+	chmod +x "$WGET"
+
+	run tgSgdbPromptApiKey <<< "goodkey"
+	[ "$status" -eq 0 ]
+	grep -q 'SGDBAPIKEY="goodkey"' "$STLCFGDIR/global.conf"
+}
+
+@test "tgSgdbPromptApiKey: whitespace around a pasted key is trimmed" {
+	STLDEFGLOBALCFG="$STLCFGDIR/global.conf"
+	WGET="$BATS_TEST_TMPDIR/fakewget"
+	printf '#!/bin/sh\nprintf "%%s" "{\\"success\\":true,\\"data\\":[]}"\n' > "$WGET"
+	chmod +x "$WGET"
+
+	run tgSgdbPromptApiKey <<< "   goodkey   "
+	[ "$status" -eq 0 ]
+	grep -q 'SGDBAPIKEY="goodkey"' "$STLCFGDIR/global.conf"
+}
+
+@test "tgSgdbResolve: a missing key is reported instead of failing silently" {
+	SGDBAPIKEY=""
+	checkSGDbApi() { return 1; }
+	run tgSgdbResolve
+	[ "$status" -ne 0 ]
+	# used to return 1 with nothing on screen at all
+	[ -n "$output" ]
+}
+
+@test "tgSgdbPromptApiKey: the key is not echoed back to the terminal" {
+	# It would otherwise land in the scrollback and in any session transcript
+	STLDEFGLOBALCFG="$STLCFGDIR/global.conf"
+	WGET="$BATS_TEST_TMPDIR/fakewget"
+	printf '#!/bin/sh\nprintf "%%s" "{\\"success\\":true,\\"data\\":[]}"\n' > "$WGET"
+	chmod +x "$WGET"
+
+	run tgSgdbPromptApiKey <<< "supersecretkey"
+	[ "$status" -eq 0 ]
+	printf '%s\n' "$output" | grep -qv "supersecretkey"
+	# but it must still have been stored
+	grep -q 'SGDBAPIKEY="supersecretkey"' "$STLCFGDIR/global.conf"
+}
+
+@test "tgSgdbNotifyUndecided: Game Mode is left alone, like notiShow does" {
+	# No desktop to notify on and no terminal to open there
+	NOTY="$BATS_TEST_TMPDIR/fakenoty"
+	printf '#!/bin/sh\ntouch "%s/noty.call"\n' "$BATS_TEST_TMPDIR" > "$NOTY"
+	chmod +x "$NOTY"
+	USENOTIFIER=1
+	ONSTEAMDECK=1
+	FIXGAMESCOPE=1
+
+	tgSgdbNotifyUndecided "3"
+	sleep 0.3
+	[ ! -e "$BATS_TEST_TMPDIR/noty.call" ]
+}
+
+@test "tgSgdbNotifyUndecided: quiet mode really is quiet" {
+	NOTY="$BATS_TEST_TMPDIR/fakenoty"
+	printf '#!/bin/sh\ntouch "%s/noty.call"\n' "$BATS_TEST_TMPDIR" > "$NOTY"
+	chmod +x "$NOTY"
+	USENOTIFIER=1
+	STLQUIET=1
+
+	tgSgdbNotifyUndecided "3"
+	sleep 0.3
+	[ ! -e "$BATS_TEST_TMPDIR/noty.call" ]
+}
+
+@test "tgSgdbResolve: fetches the artwork itself once something was decided" {
+	tgSgdbUndecidedEntries() { printf '1\tEden\n'; }
+	tgSgdbCandidates() { printf '10\tEden\n'; }
+	getGridsForNonSteamGames() { touch "$BATS_TEST_TMPDIR/fetched"; }
+
+	run tgSgdbResolve <<< "1"
+	[ "$status" -eq 0 ]
+	[ -e "$BATS_TEST_TMPDIR/fetched" ]
+}
+
+@test "tgSgdbResolve: decides nothing, fetches nothing" {
+	tgSgdbUndecidedEntries() { printf '1\tEden\n'; }
+	tgSgdbCandidates() { printf '10\tEden\n'; }
+	getGridsForNonSteamGames() { touch "$BATS_TEST_TMPDIR/fetched"; }
+
+	run tgSgdbResolve <<< "s"
+	[ "$status" -eq 0 ]
+	[ ! -e "$BATS_TEST_TMPDIR/fetched" ]
+}
+
+@test "tgSgdbResolve: quitting still fetches what was decided before" {
+	tgSgdbUndecidedEntries() { printf '1\tEden\n2\tCaustic\n'; }
+	tgSgdbCandidates() { printf '10\tEden\n'; }
+	getGridsForNonSteamGames() { touch "$BATS_TEST_TMPDIR/fetched"; }
+
+	# pick for the first entry, then quit on the second
+	run tgSgdbResolve < <(printf '1\nq\n')
+	[ "$status" -eq 0 ]
+	[ -e "$BATS_TEST_TMPDIR/fetched" ]
+}

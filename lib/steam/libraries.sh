@@ -1206,6 +1206,14 @@ function getGridsForInstalledGames {
 	fi
 }
 function getGridsForNonSteamGames {
+	# "ask" is the automatic pass: entries with a stored SteamGridDB match are
+	# fetched, entries without one are left untouched and reported instead.
+	# Matching by name is a guess, and a wrong guess is harder to undo than a
+	# blank entry is to fill -- it looks correct and nothing reports it. Nobody
+	# reviews an automatic run, so it must not make that call on its own.
+	# Without the argument this behaves exactly as it always has.
+	GRIDNOSTASK="$1"
+
 	if ! haveAnySteamShortcuts ; then
 		writelog "SKIP" "${FUNCNAME[0]} - No Non-Steam Games found, skipping"
 		echo "No Non-Steam Games found, not downloading grids"
@@ -1225,10 +1233,44 @@ function getGridsForNonSteamGames {
 			SVDFEAID="$( parseSteamShortcutEntryAppID "$SCVDFE" )"
 			SVDFENAME="$( parseSteamShortcutEntryAppName "$SCVDFE" )"
 
-			writelog "INFO" "${FUNCNAME[0]} - Updating artwork for game '$SVDFENAME ('$SVDFEAID')'"
-			echo "Updating artwork for game '$SVDFENAME ('$SVDFEAID')'"
+			# A decision the user made in 'artwork resolve' wins over guessing by name.
+			# An empty stored value is a deliberate "there is no artwork for this"
+			# and must not fall back to a search, or the entry would keep coming back.
+			if SVDFEGAMEID="$( tgSgdbDecision "$SVDFENAME" )"; then
+				if [ -z "$SVDFEGAMEID" ]; then
+					writelog "INFO" "${FUNCNAME[0]} - '$SVDFENAME ($SVDFEAID)' is marked as 'never look up' in '$SGDBNAMES' - skipping"
+					echo "Skipping '$SVDFENAME ('$SVDFEAID')' - marked as having no SteamGridDB match"
+					continue
+				fi
 
-			commandlineGetSteamGridDBArtwork --search-name="$SVDFENAME" --filename-appid="$SVDFEAID" --nonsteam
+				writelog "INFO" "${FUNCNAME[0]} - Updating artwork for game '$SVDFENAME ('$SVDFEAID')' using stored SteamGridDB Game ID '$SVDFEGAMEID'"
+				echo "Updating artwork for game '$SVDFENAME ('$SVDFEAID')'"
+
+				# '--apply' in the automatic pass: SGDBDLTOSTEAM defaults to 0, which
+				# parks artwork in the download cache instead of Steam's grid folder.
+				# "keep Steam's Non-Steam artwork up to date" is the whole point of
+				# this pass, and artwork Steam never sees does not satisfy it -- the
+				# entry would keep counting as incomplete on every later run.
+				if [ "$GRIDNOSTASK" == "ask" ]; then
+					commandlineGetSteamGridDBArtwork --search-id="$SVDFEGAMEID" --filename-appid="$SVDFEAID" --nonsteam --apply
+				else
+					commandlineGetSteamGridDBArtwork --search-id="$SVDFEGAMEID" --filename-appid="$SVDFEAID" --nonsteam
+				fi
+			elif [ "$GRIDNOSTASK" == "ask" ]; then
+				writelog "INFO" "${FUNCNAME[0]} - '$SVDFENAME ($SVDFEAID)' has no stored SteamGridDB match - leaving it for '${PROGNAME,,} artwork resolve'"
+				# Only worth mentioning when something is actually missing. An entry
+				# that already has all five types needs nothing, and saying so for
+				# every one of them buries the entries that do.
+				if [ -n "$( tgSgdbArtworkMissing "$SVDFEAID" )" ]; then
+					echo "Leaving '$SVDFENAME ('$SVDFEAID')' for you to match - no stored SteamGridDB game"
+				fi
+				continue
+			else
+				writelog "INFO" "${FUNCNAME[0]} - Updating artwork for game '$SVDFENAME ('$SVDFEAID')'"
+				echo "Updating artwork for game '$SVDFENAME ('$SVDFEAID')'"
+
+				commandlineGetSteamGridDBArtwork --search-name="$SVDFENAME" --filename-appid="$SVDFEAID" --nonsteam
+			fi
 
 			CMDLINEGETSGDBARTAID="$( cat "$NOSTSGDBIDSHMFILE" )"
 			# No has-file override, so the icon follows the same SGDBHASFILE setting as the artwork fetched above
@@ -1239,6 +1281,17 @@ function getGridsForNonSteamGames {
 				editSteamShortcutEntry "$SVDFEAID" "icon" "$SVDFEICON"
 			fi
 		done <<< "$( getSteamShortcutHex )"
+
+		# Entries still missing artwork after this run were matched by name alone,
+		# which is a guess. Say so, rather than leaving the gap unexplained.
+		# '|| true': grep -c exits 1 when it counts nothing, which is the normal
+		# "everything is settled" case and must not look like a failure here
+		GRIDNOSTUNDECIDED="$( tgSgdbUndecidedEntries | grep -c . || true )"
+		if [ "$GRIDNOSTUNDECIDED" -gt 0 ]; then
+			writelog "INFO" "${FUNCNAME[0]} - '$GRIDNOSTUNDECIDED' Non-Steam entry/entries are still missing artwork and have no stored SteamGridDB match"
+			echo "$GRIDNOSTUNDECIDED Non-Steam entry/entries are still missing artwork - run '${PROGNAME,,} artwork resolve' to pick the right game for them"
+			tgSgdbNotifyUndecided "$GRIDNOSTUNDECIDED"
+		fi
 	fi
 }
 
