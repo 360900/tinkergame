@@ -343,7 +343,8 @@ function addNonSteamGame {
 		NOSTSGDBAPIGAMEID="$( cat "$NOSTSGDBIDSHMFILE" )"
 
 		# Icon -- Only set if we successfully download an icon from SteamGridDB
-		getSteamGridDBNonSteamIcon "$NOSTAIDGRID" "$NOSTSGDBAPIGAMEID"
+		# 'replace' to match the '--replace-existing' used for the rest of the artwork above
+		getSteamGridDBNonSteamIcon "$NOSTAIDGRID" "$NOSTSGDBAPIGAMEID" "replace"
 		NOSTSGDBICON="$( findNonSteamGameIcon "$NOSTAIDGRID" )"
 		if [ -f "$NOSTSGDBICON" ]; then
 			writelog "INFO" "${FUNCNAME[0]} - Found SteamGridDB icon path to '$NOSTSGDBICON' -- Using this as Non-Steam Game Icon"

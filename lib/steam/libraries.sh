@@ -880,7 +880,7 @@ function downloadArtFromSteamGridDB {
 		# Required
 		SEARCHID="$1"  # ID to search on (should be either Steam AppID or Game ID, but we just pass it to the endpoint given)
 		SEARCHENDPOINT="$2"  # Endpoint which should either be an endpoint for Steam games (Steam AppID endpoint) or Non-Steam Games (SGDB Game ID Endpoint)
-		SGDBFILENAME="${3:-SEARCHID}"  # Name to give to file i.e. "124123p.png" (can't use ${SEARCHID}${SUFFIX} because SearchID may not be the AppID) -- Defaults to just using passed AppID
+		SGDBFILENAME="${3:-$SEARCHID}"  # Name to give to file i.e. "124123p.png" (can't use ${SEARCHID}${SUFFIX} because SearchID may not be the AppID) -- Defaults to just using passed AppID
 
 		# Optional
 		SEARCHSTYLES="$4"
@@ -890,7 +890,9 @@ function downloadArtFromSteamGridDB {
 		SEARCHHUMOR="$8"
 		SEARCHEPILEPSY="$9"
 
-		SGDBHASFILE="${10:-SGDBHASFILE}"  # Option to override action to take when file already exists
+		# Deliberately a distinct name: assigning to SGDBHASFILE here would overwrite the
+		# user's global setting for the rest of the run, because this function has no local scope
+		DASGDB_HASFILE="${10:-$SGDBHASFILE}"  # Option to override action to take when file already exists
 		FORCESGDBDLTOSTEAM="${11}"  # Option to force downloading artwork to Steam Grid folder
 
 		SGDB_ENDPOINT_STR="${SEARCHENDPOINT}/$(echo "$SEARCHID" | awk '{print $1}' | paste -s -d, -)?"
@@ -967,16 +969,16 @@ function downloadArtFromSteamGridDB {
 				STARTDL=1
 
 				if [ -f "$DLDST" ]; then
-					if [ "$SGDBHASFILE" == "skip" ]; then
-						writelog "INFO" "${FUNCNAME[0]} - Download of existing file is set to '$SGDBHASFILE' - doing nothing"
+					if [ "$DASGDB_HASFILE" == "skip" ]; then
+						writelog "INFO" "${FUNCNAME[0]} - Download of existing file is set to '$DASGDB_HASFILE' - doing nothing"
 						STARTDL=0
-					elif [ "$SGDBHASFILE" == "backup" ]; then
+					elif [ "$DASGDB_HASFILE" == "backup" ]; then
 						BACKDIR="${GRIDDLDIR}/backup"
 						mkProjDir "$BACKDIR"
-						writelog "INFO" "${FUNCNAME[0]} - Backup existing file into '$BACKDIR', because SGDBHASFILE is set to '$SGDBHASFILE'"
+						writelog "INFO" "${FUNCNAME[0]} - Backup existing file into '$BACKDIR', because SGDBHASFILE is set to '$DASGDB_HASFILE'"
 						mv "$DLDST" "$BACKDIR"
-					elif [ "$SGDBHASFILE" == "replace" ]; then
-						writelog "INFO" "${FUNCNAME[0]} - Replacing existing file '$DLDST', because SGDBHASFILE is set to '$SGDBHASFILE'"
+					elif [ "$DASGDB_HASFILE" == "replace" ]; then
+						writelog "INFO" "${FUNCNAME[0]} - Replacing existing file '$DLDST', because SGDBHASFILE is set to '$DASGDB_HASFILE'"
 						rm "$DLDST" 2>/dev/null
 					fi
 				fi
@@ -1217,6 +1219,7 @@ function getGridsForNonSteamGames {
 			commandlineGetSteamGridDBArtwork --search-name="$SVDFENAME" --filename-appid="$SVDFEAID" --nonsteam
 
 			CMDLINEGETSGDBARTAID="$( cat "$NOSTSGDBIDSHMFILE" )"
+			# No has-file override, so the icon follows the same SGDBHASFILE setting as the artwork fetched above
 			getSteamGridDBNonSteamIcon "$SVDFEAID" "$CMDLINEGETSGDBARTAID"
 			SVDFEICON="$( findNonSteamGameIcon "$SVDFEAID" )"  # Return icon path
 			if [ -n "$SVDFEICON" ]; then  # Need this check because sometimes we don't get anything back from SGDB i.e. unknown name

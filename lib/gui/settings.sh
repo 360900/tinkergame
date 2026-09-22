@@ -104,13 +104,14 @@ function filterUnwantedSteamCategories {
 function getSteamGridDBNonSteamIcon {
 	NOSTICONAID="$1"  # Non-Steam AppID
 	NOSTSGDBID="$2"  # SteamGridDB Game ID
+	NOSTICONHASFILE="${3:-$SGDBHASFILE}"  # What to do if an icon already exists -- Defaults to the user's global setting
 	NOSTICONNAME="${NOSTICONAID}_icon"
 	SGDBSEARCHENDPOINT_ICONS="${BASESTEAMGRIDDBAPI}/icons/game"
 
 	# Download icon and put it in Steam grids folder, which should be a safe and intuitive location
 	# We don't have any way to set search settings for icons and it would be confusing to have this in the Global Menu for now, so just leave blank
 	# In future if we have Non-Steam Game global settings, we could include icon settings there too
-	downloadArtFromSteamGridDB "$NOSTSGDBID" "$SGDBSEARCHENDPOINT_ICONS" "${NOSTICONNAME}" "" "" "" "" "" "" "replace" "1"
+	downloadArtFromSteamGridDB "$NOSTSGDBID" "$SGDBSEARCHENDPOINT_ICONS" "${NOSTICONNAME}" "" "" "" "" "" "" "$NOSTICONHASFILE" "1"
 }
 
 function addNonSteamGameGui {
