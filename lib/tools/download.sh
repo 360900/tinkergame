@@ -139,7 +139,10 @@ function createDLProtList {
 					SRCURL="${SRCURL//$GHURL/$AGHURL\/repos}"
 					SRCURL="${SRCURL}/releases"
 
-					"$WGET" -q "$SRCURL" -O - | "$JQ" -r '.[].assets[].browser_download_url' | grep "tar.gz\|tar.xz" | grep -v "Yad\|7.x" >> "$PROTDLLIST"
+					# '7\.x' with an escaped dot: the filter is a regex, so an
+					# unescaped dot also matches the '-' in asset names like
+					# GE-Proton11-7-x86_64.tar.gz and drops every x86_64 build
+					"$WGET" -q "$SRCURL" -O - | "$JQ" -r '.[].assets[].browser_download_url' | grep "tar.gz\|tar.xz" | grep -v "Yad\|7\.x" >> "$PROTDLLIST"
 				fi
 			done <<< "$(grep "^CP_" "$STLURLCFG" | cut -d '=' -f1)"
 		fi
