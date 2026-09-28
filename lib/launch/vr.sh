@@ -1048,7 +1048,9 @@ function editSteamShortcutEntry {
 
 	SHORTCUTENTRYAID="$1"  # i.e. 23435463
 	SHORTCUTCOLUMN="$2"  # i.e. "appname"
-	SHORTCUTNEWVAL="$( xxd -p -c 0 <<< "$3" )"  # i.e. "New Name" but in hex
+	# printf, not a herestring: '<<<' appends a newline, so the value's hex used to
+	# end in a stray '0a' that then had to be stripped back out again
+	SHORTCUTNEWVAL="$( printf '%s' "$3" | xxd -p -c 0 )"  # i.e. "New Name" but in hex
 
 	SHORTCUTSCONTENT="$( getSteamShortcutsVdfFileHex )"
 	SHORTCUTSENTRY="$( findSteamShortcutByAppID "$SHORTCUTENTRYAID" )"
@@ -1084,8 +1086,15 @@ function editSteamShortcutEntry {
 	SHORTCUTNEWENTRY="$( replaceSteamShortcutEntryValue "$SHORTCUTSENTRY" "$SHORTCUTEDITSTARTBYTES" "$SHORTCUTNEWVAL" )"
 	SHORTCUTSCONTENT="${SHORTCUTSCONTENT//"$SHORTCUTSENTRY"/"$SHORTCUTNEWENTRY"}"
 
-	# Write out new bytes with bad 0a byte removed (causes issues when reading paths etc, so strip it out)
-	echo "$SHORTCUTSCONTENT" | sed 's/0a//g' | xxd -r -p > "$SCPATH"
+	# Straight back to bytes. There used to be a "sed 's/0a//g'" here to drop the
+	# trailing newline the value picked up above, but it ran over the hex as text
+	# with no regard for byte boundaries: in "00ad" the middle two characters are
+	# also "0a", so any byte pair X0 AY lost a byte and everything after it shifted.
+	# A LastPlayTime of 0x6a1368ad turned "02 4c...65 00 ad 68 13 6a" into
+	# "02 4c...65 0d 68 13 6a" -- the key's terminator gone, the file one byte
+	# short, and Steam logging "CSteamDoc::LoadShortcuts: failed to load shortcut
+	# file" before discarding every Non-Steam game in it.
+	printf '%s' "$SHORTCUTSCONTENT" | xxd -r -p > "$SCPATH"
 }
 
 # Get shortcuts.vdf hex and grep each entry using start and end patterns (including a special case for the beginning of shortcuts.vdf)
