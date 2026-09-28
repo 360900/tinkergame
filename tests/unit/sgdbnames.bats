@@ -339,7 +339,7 @@ setup() {
 	NOTYARGS="-a TinkerGame"
 
 	USETERM="$BATS_TEST_TMPDIR/faketerm"
-	printf '#!/bin/sh\necho "$@" > "%s/term.call"\n' "$BATS_TEST_TMPDIR" > "$USETERM"
+	printf '#!/bin/sh\nprintf "%%s\\n" "$*" > "%s/term.call"\n' "$BATS_TEST_TMPDIR" > "$USETERM"
 	chmod +x "$USETERM"
 	TERMARGS="-e"
 	TG_ENTRYPOINT="$BATS_TEST_TMPDIR/tinkergame"
@@ -391,7 +391,7 @@ setup() {
 
 @test "tgSgdbResolveTerminal: launches the resolver in the configured terminal" {
 	USETERM="$BATS_TEST_TMPDIR/faketerm"
-	printf '#!/bin/sh\necho "$@" > "%s/term.call"\n' "$BATS_TEST_TMPDIR" > "$USETERM"
+	printf '#!/bin/sh\nprintf "%%s\\n" "$*" > "%s/term.call"\n' "$BATS_TEST_TMPDIR" > "$USETERM"
 	chmod +x "$USETERM"
 	TERMARGS="-e"
 	TG_ENTRYPOINT="$BATS_TEST_TMPDIR/tinkergame"

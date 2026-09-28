@@ -20,7 +20,7 @@ setup() {
 	WGET="$BATS_TEST_TMPDIR/fakewget"
 	{
 		printf '#!/bin/sh\n'
-		printf 'echo "$@" >> "%s"\n' "$TG_WGETLOG"
+		printf 'printf "%%s\\n" "$*" >> "%s"\n' "$TG_WGETLOG"
 		printf '%s\n' 'printf "%s" "{\"success\":true,\"data\":[]}"'
 	} >"$WGET"
 	chmod +x "$WGET"
