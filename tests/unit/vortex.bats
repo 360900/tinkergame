@@ -204,3 +204,36 @@ EOF
 
 	[ -f "$RESET_MARKER2" ]
 }
+
+@test "getVortexSupported: reads Steam IDs from the 2.x bundled plugin layouts" {
+	VGPDIRX="$BATS_TEST_TMPDIR/vortex/vortex-install/resources/app.asar.unpacked/bundledPlugins"
+	mkdir -p "$VGPDIRX/game-unquoted" "$VGPDIRX/game-double" "$VGPDIRX/game-quoted" "$VGPDIRX/game-noise"
+
+	# 2.x styles: bare number, bare number with a label, double quoted constant
+	printf 'const STEAM_ID = 629730;\nmodule.exports = { steamAppId: STEAM_ID };\n' >"$VGPDIRX/game-unquoted/index.cjs"
+	printf 'steamAppId: 377160\n' >"$VGPDIRX/game-double/index.js"
+	printf 'const STEAM_ID = "489830";\n' >"$VGPDIRX/game-quoted/index.js"
+	# must not leak arbitrary quoted text out of bundled JS into VOSTIDS
+	printf "const steamAppId = 'not a number but contains 12345 digits';\n" >"$VGPDIRX/game-noise/index.js"
+
+	export VORTEXINSTDIR="$BATS_TEST_TMPDIR/vortex/vortex-install"
+	export RABP="resources/app.asar.unpacked/bundledPlugins"
+	export VORTEXPFX="$BATS_TEST_TMPDIR/vortex/vortex-compatdata/pfx"
+	unset VOSTIDS
+
+	# setVortexVars does the Proton/CSV dance; the scan is what this test covers.
+	# shellcheck source=/dev/null
+	source "$BATS_TEST_TMPDIR/workarounds.bash"
+	( set +e
+	  setVortexVars() { :; }
+	  getVortexSupported
+	  printf '%s\n' "${VOSTIDS[@]-}" >"$BATS_TEST_TMPDIR/vostids.txt"
+	)
+
+	grep -qx 629730 "$BATS_TEST_TMPDIR/vostids.txt"
+	grep -qx 377160 "$BATS_TEST_TMPDIR/vostids.txt"
+	grep -qx 489830 "$BATS_TEST_TMPDIR/vostids.txt"
+	if grep -q "[^0-9]" "$BATS_TEST_TMPDIR/vostids.txt"; then
+		return 1
+	fi
+}

@@ -421,7 +421,15 @@ function getVortexSupported {
 		SDIR="$1"
 		if [ -d "$SDIR" ]; then
 			writelog "INFO" "${FUNCNAME[0]} - Searching for SteamIDs in '$SDIR'"
-			mapfile -t -O "${#VOSTIDS[@]}" VOSTIDS <<< "$(grep -iR "STEAMAPP_ID =\|STEAM_ID =\|steamAppId:" "$SDIR" | grep -v "module.exports" | grep -oP "'\K[^']+" | grep "[0-9]" | sort -u)"
+			# Vortex 2.x ships its extensions in
+			# resources/app.asar.unpacked/bundledPlugins, where the Steam IDs
+			# are written unquoted (steamAppId: 629730), kept in a constant
+			# (const STEAM_ID = "489830") or wrapped in either quote style.
+			# The old single-quote-only extraction found no IDs at all there
+			# and leaked arbitrary single-quoted strings out of the bundled JS
+			# into VOSTIDS instead. Match the key/value forms and keep only
+			# the digits.
+			mapfile -t -O "${#VOSTIDS[@]}" VOSTIDS <<< "$(grep -iRhE "STEAMAPP_ID *=|STEAM_ID *=|APPID *=|steamAppId:|steamId:" "$SDIR" | grep -v "module.exports" | grep -ioE "(steamapp_id|steam_id|appid|steamappid|steamid)[[:space:]]*[:=][[:space:]]*['\"]?[0-9]+" | grep -oE "[0-9]+" | sort -u)"
 		fi
 	}
 
@@ -451,12 +459,21 @@ function getVortexSupportedNames {
 
 	VGPDIR="$VORTEXINSTDIR/$RABP"
 	for VOSTGAMDIR in "$VGPDIR/game-"*/; do
-		if [ -f "$VOSTGAMDIR/$VOSTINDEXJS" ] && [ -f "$VOSTGAMDIR/$VOSTINFOJSON" ]; then
+		# Vortex 2.x ships some bundled extensions as index.cjs
+		if [ -f "$VOSTGAMDIR/$VOSTINDEXJS" ]; then
+			VOSTINDEXFILE="$VOSTGAMDIR/$VOSTINDEXJS"
+		elif [ -f "$VOSTGAMDIR/index.cjs" ]; then
+			VOSTINDEXFILE="$VOSTGAMDIR/index.cjs"
+		else
+			VOSTINDEXFILE=""
+		fi
+
+		if [ -n "$VOSTINDEXFILE" ] && [ -f "$VOSTGAMDIR/$VOSTINFOJSON" ]; then
 			# Get Vortex game name from the Vortex supported gamedir's `info.json` file
 			VOSTGAMDIRNAM="$( "$JQ" '.name' "$VOSTGAMDIR/$VOSTINFOJSON" | sed 's-^"--g;s-^Game:--g;s-"$--g;s-^Stub:--g;s-^Game--g;s-^\ --g' )"
 
-			# Match Steam AppIDs from `index.js` file - grep order is order if preference to search on
-			VOSTGAMDIRAID="$( sed "s-'--g;s-\"--g" "$VOSTGAMDIR/$VOSTINDEXJS" | grep -ioE "steamAppId: [0-9]+|STEAMAPP_ID = [0-9]+|STEAM_ID = [0-9]+|APPID = [0-9]+|steamId: [0-9]+" | grep -oE "[0-9]+" | head -n1 )"
+			# Match Steam AppIDs from the extension entry point - grep order is order if preference to search on
+			VOSTGAMDIRAID="$( sed "s-'--g;s-\"--g" "$VOSTINDEXFILE" | grep -ioE "steamAppId[[:space:]]*:[[:space:]]*[0-9]+|STEAMAPP_ID[[:space:]]*=[[:space:]]*[0-9]+|STEAM_ID[[:space:]]*=[[:space:]]*[0-9]+|APPID[[:space:]]*=[[:space:]]*[0-9]+|steamId[[:space:]]*:[[:space:]]*[0-9]+" | grep -oE "[0-9]+" | head -n1 )"
 
 			# If we still can't find it, search based on domain name (usually this is directory name without game- pfx) from Vortex games list, may be incomplete so we don't search on it by default
 			if [ -z "$VOSTGAMDIRAID" ]; then
@@ -476,7 +493,7 @@ function getVortexSupportedNames {
 
 			printf '%s (%s)\n' "$VOSTGAMDIRNAM" "$VOSTGAMDIRAID"
 		else
-			writelog "SKIP" "${FUNCNAME[0]} - Could not find '$VOSTINDEXJS' or '$VOSTINFOJSON' for Vortex game in '$VOSTGAMDIR' - Skipping"
+			writelog "SKIP" "${FUNCNAME[0]} - Could not find '$VOSTINDEXJS'/'index.cjs' or '$VOSTINFOJSON' for Vortex game in '$VOSTGAMDIR' - Skipping"
 		fi
 	done
 }
@@ -694,7 +711,10 @@ function setupGameVortex {
 		WINEDEBUG="-all" WINEPREFIX="$VORTEXPFX" "$VORTEXWINE" "$VORTEXEXE" "--get" "settings" > "$VORTGETSET" 2>/dev/null
 	fi
 
-	if [ -f "$VORTGETSET" ] && grep -q "$NEXUSGAMEID=\"hardlink_activator\"" "$VORTGETSET"; then
+	# Vortex 2.x prints "key = value" with spaces around the '=', 1.x printed
+	# "key=value". Accept both, otherwise the game is believed to be missing
+	# and re-applied on every launch.
+	if [ -f "$VORTGETSET" ] && grep -qE "${NEXUSGAMEID}[[:space:]]*=[[:space:]]*\"hardlink_activator\"" "$VORTGETSET"; then
 		writelog "SKIP" "${FUNCNAME[0]} - '$NEXUSGAMEID' is already added to Vortex"
 	else
 		writelog "INFO" "${FUNCNAME[0]} - Activating game dir '$VZGAMEDIR' for '$NEXUSGAMEID ($VAID)' in Vortex"
@@ -1449,20 +1469,33 @@ function installVortex {
 				writelog "INFO" "${FUNCNAME[0]} - Using '$VORTEXPROTON' for installation" "E"
 				mkProjDir "$VORTEXCOMPDATA"
 
-				## TODO dotnet installation currently fails on Steam Deck because it needs to be installed with the SLR
-				## There is no clean way to run Winetricks from the SLR if it's in `/usr/bin/winetricks` or similar, so
-				## for now we leave it up to Vortex to install dotnet6.
-				##
-				## This could be fixed with some hacky symlinking of dotnet perhaps, even temporarily while we install
-				## some winetricks components, and then removed afterwards, but this would be a separate feature.
-				## Removing this line should helph get Vortex working on SteamOS for now, until they break it again.
-				##
-				## For context, see https://github.com/sonic2kk/steamtinkerlaunch/issues/806#issuecomment-1565759961
-
-				# Vortex 1.8.0+ only requires DotNet6 (only need to pass desktop6, as installDotNet will append dotnet)
-				# writelog "INFO" "${FUNCNAME[0]} - Installing .NET 6 for Vortex Mod Manager"
-				# notiShow "$(strFix "$NOTY_INSTSTART" "${DOTN^}")" "S"
-				# installDotNet "$VORTEXPFX" "$VORTEXWINE" "desktop6"  # Should be easy to bump if a newer version is ever required
+				# Vortex 2.x uses a .NET 9 based FOMOD installer. Vortex
+				# installs that runtime itself from a Fix prompt, but the
+				# prompt runs the Windows .NET installer from the renderer
+				# and is not reliable under Wine. Preinstall it with
+				# Winetricks whenever we are not going through the Steam
+				# Linux Runtime.
+				#
+				# Winetricks cannot be driven cleanly from the SLR, so with
+				# VORTEXUSESLR=1 we keep leaving the runtime to Vortex.
+				# See https://github.com/sonic2kk/steamtinkerlaunch/issues/806
+				if [ -n "${SLRCMD[*]}" ]; then
+					writelog "INFO" "${FUNCNAME[0]} - Vortex is installing through the SLR - leaving .NET Desktop Runtime 9 to Vortex"
+				elif ls -d "$VORTEXPFX/$DRC/Program Files/dotnet/shared/Microsoft.WindowsDesktop.App/9."* >/dev/null 2>&1; then
+					writelog "INFO" "${FUNCNAME[0]} - .NET Desktop Runtime 9 already installed in '$VORTEXPFX'"
+				else
+					chooseWinetricks
+					if [ -n "$WINETRICKS" ]; then
+						writelog "INFO" "${FUNCNAME[0]} - Installing .NET Desktop Runtime 9 for Vortex Mod Manager"
+						notiShow "$(strFix "$NOTY_INSTSTART" ".NET Desktop Runtime 9")" "S"
+						installDotNet "$VORTEXPFX" "$VORTEXWINE" "desktop9"
+						if ! ls -d "$VORTEXPFX/$DRC/Program Files/dotnet/shared/Microsoft.WindowsDesktop.App/9."* >/dev/null 2>&1; then
+							writelog "WARN" "${FUNCNAME[0]} - .NET Desktop Runtime 9 installation did not complete - Vortex will offer to install it on first start"
+						fi
+					else
+						writelog "SKIP" "${FUNCNAME[0]} - No Winetricks available - leaving .NET Desktop Runtime 9 to Vortex"
+					fi
+				fi
 
 				touch "${VORTEXCOMPDATA}/tracked_files"
 				STEAM_COMPAT_CLIENT_INSTALL_PATH="$SROOT" STEAM_COMPAT_DATA_PATH="$VORTEXCOMPDATA" "$VORTEXPROTON" "run" 2> "$STLSHM/${FUNCNAME[0]}_protonrun.log"
