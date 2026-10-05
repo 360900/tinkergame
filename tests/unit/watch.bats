@@ -29,7 +29,7 @@ setup() {
 	SYSTEMCTL="$BATS_TEST_TMPDIR/fakesystemctl"
 	{
 		printf '#!/bin/sh\n'
-		printf 'echo "$@" >> "%s"\n' "$TG_SCTLLOG"
+		printf 'printf "%%s\\n" "$*" >> "%s"\n' "$TG_SCTLLOG"
 	} >"$SYSTEMCTL"
 	chmod +x "$SYSTEMCTL"
 }
