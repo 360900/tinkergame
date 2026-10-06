@@ -237,3 +237,60 @@ EOF
 		return 1
 	fi
 }
+
+@test "parseVortexRegPath: double-quoted 2.x path keeps WOW6432Node intact" {
+	run parseVortexRegPath '"HKEY_LOCAL_MACHINE","Software\\Wow6432Node\\Bethesda Softworks\\skyrim","Installed Path",'
+	[ "$status" -eq 0 ]
+	[ "$output" = 'HKEY_LOCAL_MACHINE\Software\Wow6432Node\Bethesda Softworks\skyrim;Installed Path' ]
+}
+
+@test "parseVortexRegPath: plain path gets the WOW6432Node view" {
+	run parseVortexRegPath "'HKEY_LOCAL_MACHINE', 'Software\\\\Valve\\\\Steam\\\\Apps\\\\413150', 'Installed Path'"
+	[ "$status" -eq 0 ]
+	[ "$output" = 'HKEY_LOCAL_MACHINE\Software\Wow6432Node\Valve\Steam\Apps\413150;Installed Path' ]
+}
+
+@test "parseVortexRegPath: inside WOW6432Node path is not doubled" {
+	run parseVortexRegPath '"HKEY_LOCAL_MACHINE","SOFTWARE\\WOW6432NODE\\Durante\\GeDoSaTo","InstallPath"'
+	[ "$status" -eq 0 ]
+	[ "$output" = 'HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432NODE\Durante\GeDoSaTo;InstallPath' ]
+}
+
+@test "parseVortexRegPath: variable arguments are rejected" {
+	run parseVortexRegPath '"HKEY_LOCAL_MACHINE",key,"Installed Path"'
+	[ "$status" -ne 0 ]
+	[ -z "$output" ]
+}
+
+@test "parseVortexRegPath: template literal paths are rejected" {
+	run parseVortexRegPath '"HKEY_LOCAL_MACHINE",`SOFTWARE\\WOW6432Node\\GOG.com\\Games\\${GOG_ID}`,"path"'
+	[ "$status" -ne 0 ]
+	[ -z "$output" ]
+}
+
+@test "setInstPathReg: double-quoted extension writes a clean reg key" {
+	local ext="$VORTEXINSTDIR/resources/app.asar.unpacked/bundledPlugins/game-skyrim"
+	mkdir -p "$ext"
+	cat >"$ext/index.js" <<'EOF'
+function getPath() {
+  const instPath = winapi.RegGetValue(
+    "HKEY_LOCAL_MACHINE",
+    "Software\\Wow6432Node\\Bethesda Softworks\\skyrim",
+    "Installed Path",
+  );
+}
+EOF
+
+	export NEXUSGAMEID="skyrim"
+	export VGAMEDIR="$BATS_TEST_TMPDIR/game"
+
+	# shellcheck source=/dev/null
+	source "$BATS_TEST_TMPDIR/workarounds.bash"
+	( set +e; setInstPathReg )
+
+	grep -Fq '[HKEY_LOCAL_MACHINE\Software\Bethesda Softworks\skyrim]' "$STLSHM/modgames.reg"
+	grep -Fq '"Installed Path"="Z:' "$STLSHM/modgames.reg"
+	if grep -q '\["HKEY' "$STLSHM/modgames.reg"; then
+		return 1
+	fi
+}

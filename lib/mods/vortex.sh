@@ -512,10 +512,10 @@ function checkVortexRegs {
 
 	if grep -q "Wow6432Node" <<< "$1"; then
 		REGKEY="$1"
-		REG32KEY="${REGKEY//\\Wow6432Node\\/}"
+		REG32KEY="${REGKEY/\\Wow6432Node\\/\\}"
 	elif grep -q "WOW6432Node" <<< "$1"; then
 		REGKEY="${1//WOW6432Node/Wow6432Node}"
-		REG32KEY="${REGKEY//\\Wow6432Node\\/}"
+		REG32KEY="${REGKEY/\\Wow6432Node\\/\\}"
 	else
 		REG32KEY="$1"
 		REGKEY="${REG32KEY//Software\\\\/Software\\\\Wow6432Node\\\\}"
@@ -726,6 +726,48 @@ function setupGameVortex {
 	fi
 }
 
+# Parse the arguments of a winapi.RegGetValue(hive, key, name) snippet into
+# 'KEY;NAME'. Handles the single and double quoted Vortex 2.x extension
+# styles, collapses JavaScript doubled backslashes and adds the WOW6432Node
+# registry view unless the extension names it itself. Prints nothing and
+# returns 1 when the snippet has no literal registry path (for example when
+# the extension passes variables instead).
+function parseVortexRegPath {
+	local RAW="$1"
+	RAW="$(sed -E 's/,[[:space:]]+/,/g' <<< "$RAW")"
+
+	local HIVE PKEY PNAME
+	HIVE="$(awk -F ',' '{print $1}' <<< "$RAW")"
+	PKEY="$(awk -F ',' '{print $2}' <<< "$RAW")"
+	PNAME="$(awk -F ',' '{print $3}' <<< "$RAW")"
+
+	# strip surrounding quotes and whitespace
+	HIVE="$(sed -E "s/^[[:space:]]*['\"]//; s/['\"][[:space:]]*$//" <<< "$HIVE")"
+	PKEY="$(sed -E "s/^[[:space:]]*['\"]//; s/['\"][[:space:]]*$//" <<< "$PKEY")"
+	PNAME="$(sed -E "s/^[[:space:]]*['\"]//; s/['\"][[:space:]]*$//" <<< "$PNAME")"
+
+	# variable arguments instead of a literal path - nothing we can import
+	if [[ ! "$HIVE" =~ ^HKEY_ ]] || [[ "$PKEY" != *"\\"* ]] || [ -z "$PNAME" ]; then
+		return 1
+	fi
+
+	# JS template literals with interpolations cannot be resolved statically
+	if [[ "$PKEY" == *'`'* ]]; then
+		return 1
+	fi
+
+	# '\\' in the JS source is a single path separator for the .reg file
+	PKEY="${PKEY//\\\\/\\}"
+
+	# The registry path the extensions probe is the 32-bit view, which lives
+	# under WOW6432Node - only add it when the extension does not use it yet
+	if ! grep -qi "WOW6432Node" <<< "$PKEY"; then
+		PKEY="${PKEY/[Ss][Oo][Ff][Tt][Ww][Aa][Rr][Ee]/Software\\Wow6432Node}"
+	fi
+
+	printf '%s\\%s;%s\n' "$HIVE" "$PKEY" "$PNAME"
+}
+
 function setInstPathReg {
 	NEXUSGAMEFILE="$VORTEXINSTDIR/$RABP/game-$NEXUSGAMEID/index.js"
 
@@ -746,29 +788,17 @@ function setInstPathReg {
 
 				if grep -q "HKEY" <<< "$RAWREG"; then
 					writelog "INFO" "${FUNCNAME[0]} - Found a HKEY entry: $RAWREG - working on it"
-					SNIP="','S" # :)
-					REGWIP1="${RAWREG//HINE$SNIP/HINE\\S}"
-					REGWIP="${REGWIP1//T_USER','S/T_USER\\\\S}"
+					PARSEDREG="$(parseVortexRegPath "$RAWREG")" || PARSEDREG=""
 
-					writelog "INFO" "${FUNCNAME[0]} - REGWIP is $REGWIP"
-
-					REGWIPKEY="$(awk -F ',' '{print $1}' <<< "$REGWIP" | sed "s:'::g")"
-					PATHKEY="$(awk -F ',' '{print $2}' <<< "$REGWIP" | sed "s:'::g")"
-
-					if grep -q -i "WOW6432Node" <<< "$REGWIPKEY"; then
-						writelog "INFO" "${FUNCNAME[0]} - Squeezing in a 'WOW6432Node' into the '$REGWIPKEY' string"
-						REGKEY="${REGWIPKEY/[Ss][Oo][Ff][Tt][Ww][Aa][Rr][Ee]/Software\\\\\\WOW6432Node}"
+					if [ -n "$PARSEDREG" ]; then
+						REGKEY="${PARSEDREG%%;*}"
+						PATHKEY="${PARSEDREG#*;}"
+						writelog "INFO" "${FUNCNAME[0]} - Final REGKEY is '$REGKEY' with value name '$PATHKEY'"
 					else
-						REGKEY="$REGWIPKEY"
+						writelog "SKIP" "${FUNCNAME[0]} - '$RAWREG' does not contain a literal registry path - skipping registry insert"
 					fi
-
-					writelog "INFO" "${FUNCNAME[0]} - Final REGKEY is '$REGKEY'"
 				else
-					if grep -q "hive" <<< "$RAWREG"; then
-						writelog "INFO" "${FUNCNAME[0]} - Found a hive, key, name placeholder - required?"
-					else
-						writelog "SKIP" "${FUNCNAME[0]} - No valid registry found in cut entry '$RAWREG' - skipping"
-					fi
+					writelog "SKIP" "${FUNCNAME[0]} - No valid registry found in cut entry '$RAWREG' - skipping"
 				fi
 			else
 				writelog "SKIP" "${FUNCNAME[0]} - Haven't found any useable registry entries in '$NEXUSGAMEFILE' - skipping registry insert"
