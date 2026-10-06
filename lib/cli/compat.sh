@@ -16,6 +16,7 @@ function CompatTool {
 				mkProjDir "$STEAMCOMPATOOLS"
 				if [ ! -d "$STEAMCOMPATOOLS" ]; then
 					writelog "ERROR" "${FUNCNAME[0]} - Failed to create the directory '$STEAMCOMPATOOLS'"
+					return 1
 				fi
 			fi
 
@@ -35,6 +36,7 @@ function CompatTool {
 
 				if [ ! -d "$SCTS" ]; then
 					writelog "ERROR" "${FUNCNAME[0]} - Failed to create the directory '$SCTS' - check your write priviledges on '$STEAMCOMPATOOLS'"
+					return 1
 				fi
 
 				CVDF="$SCTS/$CTVDF"
@@ -58,6 +60,7 @@ function CompatTool {
 
 				if [ ! -f "$CVDF" ]; then
 					writelog "ERROR" "${FUNCNAME[0]} - Failed to create the file '$CVDF' - check your write priviledges on '$SCTS'"
+					return 1
 				fi
 
 				TVDF="$SCTS/toolmanifest.vdf"
@@ -72,6 +75,7 @@ function CompatTool {
 
 				if [ ! -f "$TVDF" ]; then
 					writelog "ERROR" "${FUNCNAME[0]} - Failed to create the file '$TVDF' - check your write priviledges on '$SCTS'"
+					return 1
 				fi
 
 				writelog "INFO" "${FUNCNAME[0]} - Creating symlink '$SCTS/$PROGCMD' pointing to '$STLBIN'" "E"
@@ -79,6 +83,7 @@ function CompatTool {
 
 				if [ ! -L "$SCTS/$PROGCMD" ]; then
 					writelog "ERROR" "${FUNCNAME[0]} - Failed to create the symlink '$SCTS/$PROGCMD' - check your write priviledges on '$SCTS'"
+					return 1
 				fi
 			else
 				writelog "INFO" "${FUNCNAME[0]} - '$SCTS' already exists - checking if '$PROGCMD' symlink needs to be updated"
@@ -87,11 +92,18 @@ function CompatTool {
 				else
 					rm "$SCTS/$PROGCMD"
 					ln -s "$(realpath "$STLBIN")" "$SCTS/$PROGCMD"
+					if [ ! -L "$SCTS/$PROGCMD" ]; then
+						writelog "ERROR" "${FUNCNAME[0]} - Failed to update the symlink '$SCTS/$PROGCMD' - check your write priviledges on '$SCTS'"
+						return 1
+					fi
 					writelog "SKIP" "${FUNCNAME[0]} - Updated the '$SCTS/$PROGCMD' symlink to '$STLBIN'" "E"
 				fi
 			fi
+
+			return 0
 		else
 			writelog "SKIP" "${FUNCNAME[0]} - Steam Home Dir '$SROOT' not found!"
+			return 1
 		fi
 	elif [ "$1" == "del" ]; then
 		if [ ! -d "$SCTS" ]; then

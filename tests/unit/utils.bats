@@ -52,6 +52,25 @@ setup() {
 	[ "$(cat "$BATS_TEST_TMPDIR/uniq.txt")" = "$(printf 'x\ny\nz')" ]
 }
 
+@test "updateEditor: a failing xdg-mime probe does not leak stderr" {
+	local cfg="$BATS_TEST_TMPDIR/global.conf"
+	printf 'STLEDITOR="xdg-open"\n' >"$cfg"
+	unset FOUNDEDITOR
+
+	mkdir -p "$BATS_TEST_TMPDIR/xdgbin"
+	cat >"$BATS_TEST_TMPDIR/xdgbin/xdg-mime" <<'EOF'
+#!/bin/sh
+echo 'xdg-mime: simulated integer error' >&2
+exit 1
+EOF
+	chmod +x "$BATS_TEST_TMPDIR/xdgbin/xdg-mime"
+	export PATH="$BATS_TEST_TMPDIR/xdgbin:$PATH"
+
+	run updateEditor "$cfg"
+	[ "$status" -eq 0 ]
+	[[ "$output" != *"simulated integer error"* ]]
+}
+
 @test "updateConfigEntry: updates an existing key in place" {
 	printf 'FOO="old"\nBAR="keep"\n' >"$BATS_TEST_TMPDIR/conf"
 	unset FOO

@@ -103,6 +103,8 @@ function haveNonSteamGame {
 
 function main {
 
+	local TGMSTATUS=0
+
 	initShmStl
 	restoreGtkCss
 	rm "$TEMPLOG" "$WINRESLOG" "$PRELOG" "$APPMALOG" "$GGDLOG" 2>/dev/null
@@ -271,8 +273,13 @@ function main {
 			fi
 		else
 			commandline "$@"
+			TGMSTATUS=$?
 		fi
 	fi
 
+	# Keep the status of a CLI command (e.g. a failed 'compat add') as the
+	# process exit code, but still restore the GTK CSS before exiting. The
+	# status of game launches is intentionally not propagated.
 	restoreGtkCss
+	return "$TGMSTATUS"
 }

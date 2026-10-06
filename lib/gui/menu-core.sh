@@ -165,7 +165,10 @@ function updateEditor {
 	if grep -q "$XDGO" <<< "$STLEDITOR" || [ ! -f "$STLEDITOR" ] ; then
 		writelog "WARN" "${FUNCNAME[0]} - '$XDGO' selected as editor or configured editor not found - trying to find an installed editor installed"
 		if [ -x "$(command -v "$XDGMIME" 2>/dev/null)" ]; then
-			XDGED="$(command -v "$("$XDGMIME" query default text/plain | cut -d '.' -f1)" 2>/dev/null)"
+			# stderr silenced on the probe too: xdg-mime (Arch patch) prints
+			# "[: : integer expected" when KDE_FULL_SESSION is set without
+			# KDE_SESSION_VERSION, which is common under sudo
+			XDGED="$(command -v "$("$XDGMIME" query default text/plain 2>/dev/null | cut -d '.' -f1)" 2>/dev/null)"
 			if [ -x "$XDGED" ]; then
 				writelog "INFO" "${FUNCNAME[0]} - $XDGMIME points to '$XDGED', which also exists"
 				FOUNDEDITOR="$XDGED"
