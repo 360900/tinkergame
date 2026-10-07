@@ -5,8 +5,8 @@
 #  cross-module references are invisible to per-file analysis)
 # TinkerGame library module -- sourced by the "tinkergame" entry point. Do not execute directly.
 
-# progress label for a custom proton download - derive the proton name from its
-# download url so the StatusWindow shows which version is being downloaded
+# status label for a custom proton download - derive the proton name from its
+# download url so the log shows which version is being downloaded
 function dlCustProtonStatusText {
 	local CPURL="${1//\"/}"
 	if [ -z "$CPURL" ]; then

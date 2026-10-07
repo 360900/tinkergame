@@ -77,3 +77,16 @@ setup() {
 		[ "$output" = "0" ]
 	fi
 }
+
+@test "StatusWindow: runs the command without opening a yad window" {
+	YAD="$BATS_TEST_TMPDIR/fakeyad"
+	printf '#!/bin/sh\necho "fake yad $*" >> "%s"\n' "$BATS_TEST_TMPDIR/yad.calls" >"$YAD"
+	chmod +x "$YAD"
+	: >"$BATS_TEST_TMPDIR/yad.calls"
+
+	local marker="$BATS_TEST_TMPDIR/statuswindow.ran"
+	run StatusWindow "test label" "touch $marker" "TestStatus"
+	[ "$status" -eq 0 ]
+	[ -f "$marker" ]
+	[ ! -s "$BATS_TEST_TMPDIR/yad.calls" ]
+}

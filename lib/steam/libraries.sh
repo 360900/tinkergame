@@ -202,21 +202,12 @@ function OpenWiki {
 export -f OpenWiki
 
 function StatusWindow {
-    TITLE="${PROGNAME}-$3"
-    pollWinRes "$TITLE"
-	writelog "INFO" "${FUNCNAME[0]} - for '$1'"
+	# Loading bars were removed on request: log the status label and run the
+	# wrapped command directly instead of piping it through a yad window
+	writelog "INFO" "${FUNCNAME[0]} - $1"
 
-    RUNFUNC="$2"
-    # wget (and other tools) update their progress in place using carriage
-    # returns - convert them to newlines so the read loop actually sees each
-    # tick instead of staying silent until the very end
-    $RUNFUNC |
-	tr '\r' '\n' |
-    while read -r line; do
-		# truncate: a long progress line widens the dialog past the screen
-		# (the progress label has no ellipsize mode)
-		echo "# ${line:0:60}"
-	done | "$YAD" --window-icon="$STLICON" --title="$TITLE" --on-top --progress --progress-text="$1..." --pulsate --center --no-buttons --auto-close "${WINDECO[@]}" "$GEOM"
+	RUNFUNC="$2"
+	$RUNFUNC
 }
 
 function setColGui {
@@ -286,13 +277,10 @@ function dlCheck {
 			if [ "$DLTITLE" != "$NON" ]; then
 				writelog "INFO" "${FUNCNAME[0]} - $DLTITLE"
 				notiShow "$(strFix "$NOTY_DLCUSTOMPROTON" "$DLDST")" "S"
-			if grep -q "show-progress" <<< "$("$WGET" --help)" && [ "$ONSTEAMDECK" -eq 0 ]; then
-				writelog "INFO" "${FUNCNAME[0]} - '$WGET -q --show-progress $DLSRC -O $DLDST'"
-				"$WGET" -q --show-progress "$DLSRC" -O "$DLDST" 2>&1 | tr '\r' '\n' | sed -u "s:^[[:space:]]*::" | grep -v "SSL_INIT"
-			else
+				# downloads run without a progress bar; keep wget quiet and
+				# only forward real errors (minus the known SSL_INIT noise)
 				writelog "INFO" "${FUNCNAME[0]} - '$WGET -q $DLSRC -O $DLDST'"
-				"$WGET" -q "$DLSRC" -O "$DLDST" 2>&1 | tr '\r' '\n' | sed -u "s:^[[:space:]]*::" | grep -v "SSL_INIT"
-			fi
+				"$WGET" -q "$DLSRC" -O "$DLDST" 2>&1 | grep -v "SSL_INIT"
 			else
 				"$WGET" -q "$DLSRC" -O "$DLDST" 1>/dev/null 2>&1
 			fi
