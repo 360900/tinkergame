@@ -637,6 +637,24 @@ function setGameVortexStaging {
 				HOMEMP="$(df -P "${STLVORTEXDIR%/*}" | awk 'END{print $NF}')"
 				writelog "INFO" "${FUNCNAME[0]} - HOMEMP is $HOMEMP and GAMEMP is $GAMEMP"
 
+				# Prefer a staging dir inside the game's SteamLibrary dir, next
+				# to steamapps: under Wine Vortex compares the virtual volume id
+				# of the game with the one of the staging dir and disables
+				# hardlink deployment ("Works only if mods are installed on the
+				# same drive as the game") when they differ - even when both
+				# dirs are on the same filesystem.  That happens when a staging
+				# dir in ~/.config resolves through a different Wine drive than
+				# the game, e.g. on btrfs where every subvolume has its own
+				# st_dev, or when Proton mapped the Steam library to 's:' but
+				# that mapping does not cover the config dir.  Keeping the
+				# staging dir besides the game makes both resolve identically.
+				# Note: this only applies when no staging dir is configured for
+				# the partition yet (see $VORTEXSTAGELIST above); manually
+				# configured dirs are never overridden.
+				if grep -q "/steamapps/" <<< "$VGAMEDIR"; then
+					getVortexStage "$(awk -F 'steamapps' '{print $1}' <<< "$VGAMEDIR")${VTX^}"
+				fi
+
 				# don't pollute base steam installation with a ~/.steam/steam/Vortex dir, so default to $STLVORTEXDIR/stageing
 				if [ "$GAMEMP" == "$HOMEMP" ]; then
 					getVortexStage "$STLVORTEXDIR/staging"
@@ -644,9 +662,6 @@ function setGameVortexStaging {
 
 				# try in base directory of the partition:
 				getVortexStage "$GAMEMP/${VTX^}"
-
-				# then try in the current SteamLibrary dir besides steamapps, as it should be writeable by the user and is unused from steam(?):
-				getVortexStage "$(awk -F 'steamapps' '{print $1}' <<< "$VGAMEDIR")${VTX^}"
 
 				# updating Vortex config with the new found VORTEXSTAGING dir:
 				touch "$VORTEXSTAGELIST"
@@ -691,12 +706,12 @@ function activateVortexGame {
 	NEXUSGAMEID="$(grep "\"$1\"" "$VORTEXGAMES" | cut -d ';' -f1)"
 	NEXUSGAMEID="${NEXUSGAMEID//\"}"
 	if [ -n "$NEXUSGAMEID" ]; then
-			NEXRAND="$(tr -dc 'a-zA-Z0-9' < /dev/urandom | fold -w 9 | head -n1)" # valid?
 			writelog "INFO" "${FUNCNAME[0]} - Activating game '$NEXUSGAMEID' ($1) in ${VTX^}" "E"
 			setVortSet "settings.mods.activator.$NEXUSGAMEID=\"\\\"hardlink_activator\\\"\""
-			setVortSet "settings.profiles.activeProfileId=\"\\\"$NEXRAND\\\"\""
-			setVortSet "settings.profiles.lastActiveProfile.$NEXUSGAMEID=\"\\\"$NEXRAND\\\"\""
-			setVortSet "settings.profiles.nextProfileId=\"\\\"$NEXRAND\\\"\""
+			# No settings.profiles.* fiddling here: overwriting the profile ids
+			# with random values that don't correspond to any profile made
+			# Vortex fail to activate a profile on the next start.  Profiles are
+			# created and switched by Vortex itself (--game ...).
 			runVortSetCmd
 	else
 		writelog "ERROR" "${FUNCNAME[0]} - No valid  NEXUSGAMEID found for '$1'" "E"

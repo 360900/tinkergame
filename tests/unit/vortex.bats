@@ -1,14 +1,19 @@
 #!/usr/bin/env bash
 # Unit tests for the Vortex integration helper.
 #
-# These cover the two regressions for which Vortex can silently stop
-# working (nxm:// links and game auto-detect):
+# These cover the regressions for which Vortex can silently stop
+# working (nxm:// links, game auto-detect and mod deployment):
 #  1. startVortex "url" must hand Vortex the full nxm:// URL (query string
 #     intact) via `runVortex "-d"`.
 #  2. setVortexConfigVdf must write the modern nested "libraryfolders"
 #     schema (the old flat one Vortex can no longer parse) and register
 #     HKCU\Software\Valve\Steam\SteamPath so Vortex can find its Steam base
 #     folder inside the prefix.
+#  3. setGameVortexStaging must prefer a staging dir inside the game's
+#     Steam library for fresh setups (Vortex only allows hardlink
+#     deployment when game and staging resolve to the same Wine volume)
+#     without overriding already configured stages.
+#  4. activateVortexGame must not invent random profile ids.
 #
 # The Vortex helpers are called inside `set +e` subshells because bats runs
 # tests under errexit while the real script does not; the asserts check the
@@ -291,6 +296,70 @@ EOF
 	grep -Fq '[HKEY_LOCAL_MACHINE\Software\Bethesda Softworks\skyrim]' "$STLSHM/modgames.reg"
 	grep -Fq '"Installed Path"="Z:' "$STLSHM/modgames.reg"
 	if grep -q '\["HKEY' "$STLSHM/modgames.reg"; then
+		return 1
+	fi
+}
+
+@test "setGameVortexStaging: fresh Steam game gets a staging dir inside its library" {
+	export DISABLE_AUTOSTAGES=0
+	export STLVORTEXDIR="$BATS_TEST_TMPDIR/tgcfg/vortex"
+	export NEXUSGAMEID="skyrimvr"
+	export VORTSETCMD="$BATS_TEST_TMPDIR/vortset.cmd"
+	mkdir -p "$STLVORTEXDIR"
+	: >"$VORTSETCMD"
+	: >"$VORTEXSTAGELIST"
+
+	GLIB="$BATS_TEST_TMPDIR/steamlib"
+	GDIR="$GLIB/steamapps/common/SkyrimVR"
+	mkdir -p "$GDIR"
+
+	( set +e
+	  setGameVortexStaging "$GDIR"
+	  printf '%s\n' "$VORTEXSTAGING" >"$BATS_TEST_TMPDIR/staging.txt"
+	)
+
+	[ "$(cat "$BATS_TEST_TMPDIR/staging.txt")" = "$GLIB/Vortex" ]
+	[ -d "$GLIB/Vortex/skyrimvr/mods" ]
+	[ -f "$GLIB/Vortex/skyrimvr/mods/__vortex_staging_folder" ]
+	grep -qF "$GLIB/Vortex" "$VORTEXSTAGELIST"
+	grep -qF "installPath.skyrimvr" "$VORTSETCMD"
+	grep -qF "{GAME}" "$VORTSETCMD"
+}
+
+@test "setGameVortexStaging: a configured stage is not replaced" {
+	export DISABLE_AUTOSTAGES=0
+	export STLVORTEXDIR="$BATS_TEST_TMPDIR/tgcfg/vortex"
+	export NEXUSGAMEID="skyrimvr"
+	export VORTSETCMD="$BATS_TEST_TMPDIR/vortset.cmd"
+	mkdir -p "$STLVORTEXDIR/customstage"
+	: >"$VORTSETCMD"
+	echo "$STLVORTEXDIR/customstage" >"$VORTEXSTAGELIST"
+
+	GLIB="$BATS_TEST_TMPDIR/steamlib"
+	GDIR="$GLIB/steamapps/common/SkyrimVR"
+	mkdir -p "$GDIR"
+
+	( set +e
+	  setGameVortexStaging "$GDIR"
+	  printf '%s\n' "$VORTEXSTAGING" >"$BATS_TEST_TMPDIR/staging2.txt"
+	)
+
+	[ "$(cat "$BATS_TEST_TMPDIR/staging2.txt")" = "$STLVORTEXDIR/customstage" ]
+	if [ -d "$GLIB/Vortex" ]; then
+		return 1
+	fi
+}
+
+@test "activateVortexGame: writes the activator but no profile ids" {
+	export VORTSETCMD="$BATS_TEST_TMPDIR/vortset.cmd"
+	: >"$VORTSETCMD"
+
+	# shellcheck source=/dev/null
+	source "$BATS_TEST_TMPDIR/workarounds.bash"
+	( set +e; activateVortexGame "611670" )
+
+	grep -qF "hardlink_activator" "$VORTSETCMD"
+	if grep -q "settings.profiles" "$VORTSETCMD"; then
 		return 1
 	fi
 }
