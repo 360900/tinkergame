@@ -48,6 +48,14 @@ if ! awk '
 	exit 1
 fi
 
+# 5. uninstall.sh from the checkout is the only uninstall entry point; the
+#    installer must not install the legacy tinkergame-uninstall helper any
+#    more (it may only clean up a stale copy from an older release)
+if grep -nE '^[[:space:]]*install[[:space:]].*tinkergame-uninstall' Makefile install.sh; then
+	printf '%s\n' 'legacy tinkergame-uninstall helper is still installed' >&2
+	exit 1
+fi
+
 # ShellCheck: default to the same options CI uses (extended analysis is very
 # slow on large codebases and its extra checks differ between ShellCheck
 # versions). Set SHELLCHECK_OPTIONS="" to run the full analysis locally.

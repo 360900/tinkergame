@@ -17,15 +17,16 @@ PURGE=0
 ASSUME_YES=0
 CUSTOM_PREFIX=""
 
-# set to the real install prefix by 'make install' - it is scanned in
-# addition to the standard locations below
+# extra prefix scanned in addition to the standard locations below
+# ('make uninstall' passes its PREFIX via --prefix=DIR instead)
 INSTALL_PREFIX="/usr"
 
 usage() {
-	printf '%s\n' "Usage: tinkergame-uninstall [--purge] [--yes] [--prefix=DIR]"
+	printf '%s\n' "Usage: ./uninstall.sh [--purge] [--yes] [--prefix=DIR]"
 	printf '%s\n' ""
-	printf '%s\n' "Removes every TinkerGame installation (user and system) and its Steam"
-	printf '%s\n' "compatibility-tool registration."
+	printf '%s\n' "Run this from a TinkerGame checkout. It removes every TinkerGame"
+	printf '%s\n' "installation it finds (user and system) and the Steam compatibility-tool"
+	printf '%s\n' "registration."
 	printf '%s\n' ""
 	printf '%s\n' "  --purge        Also remove TinkerGame settings, cache, downloaded tools,"
 	printf '%s\n' "                 game data and runtime menu entries"
@@ -76,6 +77,8 @@ prefix_has_install() {
 remove_prefix() {
 	printf 'Removing TinkerGame from %s\n' "$1"
 	rm_path "$1/bin/tinkergame"
+	# older releases installed their uninstaller helper here as well - remove
+	# it so they can't be uninstalled via a stale script any more
 	rm_path "$1/bin/tinkergame-uninstall"
 	rm_path "$1/share/applications/tinkergame.desktop"
 	rm_path "$1/share/icons/hicolor/scalable/apps/tinkergame.svg"

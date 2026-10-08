@@ -97,24 +97,21 @@ make PREFIX=/usr DESTDIR="$PWD/pkg" install
 An Arch Linux package recipe is provided at
 [`packaging/arch/PKGBUILD`](packaging/arch/PKGBUILD).
 
-To uninstall, run the uninstaller - it scans the usual install locations
-(user and system), removes every TinkerGame installation it finds, and also
-removes the Steam compatibility-tool registration:
+To uninstall, run the uninstaller from this checkout - it scans the usual
+install locations (user and system), removes every TinkerGame installation it
+finds, and also removes the Steam compatibility-tool registration:
 
 ```sh
-tinkergame-uninstall
-# or, for a system installation:
-sudo tinkergame-uninstall
+./uninstall.sh
 ```
 
 The default keeps your settings, cache, downloaded tools, and game data. Add
 `--purge` to remove those as well, and `--yes` to skip the confirmation
-prompt. If the uninstaller lives outside your `PATH`, run it from the
-repository instead:
+prompt. If system files are not writable by your user, rerun it with `sudo`.
 
-```sh
-bash uninstall.sh --purge
-```
+Older releases also installed a `tinkergame-uninstall` command; current
+releases no longer ship it. Use `./uninstall.sh` instead - it removes a
+leftover helper from old installations as well.
 
 ## Use With Steam
 

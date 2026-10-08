@@ -95,6 +95,16 @@ if [ -n "$DESTDIR_ARG" ]; then
 	exit 0
 fi
 
+# Older releases installed a second helper ('tinkergame-uninstall') next to
+# the entry point. It is no longer shipped; drop a stale copy if one is left.
+if [ -e "$BINDIR/tinkergame-uninstall" ]; then
+	if rm -f "$BINDIR/tinkergame-uninstall" 2>/dev/null; then
+		echo "Removed the legacy '$BINDIR/tinkergame-uninstall' helper."
+	else
+		echo "note: could not remove the legacy '$BINDIR/tinkergame-uninstall' - remove it with sudo"
+	fi
+fi
+
 echo ""
 echo "TinkerGame installed ('$BINDIR/tinkergame')."
 case ":$PATH:" in
@@ -111,6 +121,6 @@ Next steps:
      Native games: use the launch option 'tinkergame %command%'.
   3. Explore the per-game menu at runtime or run 'tinkergame help'.
 
-Uninstall anytime with 'tinkergame-uninstall' (add --purge to also remove
-settings and data).
+Uninstall anytime with './uninstall.sh' from this checkout (add --purge to
+also remove settings and data).
 EOF

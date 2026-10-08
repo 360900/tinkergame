@@ -40,9 +40,6 @@ install:
 	@tmp="$$(mktemp)"; trap 'rm -f "$$tmp"' EXIT; \
 		sed "s:^PREFIX=\"/usr\":PREFIX=\"$(PREFIX)\":" tinkergame > "$$tmp"; \
 		install -Dm755 "$$tmp" "$(DESTDIR)$(PREFIX)/bin/tinkergame"
-	@tmp="$$(mktemp)"; trap 'rm -f "$$tmp"' EXIT; \
-		sed "s:^INSTALL_PREFIX=\"/usr\":INSTALL_PREFIX=\"$(PREFIX)\":" uninstall.sh > "$$tmp"; \
-		install -Dm755 "$$tmp" "$(DESTDIR)$(PREFIX)/bin/tinkergame-uninstall"
 
 	install -d "$(DESTDIR)$(PREFIX)/share/tinkergame"
 	cp -r collections data eval guicfgs lang misc lib "$(DESTDIR)$(PREFIX)/share/tinkergame"
