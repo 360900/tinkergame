@@ -725,6 +725,12 @@ function verbRun {
 
 function getCurrentCommandline {
 	echo "$@" >> "${STLSHM}/cmdline.txt"
+	# Default to "no Proton on the incoming command line"; the ISCRI and %verb%
+	# branches below never set it, but consumers (createDefaultCfgs,
+	# initFirstProton, ...) compare it numerically - an empty value made bash
+	# print '[: : integer expected' into Steam's journal on every install
+	# script evaluator run.
+	HAVEINPROTON=0
 	# filter $ISCRI commands
 	if grep -q "$ISCRI" <<< "$@"; then
 		while read -r IARG; do
