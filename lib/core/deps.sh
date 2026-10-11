@@ -63,7 +63,14 @@ function checkIntDeps {
 				writelog "INFO" "${FUNCNAME[0]} - Result of version check for yad binary '$YAD' is '$YADVER'"
 			fi
 
-			if [ "$(printf '%s\n' "$MINYAD" "$YADVER" | sort -V | head -n1)" != "$MINYAD" ]; then
+			if [ -z "$YADVER" ]; then
+				# yad is installed but would not report a version. That happens when it
+				# is started before the display is ready -- a systemd user unit at login
+				# gets a DISPLAY that does not answer yet, yad exits, and the probe
+				# reads back nothing. "Could not determine" is not "too old", and
+				# treating it as such aborts commands that never open a window.
+				writelog "WARN" "${FUNCNAME[0]} - Could not read a version from yad '$YAD' - continuing without the version check" "E"
+			elif [ "$(printf '%s\n' "$MINYAD" "$YADVER" | sort -V | head -n1)" != "$MINYAD" ]; then
 				writelog "ERROR" "${FUNCNAME[0]} - Yad version '$YADVER' is too old. You need to update to at least '$MINYAD'" "E"
 				notiShow "$(strFix "$NOTY_NOTFOUND2" "$YADVER" "$MINYAD")"
 				if ! isHelpOrVersionArg "$1"; then
