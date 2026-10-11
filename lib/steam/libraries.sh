@@ -202,12 +202,28 @@ function OpenWiki {
 export -f OpenWiki
 
 function StatusWindow {
-	# Loading bars were removed on request: log the status label and run the
-	# wrapped command directly instead of piping it through a yad window
-	writelog "INFO" "${FUNCNAME[0]} - $1"
+	TITLE="${PROGNAME}-$3"
+	pollWinRes "$TITLE"
+	writelog "INFO" "${FUNCNAME[0]} - for '$1'"
 
 	RUNFUNC="$2"
+
+	# No progress bar, but the task must stay visible: show the status text in
+	# a plain window while the command runs and close it again when the
+	# command returns, so long downloads/installs are not mistaken for a
+	# freeze.  --no-markup keeps '&' and friends in game/tool names from
+	# breaking pango parsing.
+	"$YAD" --window-icon="$STLICON" --title="$TITLE" --on-top --no-markup --no-buttons --center \
+		--text="$1..." "${WINDECO[@]}" "$GEOM" &
+	STATUSWINPID="$!"
+
 	$RUNFUNC
+	STATUSRC=$?
+
+	kill "$STATUSWINPID" 2>/dev/null || :
+	wait "$STATUSWINPID" 2>/dev/null || :
+
+	return "$STATUSRC"
 }
 
 function setColGui {

@@ -78,15 +78,40 @@ setup() {
 	fi
 }
 
-@test "StatusWindow: runs the command without opening a yad window" {
+@test "StatusWindow: shows a bar-less status window while the command runs" {
 	YAD="$BATS_TEST_TMPDIR/fakeyad"
-	printf '#!/bin/sh\necho "fake yad $*" >> "%s"\n' "$BATS_TEST_TMPDIR/yad.calls" >"$YAD"
+	cat >"$YAD" <<'EOF'
+#!/bin/sh
+printf '%s\n' "$*" >>"$FAKEYAD_CALLS"
+echo $$ >"$FAKEYAD_PID"
+# stay open like a real dialog until the caller closes us
+while :; do sleep 0.2; done
+EOF
 	chmod +x "$YAD"
-	: >"$BATS_TEST_TMPDIR/yad.calls"
+
+	export FAKEYAD_CALLS="$BATS_TEST_TMPDIR/yad.calls"
+	export FAKEYAD_PID="$BATS_TEST_TMPDIR/yad.pid"
+	: >"$FAKEYAD_CALLS"
+
+	# window geometry handling is not what this test covers
+	pollWinRes() { :; }
 
 	local marker="$BATS_TEST_TMPDIR/statuswindow.ran"
-	run StatusWindow "test label" "touch $marker" "TestStatus"
+	local helper="$BATS_TEST_TMPDIR/slowcmd"
+	printf '#!/bin/sh\nsleep 0.4\ntouch "%s"\n' "$marker" >"$helper"
+	chmod +x "$helper"
+
+	run StatusWindow "Downloading test thing" "$helper" "TestStatus"
+
 	[ "$status" -eq 0 ]
 	[ -f "$marker" ]
-	[ ! -s "$BATS_TEST_TMPDIR/yad.calls" ]
+	grep -qF -- "Downloading test thing..." "$FAKEYAD_CALLS"
+	grep -q -- "--no-buttons" "$FAKEYAD_CALLS"
+	if grep -qE -- "--progress|--pulsate" "$FAKEYAD_CALLS"; then
+		return 1
+	fi
+	# the status window must be closed again once the command returned
+	if kill -0 "$(cat "$FAKEYAD_PID")" 2>/dev/null; then
+		return 1
+	fi
 }
