@@ -143,3 +143,38 @@ EOF
 	[[ "$output" == *"GE-Proton11-7-x86_64.tar.gz"* ]]
 	[[ "$output" != *"aarch64"* ]]
 }
+
+@test "dlCustomProtonGUI: opens a list window with the Proton versions" {
+	# window geometry, the status window and the post-download list refresh
+	# are not what this test covers
+	pollWinRes() { :; }
+	StatusWindow() { printf '%s\n' "$*" >>"$STATUSWIN_CALLS"; }
+	createProtonList() { :; }
+
+	mkdir -p "$BATS_TEST_TMPDIR/bin"
+	# quoted heredoc: $FAKEYAD_CALLS must stay literal until yad runs
+	cat > "$BATS_TEST_TMPDIR/bin/yad" <<'EOF'
+#!/bin/sh
+printf '%s\n' "$@" >>"$FAKEYAD_CALLS"
+head -n1
+EOF
+	chmod +x "$BATS_TEST_TMPDIR/bin/yad"
+	export FAKEYAD_CALLS="$BATS_TEST_TMPDIR/yad.calls"
+	: >"$FAKEYAD_CALLS"
+	export STATUSWIN_CALLS="$BATS_TEST_TMPDIR/statuswin.calls"
+	: >"$STATUSWIN_CALLS"
+	export YAD="$BATS_TEST_TMPDIR/bin/yad"
+
+	run createDLProtList
+	run dlCustomProtonGUI
+
+	[ "$status" -eq 0 ]
+	# the dialog must be a list window (not a combobox) so the grab can't be
+	# lost when the mouse is released
+	grep -q -- "--list" "$FAKEYAD_CALLS"
+	grep -q -- "--column" "$FAKEYAD_CALLS"
+	grep -q -- "--print-column=1" "$FAKEYAD_CALLS"
+	# the selected Proton version (first line of the list) is used downstream
+	# to resolve the download URL
+	grep -q -- "GE-Proton11-7-x86_64.tar.gz" "$STATUSWIN_CALLS"
+}

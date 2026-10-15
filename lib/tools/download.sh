@@ -225,20 +225,15 @@ function dlCustomProtonGUI {
 	TITLE="${PROGNAME}-DownloadCustomProton"
 	pollWinRes "$TITLE"
 
-	if [ -z "$DLPROTON" ]; then
-		DLPROTON="$(printf "%s\n" "${ProtonDLDispList[@]}" | pickHostProton)"
-	fi
-
 	if [ -z "$DLPROTLIST" ]; then
 		writelog "ERROR" "${FUNCNAME[0]} - Empty download list - is '$JQ' installed and are we online?"
 		notiShow "$GUI_EMPTYDLIST" "X"
 	fi
 
-	DLDISPCUSTPROT="$("$YAD" --f1-action="$F1ACTION" --window-icon="$STLICON" --form --center --on-top "${WINDECO[@]}" \
+	DLDISPCUSTPROT="$(printf '%s\n' "${ProtonDLDispList[@]}" | "$YAD" --f1-action="$F1ACTION" --window-icon="$STLICON" --center --on-top "${WINDECO[@]}" \
+	--list --column="$GUI_USEPROTON" --separator="" --print-column="1" \
 	--title="$TITLE" \
 	--text="$(spanFont "$GUI_DLCUSTPROTTEXT" "H")" \
-	--field=" ":LBL " " --separator="" \
-	--field="$GUI_DLCUSTPROTTEXT2!$GUI_DLCUSTPROTTEXT":CBE "$(cleanDropDown "${DLPROTON/#-/ -}" "$DLPROTLIST")" \
 	"$GEOM"
 	)"
 
