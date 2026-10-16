@@ -202,11 +202,10 @@ function OpenWiki {
 export -f OpenWiki
 
 function StatusWindow {
-	TITLE="${PROGNAME}-$3"
+	local TITLE="${PROGNAME}-$3"
+	local RUNFUNC="$2" STATUSWINPID STATUSRC=0
 	pollWinRes "$TITLE"
 	writelog "INFO" "${FUNCNAME[0]} - for '$1'"
-
-	RUNFUNC="$2"
 
 	# No progress bar, but the task must stay visible: show the status text in
 	# a plain window while the command runs and close it again when the
@@ -217,8 +216,15 @@ function StatusWindow {
 		--text="$1..." "${WINDECO[@]}" "$GEOM" &
 	STATUSWINPID="$!"
 
-	$RUNFUNC
-	STATUSRC=$?
+	if [ "$#" -gt 3 ]; then
+		# New callers pass the command and its arguments separately.
+		shift 3
+		"$RUNFUNC" "$@" || STATUSRC=$?
+	else
+		# Keep the legacy command-string interface for existing callers.
+		# shellcheck disable=SC2086
+		$RUNFUNC || STATUSRC=$?
+	fi
 
 	kill "$STATUSWINPID" 2>/dev/null || :
 	wait "$STATUSWINPID" 2>/dev/null || :
@@ -257,66 +263,83 @@ function setColGui {
 }
 export -f setColGui
 
-function dlCheck {
-	function chkFile {
-		if [ "$FLCHK" == "stat" ]; then
-			ISCHK="$("$FLCHK" -c%s "$DLDST" | cut -d ' ' -f1)"
-		else
-			ISCHK="$("$FLCHK" "$DLDST" | cut -d ' ' -f1)"
-		fi
-		CHKTXT="$(strFix "$NOTY_CHK" "$FLCHK" "$DLDST")"
+# Verify one file. Keep the command status instead of masking it with a pipe.
+function chkFile {
+	local FLCHK="$1" DLDST="$2" INCHK="$3" ISCHK CHKTXT
+	if [ ! -f "$DLDST" ] || [ -z "$INCHK" ] || [ "$INCHK" == "$NON" ]; then
+		writelog "ERROR" "${FUNCNAME[0]} - Missing file or expected checksum for '$DLDST'"
+		return 1
+	fi
+	CHKTXT="$(strFix "$NOTY_CHK" "$FLCHK" "$DLDST")"
+	writelog "INFO" "${FUNCNAME[0]} - $CHKTXT"
+	notiShow "$CHKTXT" "S"
+
+	if [ "$FLCHK" == "stat" ]; then
+		ISCHK="$("$FLCHK" -c%s "$DLDST")" || return 1
+	else
+		ISCHK="$("$FLCHK" "$DLDST")" || return 1
+	fi
+	ISCHK="${ISCHK%% *}"
+	if [ -n "$ISCHK" ] && [ "$ISCHK" == "$INCHK" ]; then
+		CHKTXT="$(strFix "$NOTY_CHKOK" "$FLCHK" "${DLDST##*/}" "$ISCHK")"
 		writelog "INFO" "${FUNCNAME[0]} - $CHKTXT"
 		notiShow "$CHKTXT" "S"
+		return 0
+	fi
+	CHKTXT="$(strFix "$NOTY_CHKNOK" "${DLDST##*/}" "$ISCHK" "$INCHK")"
+	writelog "WARN" "${FUNCNAME[0]} - $CHKTXT"
+	notiShow "$CHKTXT" "S"
+	return 1
+}
 
-		if [ "$ISCHK" == "$INCHK" ];then
-			CHKTXT="$(strFix "$NOTY_CHKOK" "$FLCHK" "${DLDST##*/}" "$ISCHK")"
-			writelog "INFO" "${FUNCNAME[0]} - $CHKTXT"
-			notiShow "$CHKTXT" "S"
-		else
-			CHKTXT="$(strFix "$NOTY_CHKNOK" "${DLDST##*/}" "$ISCHK" "$INCHK")"
-			writelog "WARN" "${FUNCNAME[0]} - $CHKTXT"
-			notiShow "$CHKTXT" "S"
-		fi
-		sleep 2
-	}
-
-	DLSRC="$1"
-	DLDST="$2"
-	FLCHK="$3"
-	DLTITLE="$4"
-	INCHK="$5"
-
-	if [ "$FLCHK" != "C" ]; then
-		if [ -f "$DLDST" ] && [ "$FLCHK" != "X" ]; then
-			chkFile
-		else
-			if [ "$DLTITLE" != "$NON" ]; then
-				writelog "INFO" "${FUNCNAME[0]} - $DLTITLE"
-				notiShow "$(strFix "$NOTY_DLCUSTOMPROTON" "$DLDST")" "S"
-				# downloads run without a progress bar; keep wget quiet and
-				# only forward real errors (minus the known SSL_INIT noise)
-				writelog "INFO" "${FUNCNAME[0]} - '$WGET -q $DLSRC -O $DLDST'"
-				"$WGET" -q "$DLSRC" -O "$DLDST" 2>&1 | grep -v "SSL_INIT"
-			else
-				"$WGET" -q "$DLSRC" -O "$DLDST" 1>/dev/null 2>&1
-			fi
-		fi
-	else
-		FLCHK="$1"
-		DLDST="$2"
-		INCHK="$4"
+function dlCheck {
+	local DLSRC="$1" DLDST="$2" FLCHK="${3:-X}" DLTITLE="${4:-}" INCHK="${5:-}"
+	local DLTMP DLRC=0
+	if [ "$FLCHK" == "C" ]; then
 		writelog "INFO" "${FUNCNAME[0]} - Only checking already downloaded file '$DLDST'"
-		chkFile
+		chkFile "$DLSRC" "$DLDST" "$DLTITLE"
+		return $?
 	fi
-
-	if [ -n "$INCHK" ] && [ "$INCHK" != "$NON" ]; then
-		if [ "$FLCHK" == "X" ]; then
-			notiShow "$(strFix "$NOTY_DLCUSTOMPROTON2" "$DLDST")" "S"
-			writelog "INFO" "${FUNCNAME[0]} - $(strFix "$NOTY_DLCUSTOMPROTON2" "$DLDST")"
-		elif [ "$FLCHK" != "C" ]; then
-			chkFile
+	if [ "$FLCHK" != "X" ]; then
+		if [ -z "$INCHK" ] || [ "$INCHK" == "$NON" ]; then
+			writelog "ERROR" "${FUNCNAME[0]} - No expected '$FLCHK' checksum for '$DLDST'"
+			return 1
+		fi
+		if [ -s "$DLDST" ]; then
+			chkFile "$FLCHK" "$DLDST" "$INCHK"
+			return $?
 		fi
 	fi
+
+	# Publish only complete, verified downloads. A failed replacement must not
+	# truncate a previous cache, and a partial file must not become that cache.
+	DLTMP="$(mktemp "${DLDST}.part.XXXXXX")" || return 1
+	if [ "$DLTITLE" != "$NON" ]; then
+		writelog "INFO" "${FUNCNAME[0]} - $DLTITLE"
+		notiShow "$(strFix "$NOTY_DLCUSTOMPROTON" "$DLDST")" "S"
+		writelog "INFO" "${FUNCNAME[0]} - '$WGET -q $DLSRC -O $DLDST'"
+		"$WGET" -q "$DLSRC" -O "$DLTMP" 2> >(grep -v "SSL_INIT" >&2) || DLRC=$?
+	else
+		"$WGET" -q "$DLSRC" -O "$DLTMP" >/dev/null 2>&1 || DLRC=$?
+	fi
+	if [ "$DLRC" -ne 0 ] || [ ! -s "$DLTMP" ]; then
+		writelog "ERROR" "${FUNCNAME[0]} - Download of '$DLSRC' failed (wget status $DLRC)"
+		rm -f -- "$DLTMP"
+		[ "$DLRC" -ne 0 ] || DLRC=1
+		return "$DLRC"
+	fi
+	if [ "$FLCHK" != "X" ] && ! chkFile "$FLCHK" "$DLTMP" "$INCHK"; then
+		rm -f -- "$DLTMP"
+		return 1
+	fi
+	if ! mv -f -- "$DLTMP" "$DLDST"; then
+		rm -f -- "$DLTMP"
+		return 1
+	fi
+	if [ "$DLTITLE" != "$NON" ]; then
+		notiShow "$(strFix "$NOTY_DLCUSTOMPROTON2" "$DLDST")" "S"
+	fi
+	return 0
 }
 
 function getGamePic {
@@ -1533,4 +1556,3 @@ function createCollectionList {
 	}
 	CATLIST="$(listCAT | sort -u | tr '\n' '!' | sed "s:^!::" | sed "s:!$::")"
 }
-

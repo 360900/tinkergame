@@ -738,10 +738,10 @@ function switchProton {
 		if [ "$AUTOPULLPROTON" -eq 1 ]; then
 			writelog "INFO" "${FUNCNAME[0]} - AUTOPULLPROTON is enabled, so trying to download and enable '$1'"
 			createDLProtList
-			DLURL="$(printf "%s\n" "${ProtonDLList[@]}" | grep -m1 "$1")"
+			DLURL="$(printf "%s\n" "${ProtonDLList[@]}" | resolveProtonDownloadURL "$1")"
 			if [ -n "$DLURL" ]; then
 				writelog "INFO" "${FUNCNAME[0]} - Download for requested '$1' found: '$DLURL'"
-				StatusWindow "$(dlCustProtonStatusText "${DLURL//|/\"}")" "dlCustomProton ${DLURL//|/\"}" "DownloadCustomProtonStatus"
+				StatusWindow "$(dlCustProtonStatusText "$DLURL")" dlCustomProton "DownloadCustomProtonStatus" "$DLURL"
 			else
 				writelog "SKIP" "${FUNCNAME[0]} - No download URL found for requested '$1' - skipping"
 			fi

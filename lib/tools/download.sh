@@ -23,102 +23,130 @@ function dlCustProtonStatusText {
 }
 
 function dlCustomProton {
-	if [[ -n "$CUPROTOCOMPAT" && "$CUPROTOCOMPAT" -eq 1 ]]; then
+	local CPURL="${1//\"/}" CPURLFILE DSTDL CUPROEXTDIR PROTNAME
+	local DLCHK=X INCHK="$NON" CHKDATA ARCHIVEFILES ENTRY PROTRELPATH=""
+	local PROTDIR PROTFULLPATH EXTSTAGE STAGEDTOOL DLRC
+	if ! [[ "$CPURL" =~ ^https?://[^[:space:]]+$ ]]; then
+		writelog "ERROR" "${FUNCNAME[0]} - Invalid download URL '$CPURL'"
+		return 1
+	fi
+	CPURLFILE="${CPURL##*/}"
+	case "$CPURLFILE" in
+		*.tar.gz) PROTNAME="${CPURLFILE%.tar.gz}" ;;
+		*.tar.xz) PROTNAME="${CPURLFILE%.tar.xz}" ;;
+		*.zip) PROTNAME="${CPURLFILE%.zip}" ;;
+		*) writelog "ERROR" "${FUNCNAME[0]} - Unsupported Proton archive '$CPURLFILE'"; return 1 ;;
+	esac
+	if [ -z "$PROTNAME" ] || [ "$PROTNAME" == . ] || [ "$PROTNAME" == .. ]; then
+		return 1
+	fi
+	if [ "${CUPROTOCOMPAT:-0}" -eq 1 ]; then
 		CUPROEXTDIR="$STEAMCOMPATOOLS"
 	else
 		CUPROEXTDIR="$CUSTPROTEXTDIR"
 	fi
-
-	CPURL="${1//\"/}"
-	CPURLFILE="${CPURL##*/}"
 	DSTDL="$CUSTPROTDLDIR/$CPURLFILE"
-	if [ ! -f "$DSTDL" ]; then
-		notiShow "$(strFix "$NOTY_DLCUSTOMPROTON" "$CPURL")" "S"
-		DLCHK="X"
-		INCHK="$NON"
-		# only "-STL" and "GE" proton have a sha512sum
-		if grep -q "\-GE" <<< "$CPURLFILE" || grep -q "GE-" <<< "$CPURLFILE" || grep -q "\-STL" <<< "$CPURLFILE"; then
-			DLCHK="sha512sum"
-			INCHK="$("$WGET" -q "${CPURL%%.tar*}.${DLCHK}" -O - 2> >(grep -v "SSL_INIT") | cut -d ' ' -f1)"
-		fi
-		dlCheck "$CPURL" "$DSTDL" "$DLCHK" "Downloading '$CPURL' to '$CUSTPROTDLDIR'" "$INCHK"
+	mkProjDir "$CUSTPROTDLDIR" || return 1
+	mkProjDir "$CUPROEXTDIR" || return 1
+
+	# Fetch and validate the expected digest once, for new and cached archives.
+	case "$CPURLFILE" in
+		*-GE*|GE-*|*-STL*)
+			DLCHK=sha512sum
+			CHKDATA="$("$WGET" -q "${CPURL%.*.*}.${DLCHK}" -O - 2> >(grep -v "SSL_INIT" >&2))" || return $?
+			read -r INCHK _ <<< "$CHKDATA"
+			if ! [[ "$INCHK" =~ ^[[:xdigit:]]{128}$ ]]; then
+				writelog "ERROR" "${FUNCNAME[0]} - Missing or invalid '$DLCHK' checksum for '$CPURLFILE'"
+				return 1
+			fi
+			INCHK="${INCHK,,}"
+			;;
+	esac
+	if [ ! -s "$DSTDL" ]; then
+		dlCheck "$CPURL" "$DSTDL" "$DLCHK" "Downloading '$CPURL' to '$CUSTPROTDLDIR'" "$INCHK" || return $?
 	else
 		writelog "INFO" "${FUNCNAME[0]} - File '$DSTDL' already exists - nothing to download"
-		if [ -z "$2" ]; then
+		if [ "$DLCHK" != X ]; then
+			dlCheck "$DLCHK" "$DSTDL" C "$INCHK" || return $?
+		fi
+		if [ -z "${2:-}" ]; then
 			notiShow "$(strFix "$NOTY_DLCUSTOMPROTON4" "$CPURLFILE")"
 		fi
 	fi
 
-	PROTNAMERAW="${CPURLFILE%%.tar*}"
-	PROTNAME="${PROTNAMERAW//.zip/}"
-	if [ -d "$CUPROEXTDIR/$PROTNAME" ]; then
-		writelog "INFO" "${FUNCNAME[0]} - directory '$CUPROEXTDIR/$PROTNAME' already exists - nothing to extract"
+	notiShow "$(strFix "$NOTY_DLCUSTOMPROTON5" "$CPURLFILE")" "S"
+	case "$CPURLFILE" in
+		*.tar.*) ARCHIVEFILES="$("$TAR" -tf "$DSTDL")" || return $? ;;
+		*.zip) ARCHIVEFILES="$("$UNZIP" -Z1 "$DSTDL")" || return $? ;;
+	esac
+	while IFS= read -r ENTRY; do
+		while [[ "$ENTRY" == ./* ]]; do ENTRY="${ENTRY#./}"; done
+		# Refuse traversal and ambiguous layouts rather than installing outside
+		# the chosen tool directory or registering the wrong proton executable.
+		case "$ENTRY" in
+			/*|..|../*|*/../*|*/..)
+				writelog "ERROR" "${FUNCNAME[0]} - Unsafe archive path '$ENTRY'"
+				return 1 ;;
+		esac
+		case "$ENTRY" in
+			proton|*/proton)
+				if [ -n "$PROTRELPATH" ]; then
+					writelog "ERROR" "${FUNCNAME[0]} - Archive contains multiple proton files"
+					return 1
+				fi
+				PROTRELPATH="$ENTRY" ;;
+		esac
+	done <<< "$ARCHIVEFILES"
+	if [ -z "$PROTRELPATH" ]; then
+		notiShow "$(strFix "$NOTY_DLCUSTOMPROTON6" "$DSTDL")" "S"
+		writelog "ERROR" "${FUNCNAME[0]} - Archive does not contain a 'proton' file"
+		return 1
+	fi
+	if [ "$PROTRELPATH" == proton ]; then
+		PROTDIR="$PROTNAME"
+		PROTFULLPATH="$CUPROEXTDIR/$PROTDIR/proton"
 	else
-		# only "-STL" and "GE" proton have a sha512sum
-		if grep -q "\-GE" <<< "$CPURLFILE" || grep -q "GE-" <<< "$CPURLFILE" || grep -q "\-STL" <<< "$CPURLFILE"; then
-			DLCHK="sha512sum"
-			writelog "INFO" "${FUNCNAME[0]} - checking if the checksum of the already downloaded file is correct '${CPURL%%.tar*}.${DLCHK}'"
-			INCHK="$("$WGET" -q "${CPURL%%.tar*}.${DLCHK}" -O - 2> >(grep -v "SSL_INIT") | cut -d ' ' -f1)"
-			dlCheck "$DLCHK" "$DSTDL" "C" "$INCHK"
-		fi
-
-		if grep -q "\.tar\." <<< "$DSTDL"; then
-			notiShow "$(strFix "$NOTY_DLCUSTOMPROTON5" "$CPURLFILE")" "S"
-
-			PROTRELPATH="$("$TAR" -tf "$DSTDL" 2>/dev/null | grep "proton$" 2>/dev/null )"
-			if [ -n "$PROTRELPATH" ]; then
-				if grep -q "^proton$" <<< "$PROTRELPATH"; then
-					EXTDEST="$CUPROEXTDIR/$PROTNAME"
-					PROTFULLPATH="$EXTDEST/$PROTRELPATH"
-					writelog "INFO" "${FUNCNAME[0]} - Archive is a tarbomb - creating parent directory '$EXTDEST' as extract dest dir"
-					mkProjDir "$EXTDEST"
-				else
-					writelog "INFO" "${FUNCNAME[0]} - Archive contains proton in subdirectory '$PROTRELPATH'"
-					PROTFULLPATH="$CUPROEXTDIR/$PROTRELPATH"
-					EXTDEST="$CUPROEXTDIR"
-				fi
-
-				if [ -f "$PROTFULLPATH" ]; then
-					writelog "SKIP" "${FUNCNAME[0]} - The destination path '$PROTFULLPATH' already exists - looks like '$DSTDL' was already extracted before"
-				else
-					notiShow "$(strFix "$NOTY_DLCUSTOMPROTON3" "$CPURL")" "S"
-					"$TAR" xf "$DSTDL" -C "$EXTDEST" 2>/dev/null
-					getAvailableProtonVersions "up"
-					touch "$PROTBUMPTEMP"
-				fi
-			else
-				notiShow "$(strFix "$NOTY_DLCUSTOMPROTON6" "$DSTDL")" "S"
-				writelog "SKIP" "${FUNCNAME[0]} - Archive doesn't seem to contain a 'proton' file"
-			fi
-		elif grep -q "\.zip$" <<< "$DSTDL"; then
-			if grep -q "proton$" <<< "$("$UNZIP" -l "$DSTDL" 2>/dev/null)"; then
-				writelog "INFO" "${FUNCNAME[0]} - Archive contains proton"
-				SUBDIR="$(basename "${DSTDL//.zip/}")"
-				PROTRELPATH="$SUBDIR/proton"
-				PROTFULLPATH="$CUPROEXTDIR/$PROTRELPATH"
-				if [ -f "$PROTFULLPATH" ]; then
-					writelog "SKIP" "${FUNCNAME[0]} - The destination path '$PROTFULLPATH' already exists - looks like '$DSTDL' was already extracted before"
-				else
-					notiShow "$(strFix "$NOTY_DLCUSTOMPROTON3" "$CPURL")" "S"
-					"$UNZIP" "$DSTDL" -d "$CUPROEXTDIR/$SUBDIR" 2>/dev/null
-					getAvailableProtonVersions "up"
-					touch "$PROTBUMPTEMP"
-					notiShow "$GUI_DONE" "S"
-				fi
-			else
-				notiShow "$(strFix "$NOTY_DLCUSTOMPROTON6" "$CPURL")" "S"
-				writelog "SKIP" "${FUNCNAME[0]} - Archive doesn't seem to contain a 'proton' file"
-			fi
-		else
-			writelog "SKIP" "${FUNCNAME[0]} - Don't know how to extract "
-		fi
+		PROTDIR="${PROTRELPATH%%/*}"
+		PROTFULLPATH="$CUPROEXTDIR/$PROTRELPATH"
 	fi
-
-	rm "$PROTONCSV" 2>/dev/null
-
 	if [ -f "$PROTFULLPATH" ]; then
-		addCustomProtonToList "$PROTFULLPATH"
+		writelog "SKIP" "${FUNCNAME[0]} - Proton already installed under '$PROTFULLPATH'"
+	elif [ -e "$CUPROEXTDIR/$PROTDIR" ] || [ -L "$CUPROEXTDIR/$PROTDIR" ]; then
+		writelog "ERROR" "${FUNCNAME[0]} - Incomplete destination '$CUPROEXTDIR/$PROTDIR' exists - leaving it untouched"
+		return 1
+	else
+		# Extract on the destination filesystem, then publish the tool only after
+		# the extractor succeeds. Failed extraction cannot leave an installed tool.
+		EXTSTAGE="$(mktemp -d "$CUPROEXTDIR/.proton-install.XXXXXX")" || return 1
+		notiShow "$(strFix "$NOTY_DLCUSTOMPROTON3" "$CPURL")" "S"
+		DLRC=0
+		case "$CPURLFILE" in
+			*.tar.*) "$TAR" xf "$DSTDL" -C "$EXTSTAGE" || DLRC=$? ;;
+			*.zip) "$UNZIP" -q "$DSTDL" -d "$EXTSTAGE" || DLRC=$? ;;
+		esac
+		if [ "$DLRC" -ne 0 ] || [ ! -f "$EXTSTAGE/$PROTRELPATH" ]; then
+			writelog "ERROR" "${FUNCNAME[0]} - Extraction of '$DSTDL' failed"
+			rm -rf -- "$EXTSTAGE"
+			[ "$DLRC" -ne 0 ] || DLRC=1
+			return "$DLRC"
+		fi
+		if [ "$PROTRELPATH" == proton ]; then
+			STAGEDTOOL="$EXTSTAGE"
+		else
+			STAGEDTOOL="$EXTSTAGE/$PROTDIR"
+		fi
+		if ! mv -T -- "$STAGEDTOOL" "$CUPROEXTDIR/$PROTDIR"; then
+			rm -rf -- "$EXTSTAGE"
+			return 1
+		fi
+		if [ "$STAGEDTOOL" != "$EXTSTAGE" ]; then
+			rm -rf -- "$EXTSTAGE"
+		fi
+		getAvailableProtonVersions "up"
+		touch "$PROTBUMPTEMP"
 	fi
+	rm -f -- "$PROTONCSV"
+	addCustomProtonToList "$PROTFULLPATH"
 }
 
 # Map 'uname -m' to the architecture suffix custom Proton archives use.
@@ -230,25 +258,55 @@ function dlCustomProtonGUI {
 		notiShow "$GUI_EMPTYDLIST" "X"
 	fi
 
-	DLDISPCUSTPROT="$(printf '%s\n' "${ProtonDLDispList[@]}" | "$YAD" --f1-action="$F1ACTION" --window-icon="$STLICON" --center --on-top "${WINDECO[@]}" \
-	--list --column="$GUI_USEPROTON" --separator="" --print-column="1" \
+	# Each row carries its URL in a hidden second column: the selection maps
+	# to exactly one archive, so a near-identical name like 'Proton-10a0'
+	# can never be downloaded when 'Proton-10.0' was selected
+	local -a DLROWS=()
+	local IDX DLGRC DLSRCURL DLRC=0
+	for IDX in "${!ProtonDLDispList[@]}"; do
+		DLROWS+=("${ProtonDLDispList[$IDX]}|${ProtonDLList[$IDX]}")
+	done
+
+	DLDISPCUSTPROT="$(printf '%s\n' "${DLROWS[@]}" | "$YAD" --f1-action="$F1ACTION" --window-icon="$STLICON" --center --on-top "${WINDECO[@]}" \
+	--list --column="$GUI_USEPROTON" --column="$GUI_URL" --hide-column=2 --separator="|" --print-column="2" \
+	--button="$BUT_DONE":0 --button="$GUI_URL":3 --button="$BUT_CAN":1 \
 	--title="$TITLE" \
 	--text="$(spanFont "$GUI_DLCUSTPROTTEXT" "H")" \
 	"$GEOM"
 	)"
+	DLGRC=$?
 
-	if [ -n "${DLDISPCUSTPROT}" ]; then
-		if grep -q "^http" <<< "${DLDISPCUSTPROT}"; then
-			writelog "INFO" "${FUNCNAME[0]} - The URL '$DLDISPCUSTPROT' was entered manually - downloading directly"
-			StatusWindow "$(dlCustProtonStatusText "$DLDISPCUSTPROT")" "dlCustomProton ${DLDISPCUSTPROT}" "DownloadCustomProtonStatus"
-		else
-			DLURL="$(printf "%s\n" "${ProtonDLList[@]}" | grep -m1 "${DLDISPCUSTPROT}")"
-			writelog "INFO" "${FUNCNAME[0]} - '${DLDISPCUSTPROT}' was selected - downloading '$DLURL'"
-			StatusWindow "$(dlCustProtonStatusText "$DLURL")" "dlCustomProton ${DLURL}" "DownloadCustomProtonStatus"
+	if [ "$DLGRC" -eq 3 ]; then
+		# manual entry keeps the combobox capability: type an arbitrary archive URL
+		if ! DLSRCURL="$("$YAD" --window-icon="$STLICON" --center --on-top "${WINDECO[@]}" \
+		--entry \
+		--title="$TITLE" \
+		--text="$(spanFont "$GUI_DLCUSTPROTTEXT" "H")" \
+		--button="$BUT_DONE":0 --button="$BUT_CAN":1 \
+		"$GEOM")"; then
+			writelog "INFO" "${FUNCNAME[0]} - Manual URL entry cancelled"
+			return 0
 		fi
-
-		createProtonList
+	elif [ "$DLGRC" -ne 0 ]; then
+		writelog "INFO" "${FUNCNAME[0]} - Download selection cancelled"
+		return 0
+	else
+		DLSRCURL="$DLDISPCUSTPROT"
 	fi
+
+	if [ -z "$DLSRCURL" ]; then
+		writelog "INFO" "${FUNCNAME[0]} - Nothing selected - skipping download"
+		return 0
+	fi
+	if ! grep -qE '^https?://[^[:space:]]+$' <<< "$DLSRCURL"; then
+		writelog "ERROR" "${FUNCNAME[0]} - '$DLSRCURL' is not a valid download URL"
+		return 1
+	fi
+
+	writelog "INFO" "${FUNCNAME[0]} - Selected '$DLSRCURL' - starting download"
+	StatusWindow "$(dlCustProtonStatusText "$DLSRCURL")" dlCustomProton "DownloadCustomProtonStatus" "$DLSRCURL" || DLRC=$?
+	createProtonList
+	return "$DLRC"
 }
 
 function openSteamGridDir {
@@ -487,43 +545,120 @@ function addCustomProtonToList {
 	fi
 }
 
+# Resolve a requested Proton name to exactly one release URL by comparing
+# archive basenames literally (optionally with a host-architecture suffix).
+# A substring match would hand 'Proton-10a0.tar.gz' to a request for
+# 'Proton-10.0'.
+function resolveProtonDownloadURL {
+	local REQUEST="${1:-}" URL BASE
+	[ -n "$REQUEST" ] || return 1
+	while IFS= read -r URL; do
+		[ -n "$URL" ] || continue
+		BASE="${URL##*/}"
+		case "$BASE" in
+			*.tar.gz) BASE="${BASE%.tar.gz}" ;;
+			*.tar.xz) BASE="${BASE%.tar.xz}" ;;
+			*.zip) BASE="${BASE%.zip}" ;;
+		esac
+		case "$BASE" in
+			"$REQUEST"|"$REQUEST-x86_64"|"$REQUEST-amd64"|"$REQUEST-aarch64"|"$REQUEST-arm64")
+				printf '%s\n' "$URL"
+				return 0
+				;;
+		esac
+	done
+	return 1
+}
+
+# Filter a Proton download list (stdin) down to one provider and print the
+# host-compatible build. Fails when that provider published no matching
+# archive instead of silently picking another provider's build.
+function pickProviderProton {
+	local PROVIDER="${1:-}" CONFIGURL="" BASEPAT="" MATCHES="" CANDIDATES
+	CANDIDATES="$(cat)"
+	[ -n "$CANDIDATES" ] || return 1
+	case "$PROVIDER" in
+		any)
+			pickHostProton <<< "$CANDIDATES"
+			return $?
+			;;
+		ge)
+			CONFIGURL="${CP_PROTONGE:-}"
+			BASEPAT='GE-Proton|proton-ge-custom|GloriousEggroll'
+			;;
+		tkg)
+			CONFIGURL="${CP_PROTONTKG:-}"
+			BASEPAT='wine-tkg|Frogging-Family'
+			;;
+		*)
+			return 1
+			;;
+	esac
+	if [ -n "$CONFIGURL" ]; then
+		MATCHES="$(grep -F -- "$CONFIGURL" <<< "$CANDIDATES" || true)"
+	fi
+	if [ -z "$MATCHES" ]; then
+		MATCHES="$(grep -E -- "$BASEPAT" <<< "$CANDIDATES" || true)"
+	fi
+	[ -n "$MATCHES" ] || return 1
+	pickHostProton <<< "$MATCHES"
+}
+
 function dlLatestGE {
 	createDLProtList
 
-	local LATESTPROTON
-	LATESTPROTON="$(printf "%s\n" "${ProtonDLList[@]}" | pickHostProton)"
+	local PROVIDER=any LATESTPROTON DLARGS
+	case "${1:-}" in
+		latestge|lge) PROVIDER=ge ;;
+		latesttkg|ltkg) PROVIDER=tkg ;;
+	esac
 
-	if [ -n "$LATESTPROTON" ]; then
-		if [ "$1" == "latestge" ] || [ "$1" == "lge" ]; then
-			writelog "INFO" "${FUNCNAME[0]} - Downloading latest Proton GE"
-		else
-			writelog "INFO" "${FUNCNAME[0]} - Downloading latest custom Proton ${LATESTPROTON##*/}"
-		fi
-		StatusWindow "$(dlCustProtonStatusText "${LATESTPROTON//\"/}")" "dlCustomProton ${LATESTPROTON//\"/} $2" "DownloadCustomProtonStatus"
-	else
-		writelog "ERROR" "${FUNCNAME[0]} - Could not create list of downloadable Proton-Versions"
+	if ! LATESTPROTON="$(printf "%s\n" "${ProtonDLList[@]}" | pickProviderProton "$PROVIDER")" || [ -z "$LATESTPROTON" ]; then
+		writelog "ERROR" "${FUNCNAME[0]} - No downloadable Proton build found for provider '$PROVIDER'"
+		notiShow "$GUI_EMPTYDLIST" "X"
+		return 1
 	fi
+
+	case "$PROVIDER" in
+		ge)
+			writelog "INFO" "${FUNCNAME[0]} - Downloading latest Proton GE"
+			;;
+		tkg)
+			writelog "INFO" "${FUNCNAME[0]} - Downloading latest Proton TKG"
+			;;
+		*)
+			writelog "INFO" "${FUNCNAME[0]} - Downloading latest custom Proton ${LATESTPROTON##*/}"
+			;;
+	esac
+
+	DLARGS=("${LATESTPROTON//\"/}")
+	if [ -n "${2:-}" ]; then
+		DLARGS+=("$2")
+	fi
+	StatusWindow "$(dlCustProtonStatusText "${DLARGS[0]}")" dlCustomProton "DownloadCustomProtonStatus" "${DLARGS[@]}"
 }
 
 function dlCustomProtonGate {
-	if [ -z "$1" ]; then
+	if [ -z "${1:-}" ]; then
 		dlCustomProtonGUI
-	else
-		if grep -q "^http" <<< "$1"; then
-			writelog "INFO" "${FUNCNAME[0]} - '$1' is an URL - sending directly to dlCustomProton"
-			StatusWindow "$(dlCustProtonStatusText "$1")" "dlCustomProton $1" "DownloadCustomProtonStatus"
-		else
-			if [ "$1" == "latest" ] || [ "$1" == "l" ] || [ "$1" == "latestge" ] || [ "$1" == "lge" ]; then
-				dlLatestGE "$1"
-			elif [ "$1" == "latesttkg" ] || [ "$1" == "ltkg" ]; then
-				createDLProtList
-				writelog "INFO" "${FUNCNAME[0]} - Downloading latest Proton TKG"
-				StatusWindow "$(dlCustProtonStatusText "$(printf "%s\n" "${ProtonDLList[@]}" | grep -im1 "tkg")")" "dlCustomProton $(printf "%s\n" "${ProtonDLList[@]}" | grep -im1 "tkg")" "DownloadCustomProtonStatus"
-			else
-				writelog "SKIP" "${FUNCNAME[0]} - Don't know what to do with argument '$1'"
-			fi
-		fi
+		return $?
 	fi
+
+	if grep -q "^http" <<< "$1"; then
+		writelog "INFO" "${FUNCNAME[0]} - '$1' is an URL - sending directly to dlCustomProton"
+		StatusWindow "$(dlCustProtonStatusText "$1")" dlCustomProton "DownloadCustomProtonStatus" "$1"
+		return $?
+	fi
+
+	case "$1" in
+		latest|l|latestge|lge|latesttkg|ltkg)
+			dlLatestGE "$1"
+			;;
+		*)
+			writelog "SKIP" "${FUNCNAME[0]} - Don't know what to do with argument '$1'"
+			return 1
+			;;
+	esac
 }
 
 function addCustomProton {
@@ -568,4 +703,3 @@ function addCustomProton {
 		fi
 	fi
 }
-

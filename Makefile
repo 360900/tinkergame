@@ -27,7 +27,7 @@ build:
 	bash -n tinkergame
 	bash -n uninstall.sh
 	bash -n install.sh
-	find lib -name '*.sh' -exec bash -n {} +
+	find lib -name '*.sh' -exec bash -c 'for script do bash -n "$$script" || exit; done' bash {} +
 	test -f lib/core/common.sh
 
 check:
