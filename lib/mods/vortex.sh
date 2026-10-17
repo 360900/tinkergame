@@ -613,19 +613,42 @@ function setGameVortexStaging {
 		# find matching Staging Directory:
 		GAMEMP="$( df --output=target "$VGAMEDIR" | tail -n1 )"  # df returns "Mounted on" heaqding, use tail to get actual path (using this method ensures file paths with spaces work too)
 		writelog "INFO" "${FUNCNAME[0]} - Mount point of partition where the game is installed: '$GAMEMP'"
-		unset CONFSTAGE VORTEXSTAGING
+		unset CONFSTAGE VORTEXSTAGING VSTAGEGONE
 
+		# Ask df for each candidate and compare mount points, rather than matching
+		# the game's mount point as a path prefix. The prefix form breaks for the
+		# most common layout there is: with the game on the root filesystem the
+		# pattern becomes '//', which matches no path, so a configured stage was
+		# silently ignored and the auto-stage path ran instead. Treating '/' as an
+		# empty prefix would be just as wrong in the other direction -- a stage on
+		# /mnt/ssd is not on the same filesystem as a game on /. Comparing what df
+		# reports for both answers the question this lookup is actually asking.
 		if [ -f "$VORTEXSTAGELIST" ]; then
-			CONFSTAGE="$(grep "${GAMEMP}/" "$VORTEXSTAGELIST")"
+			while IFS= read -r VSTAGELINE || [ -n "$VSTAGELINE" ]; do
+				case "$VSTAGELINE" in
+					"#"*) continue ;;
+					"")   continue ;;
+				esac
+
+				if [ ! -d "$VSTAGELINE" ]; then
+					# addVortexStage only ever writes directories, so a line that is
+					# gone was removed behind TinkerGame's back and is worth saying so
+					VSTAGEGONE="$VSTAGELINE"
+					continue
+				fi
+
+				if [ "$( df --output=target "$VSTAGELINE" | tail -n1 )" == "$GAMEMP" ]; then
+					CONFSTAGE="$VSTAGELINE"
+					break
+				fi
+			done < "$VORTEXSTAGELIST"
 		fi
 
 		if [ -n "$CONFSTAGE" ]; then
-			if [ -d "$CONFSTAGE" ]; then
-				writelog "INFO" "${FUNCNAME[0]} - Configured VORTEXSTAGING dir found: '$CONFSTAGE'"
-				VORTEXSTAGING="$CONFSTAGE"
-			else
-				writelog "ERROR" "${FUNCNAME[0]} - Configured entry '$CONFSTAGE' found in '$VORTEXSTAGELIST', but this isn't a useable directory"
-			fi
+			writelog "INFO" "${FUNCNAME[0]} - Configured VORTEXSTAGING dir found: '$CONFSTAGE'"
+			VORTEXSTAGING="$CONFSTAGE"
+		elif [ -n "$VSTAGEGONE" ]; then
+			writelog "ERROR" "${FUNCNAME[0]} - Configured entry '$VSTAGEGONE' found in '$VORTEXSTAGELIST', but this isn't a useable directory"
 		fi
 
 		if [ -z "$VORTEXSTAGING" ]; then
