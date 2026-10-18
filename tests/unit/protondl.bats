@@ -240,7 +240,9 @@ EOF
 }
 
 # Minimal YAD stand-in: records argv, drains list stdin to $FAKEYAD_STDIN and
-# prints $FAKEYAD_PICK (set to force a choice, empty set forces no choice).
+# prints the --print-column cell of row $FAKEYAD_ROW (default 1) followed by
+# the separator, like real yad: one cell per stdin line, rows filled column
+# by column. $FAKEYAD_PICK overrides it (empty set forces no choice).
 setup_fake_yad() {
 	mkdir -p "$BATS_TEST_TMPDIR/bin"
 	# quoted heredoc: environment variables must stay literal until yad runs
@@ -252,14 +254,19 @@ for arg in "$@"; do
 	case "$arg" in
 		--list)
 			cat >"$FAKEYAD_STDIN"
-			PICK=""
-			ROW="$(head -n1 "$FAKEYAD_STDIN")"
-			case "$ROW" in
-				*'|'*) PICK="${ROW#*|}" ;;
-				*) PICK="$ROW" ;;
-			esac
+			COLS=0; PCOL=1; SEP='|'
+			for opt in "$@"; do
+				case "$opt" in
+					--column=*) COLS=$((COLS + 1)) ;;
+					--print-column=*) PCOL="${opt#*=}" ;;
+					--separator=*) SEP="${opt#*=}" ;;
+				esac
+			done
+			[ "$COLS" -gt 0 ] || COLS=1
+			ROW="${FAKEYAD_ROW:-1}"
+			PICK="$(sed -n "$(( (ROW - 1) * COLS + PCOL ))p" "$FAKEYAD_STDIN")"
 			if [ "${FAKEYAD_PICK+set}" = set ]; then PICK="$FAKEYAD_PICK"; fi
-			if [ -n "$PICK" ]; then printf '%s\n' "$PICK"; fi
+			if [ -n "$PICK" ]; then printf '%s%s\n' "$PICK" "$SEP"; fi
 			exit "${FAKEYAD_RC:-0}"
 			;;
 		--entry)
@@ -317,16 +324,45 @@ EOF
 	}
 	setup_fake_yad
 	# the user picks the second row
-	export FAKEYAD_PICK="https://example.invalid/Proton-10.0.tar.gz"
+	export FAKEYAD_ROW=2
 
 	run dlCustomProtonGUI
 	[ "$status" -eq 0 ]
-	# every row carries name and URL together
-	grep -q "Proton-10.0.tar.gz|https://example.invalid/Proton-10.0.tar.gz" "$FAKEYAD_STDIN"
 	[ -f "$BATS_TEST_TMPDIR/refreshed" ]
 	run cat "$BATS_TEST_TMPDIR/statusargs.txt"
 	[[ "$output" == *"https://example.invalid/Proton-10.0.tar.gz"* ]]
 	[[ "$output" != *"Proton-10a0"* ]]
+}
+
+@test "dlCustomProtonGUI: every release gets its own row" {
+	# yad reads one cell per line: a 'name|url' line per row filled both
+	# columns with consecutive releases, hiding every second one (issue #4)
+	# and printing a name instead of a URL (issue #3)
+	pollWinRes() { :; }
+	createProtonList() { :; }
+	StatusWindow() { printf '%s\n' "$*" > "$BATS_TEST_TMPDIR/statusargs.txt"; }
+	createDLProtList() {
+		ProtonDLList=(
+			"https://example.invalid/GE-Proton11-8.tar.gz"
+			"https://example.invalid/GE-Proton11-7.tar.gz"
+			"https://example.invalid/GE-Proton11-6.tar.gz"
+		)
+		ProtonDLDispList=("GE-Proton11-8.tar.gz" "GE-Proton11-7.tar.gz" "GE-Proton11-6.tar.gz")
+	}
+	setup_fake_yad
+	export FAKEYAD_ROW=2
+
+	run dlCustomProtonGUI
+	[ "$status" -eq 0 ]
+	run cat "$FAKEYAD_STDIN"
+	[ "$output" = "GE-Proton11-8.tar.gz
+https://example.invalid/GE-Proton11-8.tar.gz
+GE-Proton11-7.tar.gz
+https://example.invalid/GE-Proton11-7.tar.gz
+GE-Proton11-6.tar.gz
+https://example.invalid/GE-Proton11-6.tar.gz" ]
+	run cat "$BATS_TEST_TMPDIR/statusargs.txt"
+	[[ "$output" == *"https://example.invalid/GE-Proton11-7.tar.gz"* ]]
 }
 
 @test "dlCustomProtonGUI: cancelling the list downloads nothing" {

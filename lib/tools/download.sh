@@ -260,15 +260,16 @@ function dlCustomProtonGUI {
 
 	# Each row carries its URL in a hidden second column: the selection maps
 	# to exactly one archive, so a near-identical name like 'Proton-10a0'
-	# can never be downloaded when 'Proton-10.0' was selected
-	local -a DLROWS=()
+	# can never be downloaded when 'Proton-10.0' was selected.
+	# yad reads one cell per line, so name and URL go on separate lines
+	local -a DLCELLS=()
 	local IDX DLGRC DLSRCURL DLRC=0
 	for IDX in "${!ProtonDLDispList[@]}"; do
-		DLROWS+=("${ProtonDLDispList[$IDX]}|${ProtonDLList[$IDX]}")
+		DLCELLS+=("${ProtonDLDispList[$IDX]}" "${ProtonDLList[$IDX]}")
 	done
 
-	DLDISPCUSTPROT="$(printf '%s\n' "${DLROWS[@]}" | "$YAD" --f1-action="$F1ACTION" --window-icon="$STLICON" --center --on-top "${WINDECO[@]}" \
-	--list --column="$GUI_USEPROTON" --column="$GUI_URL" --hide-column=2 --separator="|" --print-column="2" \
+	DLDISPCUSTPROT="$(printf '%s\n' "${DLCELLS[@]}" | "$YAD" --f1-action="$F1ACTION" --window-icon="$STLICON" --center --on-top "${WINDECO[@]}" \
+	--list --column="$GUI_USEPROTON" --column="$GUI_URL" --hide-column=2 --separator="" --print-column="2" \
 	--button="$BUT_DONE":0 --button="$GUI_URL":3 --button="$BUT_CAN":1 \
 	--title="$TITLE" \
 	--text="$(spanFont "$GUI_DLCUSTPROTTEXT" "H")" \
