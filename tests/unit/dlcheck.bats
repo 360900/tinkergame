@@ -130,3 +130,127 @@ setup() {
 	[ "$status" -eq 0 ]
 	[ "$(cat "$DLCHECK_DEST")" = 'downloaded content' ]
 }
+
+# Progress bar: dlCheck swaps StatusWindow's text window for a yad --progress
+# window fed from wget's --show-progress output (issue #3).
+
+@test "dlProgressFeed: turns wget progress output into yad progress input" {
+	# captured from GNU Wget 1.25 with --show-progress --progress=bar:force:noscroll
+	run dlProgressFeed < "$TG_FIXTURES/wget-show-progress.txt"
+	[ "$status" -eq 0 ]
+	[ "$output" = "0
+# 0%  0 --.-KB/s
+23
+# 23%  559.64K 2.72MB/s
+100
+# 100%  2.29M 7.82MB/s in 0.3s" ]
+}
+
+# Fake yad: records every call, drains a --progress window's input to
+# $FAKEYAD_PROGRESS, keeps text windows open until killed.
+setup_progress_fakes() {
+	export FAKEYAD_CALLS="$BATS_TEST_TMPDIR/yad.calls"
+	export FAKEYAD_PROGRESS="$BATS_TEST_TMPDIR/yad.progress"
+	export FAKEYAD_PIDS="$BATS_TEST_TMPDIR/yad.pids"
+	: > "$FAKEYAD_CALLS"
+	: > "$FAKEYAD_PIDS"
+	YAD="$BATS_TEST_TMPDIR/fakeyad"
+	cat > "$YAD" <<'FAKE'
+#!/bin/sh
+printf '%s\n' "$*" >>"$FAKEYAD_CALLS"
+case " $* " in
+	*" --progress "*) cat >>"$FAKEYAD_PROGRESS"; exit 0 ;;
+esac
+echo $$ >>"$FAKEYAD_PIDS"
+while :; do sleep 0.1; done
+FAKE
+	chmod +x "$YAD"
+	unset -f sleep
+	pollWinRes() { :; }
+	GEOM="--geometry=800x600+0+0"
+
+	WGET=fakeProgressWget
+	fakeProgressWget() {
+		local DEST=""
+		if [ "$1" = --help ]; then
+			echo "       --show-progress             display the progress bar in any verbosity mode"
+			return 0
+		fi
+		printf '%s\n' "$@" >> "$DLCHECK_CALLS"
+		while [ "$#" -gt 0 ]; do
+			case "$1" in -O) DEST="$2"; shift 2 ;; *) shift ;; esac
+		done
+		cat "$TG_FIXTURES/wget-show-progress.txt" >&2
+		printf '%s' 'downloaded content' > "$DEST"
+		return "${DLCHECK_WGET_RC:-0}"
+	}
+	progressTask() { dlCheck https://example.invalid/archive "$DLCHECK_DEST" X "Test download"; }
+}
+
+no_window_left_open() {
+	local PID
+	while read -r PID; do
+		if kill -0 "$PID" 2>/dev/null; then
+			return 1
+		fi
+	done < "$FAKEYAD_PIDS"
+}
+
+@test "dlCheck: a download inside a StatusWindow shows a progress bar" {
+	setup_progress_fakes
+
+	run StatusWindow "Downloading test thing" progressTask "TestStatus"
+	[ "$status" -eq 0 ]
+	[ "$(cat "$DLCHECK_DEST")" = 'downloaded content' ]
+	grep -q -- "--show-progress" "$DLCHECK_CALLS"
+	run grep -c -- "--progress --auto-close --text=Downloading test thing..." "$FAKEYAD_CALLS"
+	[ "$output" -eq 1 ]
+	# sized to its content, not to the saved geometry
+	run grep -- "--progress" "$FAKEYAD_CALLS"
+	[[ "$output" == *"--fixed"* ]]
+	[[ "$output" != *"--geometry"* ]]
+	grep -qx "23" "$FAKEYAD_PROGRESS"
+	grep -qx "# 23%  559.64K 2.72MB/s" "$FAKEYAD_PROGRESS"
+	# text window before and after the bar, and none left open
+	run grep -c -- "--borders=16 --text=Downloading test thing..." "$FAKEYAD_CALLS"
+	[ "$output" -eq 2 ]
+	no_window_left_open
+}
+
+@test "dlCheck: a failed download with a progress bar keeps the wget status" {
+	setup_progress_fakes
+	DLCHECK_WGET_RC=8
+
+	run StatusWindow "Downloading test thing" progressTask "TestStatus"
+	[ "$status" -eq 8 ]
+	[ ! -e "$DLCHECK_DEST" ]
+	[ -z "$(find "$BATS_TEST_TMPDIR" -name '*.part.*' -print)" ]
+	no_window_left_open
+}
+
+@test "dlCheck: markup in the status text is escaped in the progress window" {
+	setup_progress_fakes
+
+	run StatusWindow "Download <Tom & Jerry>" progressTask "TestStatus"
+	[ "$status" -eq 0 ]
+	grep -qF -- "--text=Download &lt;Tom &amp; Jerry&gt;..." "$FAKEYAD_CALLS"
+}
+
+@test "dlCheck: no progress bar outside a StatusWindow" {
+	setup_progress_fakes
+
+	run progressTask
+	[ "$status" -eq 0 ]
+	[ ! -s "$FAKEYAD_CALLS" ]
+	! grep -q -- "--show-progress" "$DLCHECK_CALLS"
+}
+
+@test "dlCheck: no progress bar from a subshell of the StatusWindow" {
+	setup_progress_fakes
+	subshellTask() { ( progressTask ); }
+
+	run StatusWindow "Downloading test thing" subshellTask "TestStatus"
+	[ "$status" -eq 0 ]
+	! grep -q -- "--progress" "$FAKEYAD_CALLS"
+	no_window_left_open
+}

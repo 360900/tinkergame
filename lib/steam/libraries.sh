@@ -201,20 +201,39 @@ function OpenWiki {
 
 export -f OpenWiki
 
+# Plain text window shown by StatusWindow while its command runs.  Uses
+# StatusWindow's locals (STATUSWINTITLE, STATUSWINTEXT, STATUSWINPID), so it
+# must only be called from inside a StatusWindow.
+function openStatusText {
+	# --no-markup keeps '&' and friends in game/tool names from breaking
+	# pango parsing.  Sized to its content like dlProgress' bar window, so
+	# swapping between the two does not resize the window.
+	"$YAD" --window-icon="$STLICON" --title="$STATUSWINTITLE" --on-top --no-markup --no-buttons --center \
+		--width=500 --fixed --borders=16 --text="$STATUSWINTEXT..." "${WINDECO[@]}" &
+	STATUSWINPID="$!"
+}
+
+function closeStatusText {
+	if [ -n "${STATUSWINPID:-}" ]; then
+		kill "$STATUSWINPID" 2>/dev/null || :
+		wait "$STATUSWINPID" 2>/dev/null || :
+	fi
+	STATUSWINPID=""
+}
+
 function StatusWindow {
 	local TITLE="${PROGNAME}-$3"
-	local RUNFUNC="$2" STATUSWINPID STATUSRC=0
+	local RUNFUNC="$2" STATUSRC=0
+	# read by openStatusText and by dlCheck, which swaps the text window for a
+	# progress bar while it downloads
+	local STATUSWINTITLE="$TITLE" STATUSWINTEXT="$1" STATUSWINPID="" STATUSWINSHELL="$BASHPID"
 	pollWinRes "$TITLE"
 	writelog "INFO" "${FUNCNAME[0]} - for '$1'"
 
-	# No progress bar, but the task must stay visible: show the status text in
-	# a plain window while the command runs and close it again when the
-	# command returns, so long downloads/installs are not mistaken for a
-	# freeze.  --no-markup keeps '&' and friends in game/tool names from
-	# breaking pango parsing.
-	"$YAD" --window-icon="$STLICON" --title="$TITLE" --on-top --no-markup --no-buttons --center \
-		--text="$1..." "${WINDECO[@]}" "$GEOM" &
-	STATUSWINPID="$!"
+	# The task must stay visible: show the status text while the command runs
+	# and close it again when the command returns, so long downloads/installs
+	# are not mistaken for a freeze.
+	openStatusText
 
 	if [ "$#" -gt 3 ]; then
 		# New callers pass the command and its arguments separately.
@@ -226,10 +245,48 @@ function StatusWindow {
 		$RUNFUNC || STATUSRC=$?
 	fi
 
-	kill "$STATUSWINPID" 2>/dev/null || :
-	wait "$STATUSWINPID" 2>/dev/null || :
+	closeStatusText
 
 	return "$STATUSRC"
+}
+
+# Turn wget's '--show-progress' output into yad --progress input: a percentage
+# line moves the bar, a '#' line shows size, speed and eta.  wget separates
+# updates with carriage returns.
+function dlProgressFeed {
+	local LINE PCT INFO BARRE='([0-9]{1,3})%\[[^]]*\](.*)'
+	# the bar window may be closed before wget is done: never let that abort
+	# the download through SIGPIPE
+	trap '' PIPE
+	while IFS= read -r -d $'\r' LINE || [ -n "$LINE" ]; do
+		[[ "$LINE" =~ $BARRE ]] || continue
+		PCT="${BASH_REMATCH[1]}"
+		read -r -a INFO <<< "${BASH_REMATCH[2]}"
+		printf '%s\n# %s%%  %s\n' "$PCT" "$PCT" "${INFO[*]}" 2>/dev/null
+	done
+	return 0
+}
+
+# Download with a progress bar in place of StatusWindow's text window.
+function dlProgress {
+	local DLSRC="$1" DLDST="$2" DLRC BARTEXT="$STATUSWINTEXT"
+	closeStatusText
+	# markup is needed for the small spacer line between text and bar, so
+	# escape the status text instead of using --no-markup
+	# '\&': a bare '&' in the replacement inserts the match (bash 5.2)
+	BARTEXT="${BARTEXT//&/\&amp;}"
+	BARTEXT="${BARTEXT//</\&lt;}"
+	BARTEXT="${BARTEXT//>/\&gt;}"
+	# sized to its content like the text window: the saved window geometry
+	# leaves empty space below the bar
+	"$WGET" -q --show-progress --progress=bar:force:noscroll "$DLSRC" -O "$DLDST" 2>&1 | dlProgressFeed | \
+		"$YAD" --window-icon="$STLICON" --title="$STATUSWINTITLE" --on-top --no-buttons --center \
+		--width=500 --fixed --borders=16 --progress --auto-close \
+		--text="$BARTEXT..."$'\n'"<span size='x-small'> </span>" "${WINDECO[@]}"
+	DLRC="${PIPESTATUS[0]}"
+	# back to the text window for whatever the task does after the download
+	openStatusText
+	return "$DLRC"
 }
 
 function setColGui {
@@ -317,8 +374,15 @@ function dlCheck {
 	if [ "$DLTITLE" != "$NON" ]; then
 		writelog "INFO" "${FUNCNAME[0]} - $DLTITLE"
 		notiShow "$(strFix "$NOTY_DLCUSTOMPROTON" "$DLDST")" "S"
-		writelog "INFO" "${FUNCNAME[0]} - '$WGET -q $DLSRC -O $DLDST'"
-		"$WGET" -q "$DLSRC" -O "$DLTMP" 2> >(grep -v "SSL_INIT" >&2) || DLRC=$?
+		# a bar only inside a StatusWindow of this very shell: from a subshell
+		# the reopened text window would outlive the StatusWindow
+		if [ "${STATUSWINSHELL:-}" == "$BASHPID" ] && "$WGET" --help 2>/dev/null | grep -q -- "--show-progress"; then
+			writelog "INFO" "${FUNCNAME[0]} - '$WGET -q --show-progress $DLSRC -O $DLDST'"
+			dlProgress "$DLSRC" "$DLTMP" || DLRC=$?
+		else
+			writelog "INFO" "${FUNCNAME[0]} - '$WGET -q $DLSRC -O $DLDST'"
+			"$WGET" -q "$DLSRC" -O "$DLTMP" 2> >(grep -v "SSL_INIT" >&2) || DLRC=$?
+		fi
 	else
 		"$WGET" -q "$DLSRC" -O "$DLTMP" >/dev/null 2>&1 || DLRC=$?
 	fi

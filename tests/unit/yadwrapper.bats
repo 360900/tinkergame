@@ -95,6 +95,7 @@ EOF
 
 	# window geometry handling is not what this test covers
 	pollWinRes() { :; }
+	GEOM="--geometry=800x600+0+0"
 
 	local marker="$BATS_TEST_TMPDIR/statuswindow.ran"
 	local helper="$BATS_TEST_TMPDIR/slowcmd"
@@ -108,6 +109,11 @@ EOF
 	grep -qF -- "Downloading test thing..." "$FAKEYAD_CALLS"
 	grep -q -- "--no-buttons" "$FAKEYAD_CALLS"
 	if grep -qE -- "--progress|--pulsate" "$FAKEYAD_CALLS"; then
+		return 1
+	fi
+	# sized to its content, not to the saved geometry
+	grep -q -- "--fixed" "$FAKEYAD_CALLS"
+	if grep -q -- "--geometry" "$FAKEYAD_CALLS"; then
 		return 1
 	fi
 	# the status window must be closed again once the command returned
