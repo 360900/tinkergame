@@ -146,6 +146,28 @@ setup() {
 # 100%  2.29M 7.82MB/s in 0.3s" ]
 }
 
+@test "dlProgressFeed: reads wget2's escape-sequence progress output" {
+	# captured from GNU Wget2 2.3.0 (Fedora's wget) with the same options
+	run dlProgressFeed < "$TG_FIXTURES/wget2-show-progress.txt"
+	[ "$status" -eq 0 ]
+	[ "${lines[0]}" = "50" ]
+	[ "${lines[1]}" = "# 50%  1.25M --.-KB/s" ]
+	[ "${lines[2]}" = "100" ]
+}
+
+@test "dlProgressFeed: a download of unknown size pulses the bar" {
+	run dlProgressFeed < "$TG_FIXTURES/wget-show-progress-nosize.txt"
+	[ "$status" -eq 0 ]
+	[ "${lines[0]}" = "pulse" ]
+	[ "${lines[3]}" = "# 320.00K 1.55MB/s" ]
+	! grep -qx "[0-9]*" <<< "$output"
+
+	run dlProgressFeed < "$TG_FIXTURES/wget2-show-progress-nosize.txt"
+	[ "$status" -eq 0 ]
+	[ "${lines[0]}" = "pulse" ]
+	[ "${lines[1]}" = "# 1.25M --.-KB/s" ]
+}
+
 # Fake yad: records every call, drains a --progress window's input to
 # $FAKEYAD_PROGRESS, keeps text windows open until killed.
 setup_progress_fakes() {
@@ -159,7 +181,10 @@ setup_progress_fakes() {
 #!/bin/sh
 printf '%s\n' "$*" >>"$FAKEYAD_CALLS"
 case " $* " in
-	*" --progress "*) cat >>"$FAKEYAD_PROGRESS"; exit 0 ;;
+	*" --progress "*)
+		# FAKEYAD_CLOSE: the user closes the bar right away
+		[ -z "${FAKEYAD_CLOSE:-}" ] || exit 252
+		cat >>"$FAKEYAD_PROGRESS"; exit 0 ;;
 esac
 echo $$ >>"$FAKEYAD_PIDS"
 while :; do sleep 0.1; done
@@ -180,7 +205,7 @@ FAKE
 		while [ "$#" -gt 0 ]; do
 			case "$1" in -O) DEST="$2"; shift 2 ;; *) shift ;; esac
 		done
-		cat "$TG_FIXTURES/wget-show-progress.txt" >&2
+		cat "${DLCHECK_FIXTURE:-$TG_FIXTURES/wget-show-progress.txt}" >&2
 		printf '%s' 'downloaded content' > "$DEST"
 		return "${DLCHECK_WGET_RC:-0}"
 	}
@@ -251,6 +276,59 @@ no_window_left_open() {
 
 	run StatusWindow "Downloading test thing" subshellTask "TestStatus"
 	[ "$status" -eq 0 ]
+	! grep -q -- "--progress" "$FAKEYAD_CALLS"
+	no_window_left_open
+}
+
+@test "dlCheck: a download of unknown size shows a pulsating bar" {
+	setup_progress_fakes
+	DLCHECK_FIXTURE="$TG_FIXTURES/wget-show-progress-nosize.txt"
+
+	run StatusWindow "Downloading test thing" progressTask "TestStatus"
+	[ "$status" -eq 0 ]
+	[ "$(cat "$DLCHECK_DEST")" = 'downloaded content' ]
+	run grep -c -- "--progress --pulsate --auto-close" "$FAKEYAD_CALLS"
+	[ "$output" -eq 1 ]
+	no_window_left_open
+}
+
+@test "dlCheck: closing the progress bar cancels the download" {
+	setup_progress_fakes
+	export FAKEYAD_CLOSE=1
+	# a slow download that keeps reporting progress
+	fakeProgressWget() {
+		local DEST="" I
+		if [ "$1" = --help ]; then
+			echo "       --show-progress             display the progress bar in any verbosity mode"
+			return 0
+		fi
+		while [ "$#" -gt 0 ]; do
+			case "$1" in -O) DEST="$2"; shift 2 ;; *) shift ;; esac
+		done
+		for I in $(seq 1 99); do
+			printf '/dev/null  %s%%[=>   ]  %sK  1MB/s\r' "$I" "$I" >&2
+			command sleep 0.1
+		done
+		printf '%s' 'downloaded content' > "$DEST"
+	}
+
+	SECONDS=0
+	run StatusWindow "Downloading test thing" progressTask "TestStatus"
+	[ "$status" -ne 0 ]
+	[ "$SECONDS" -lt 5 ]
+	[ ! -e "$DLCHECK_DEST" ]
+	[ -z "$(find "$BATS_TEST_TMPDIR" -name '*.part.*' -print)" ]
+	grep -q "cancelling the download" "$DLCHECK_LOG"
+	no_window_left_open
+}
+
+@test "dlCheck: no progress bar when wget fails before its first update" {
+	setup_progress_fakes
+	DLCHECK_FIXTURE=/dev/null
+	DLCHECK_WGET_RC=4
+
+	run StatusWindow "Downloading test thing" progressTask "TestStatus"
+	[ "$status" -eq 4 ]
 	! grep -q -- "--progress" "$FAKEYAD_CALLS"
 	no_window_left_open
 }

@@ -252,24 +252,45 @@ function StatusWindow {
 
 # Turn wget's '--show-progress' output into yad --progress input: a percentage
 # line moves the bar, a '#' line shows size, speed and eta.  wget separates
-# updates with carriage returns.
+# updates with carriage returns, wget2 with terminal escape sequences.  Without
+# a known size wget draws '<=>' instead of a percentage: that becomes a 'pulse'
+# line, which only pulses a --pulsate bar.
 function dlProgressFeed {
-	local LINE PCT INFO BARRE='([0-9]{1,3})%\[[^]]*\](.*)'
+	local C LINE="" PCT INFO BARRE='([0-9]{1,3})% ?\[[^]]*\](.*)' PULSERE='\[ *<=> *\](.*)'
 	# the bar window may be closed before wget is done: never let that abort
 	# the download through SIGPIPE
 	trap '' PIPE
-	while IFS= read -r -d $'\r' LINE || [ -n "$LINE" ]; do
-		[[ "$LINE" =~ $BARRE ]] || continue
-		PCT="${BASH_REMATCH[1]}"
-		read -r -a INFO <<< "${BASH_REMATCH[2]}"
-		printf '%s\n# %s%%  %s\n' "$PCT" "$PCT" "${INFO[*]}" 2>/dev/null
+	# one character at a time, as no single delimiter fits both: a filter like
+	# tr would buffer the updates into bursts
+	while IFS= read -r -N 1 C || [ -n "$LINE" ]; do
+		case "$C" in
+			$'\r'|$'\n'|$'\e'|"") ;;
+			*) LINE+="$C"; continue ;;
+		esac
+		if [[ "$LINE" =~ $PULSERE ]]; then
+			read -r -a INFO <<< "${BASH_REMATCH[1]}"
+			printf 'pulse\n# %s\n' "${INFO[*]}" 2>/dev/null
+		elif [[ "$LINE" =~ $BARRE ]]; then
+			PCT="${BASH_REMATCH[1]}"
+			read -r -a INFO <<< "${BASH_REMATCH[2]}"
+			printf '%s\n# %s%%  %s\n' "$PCT" "$PCT" "${INFO[*]}" 2>/dev/null
+		fi
+		LINE=""
 	done
 	return 0
 }
 
-# Download with a progress bar in place of StatusWindow's text window.
-function dlProgress {
-	local DLSRC="$1" DLDST="$2" DLRC BARTEXT="$STATUSWINTEXT"
+# Swap StatusWindow's text window for the bar once wget reports its first
+# update: a normal bar for a known size, a pulsating one otherwise.  Closing
+# the bar cancels the download by killing the wget whose pid is in $1.
+function dlProgressWindow {
+	local DLPIDFILE="$1" FIRST BARTEXT="$STATUSWINTEXT" YADRC=0
+	local -a BARMODE=(--progress)
+	# no update at all (wget failed early): keep the text window
+	IFS= read -r FIRST || return 0
+	if [ "$FIRST" == "pulse" ]; then
+		BARMODE+=(--pulsate)
+	fi
 	closeStatusText
 	# markup is needed for the small spacer line between text and bar, so
 	# escape the status text instead of using --no-markup
@@ -279,12 +300,31 @@ function dlProgress {
 	BARTEXT="${BARTEXT//>/\&gt;}"
 	# sized to its content like the text window: the saved window geometry
 	# leaves empty space below the bar
-	"$WGET" -q --show-progress --progress=bar:force:noscroll "$DLSRC" -O "$DLDST" 2>&1 | dlProgressFeed | \
-		"$YAD" --window-icon="$STLICON" --title="$STATUSWINTITLE" --on-top --no-buttons --center \
-		--width=500 --fixed --borders=16 --progress --auto-close \
-		--text="$BARTEXT..."$'\n'"<span size='x-small'> </span>" "${WINDECO[@]}"
+	"$YAD" --window-icon="$STLICON" --title="$STATUSWINTITLE" --on-top --no-buttons --center \
+		--width=500 --fixed --borders=16 "${BARMODE[@]}" --auto-close \
+		--text="$BARTEXT..."$'\n'"<span size='x-small'> </span>" "${WINDECO[@]}" || YADRC=$?
+	# auto-close and end of input exit 0, Esc and the close button 252
+	if [ "$YADRC" -ne 0 ]; then
+		writelog "INFO" "${FUNCNAME[0]} - Progress window closed, cancelling the download"
+		kill "$(cat "$DLPIDFILE")" 2>/dev/null || :
+	fi
+	return 0
+}
+
+# Download with a progress bar in place of StatusWindow's text window.
+function dlProgress {
+	local DLSRC="$1" DLDST="$2" DLRC DLPIDFILE
+	DLPIDFILE="$(mktemp)" || return 1
+	{
+		"$WGET" -q --show-progress --progress=bar:force:noscroll "$DLSRC" -O "$DLDST" 2>&1 &
+		printf '%s\n' "$!" > "$DLPIDFILE"
+		wait "$!"
+	} | dlProgressFeed | dlProgressWindow "$DLPIDFILE"
 	DLRC="${PIPESTATUS[0]}"
-	# back to the text window for whatever the task does after the download
+	rm -f -- "$DLPIDFILE"
+	# back to the text window for whatever the task does after the download;
+	# dlProgressWindow closed it in a subshell, or never opened the bar
+	closeStatusText
 	openStatusText
 	return "$DLRC"
 }
