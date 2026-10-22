@@ -250,6 +250,7 @@ no_window_left_open() {
 	[ "$status" -eq 8 ]
 	[ ! -e "$DLCHECK_DEST" ]
 	[ -z "$(find "$BATS_TEST_TMPDIR" -name '*.part.*' -print)" ]
+	grep -q "^ERROR dlCheck - Download of .* failed (wget status 8)" "$DLCHECK_LOG"
 	no_window_left_open
 }
 
@@ -319,6 +320,9 @@ no_window_left_open() {
 	[ ! -e "$DLCHECK_DEST" ]
 	[ -z "$(find "$BATS_TEST_TMPDIR" -name '*.part.*' -print)" ]
 	grep -q "cancelling the download" "$DLCHECK_LOG"
+	# cancelled, not failed
+	grep -q "Download of 'https://example.invalid/archive' cancelled" "$DLCHECK_LOG"
+	! grep -q "^ERROR" "$DLCHECK_LOG"
 	no_window_left_open
 }
 

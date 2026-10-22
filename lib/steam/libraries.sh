@@ -282,7 +282,8 @@ function dlProgressFeed {
 
 # Swap StatusWindow's text window for the bar once wget reports its first
 # update: a normal bar for a known size, a pulsating one otherwise.  Closing
-# the bar cancels the download by killing the wget whose pid is in $1.
+# the bar cancels the download by killing the wget whose pid is in $1, and
+# marks that file for dlProgress.
 function dlProgressWindow {
 	local DLPIDFILE="$1" FIRST BARTEXT="$STATUSWINTEXT" YADRC=0
 	local -a BARMODE=(--progress)
@@ -306,12 +307,14 @@ function dlProgressWindow {
 	# auto-close and end of input exit 0, Esc and the close button 252
 	if [ "$YADRC" -ne 0 ]; then
 		writelog "INFO" "${FUNCNAME[0]} - Progress window closed, cancelling the download"
-		kill "$(cat "$DLPIDFILE")" 2>/dev/null || :
+		kill "$(head -n 1 "$DLPIDFILE")" 2>/dev/null || :
+		echo "cancelled" >> "$DLPIDFILE"
 	fi
 	return 0
 }
 
-# Download with a progress bar in place of StatusWindow's text window.
+# Download with a progress bar in place of StatusWindow's text window.  Sets
+# dlCheck's DLCANCELLED when the bar was closed.
 function dlProgress {
 	local DLSRC="$1" DLDST="$2" DLRC DLPIDFILE
 	DLPIDFILE="$(mktemp)" || return 1
@@ -321,6 +324,9 @@ function dlProgress {
 		wait "$!"
 	} | dlProgressFeed | dlProgressWindow "$DLPIDFILE"
 	DLRC="${PIPESTATUS[0]}"
+	if grep -qx "cancelled" "$DLPIDFILE"; then
+		DLCANCELLED=1
+	fi
 	rm -f -- "$DLPIDFILE"
 	# back to the text window for whatever the task does after the download;
 	# dlProgressWindow closed it in a subshell, or never opened the bar
@@ -391,7 +397,7 @@ function chkFile {
 
 function dlCheck {
 	local DLSRC="$1" DLDST="$2" FLCHK="${3:-X}" DLTITLE="${4:-}" INCHK="${5:-}"
-	local DLTMP DLRC=0
+	local DLTMP DLRC=0 DLCANCELLED=0
 	if [ "$FLCHK" == "C" ]; then
 		writelog "INFO" "${FUNCNAME[0]} - Only checking already downloaded file '$DLDST'"
 		chkFile "$DLSRC" "$DLDST" "$DLTITLE"
@@ -427,7 +433,12 @@ function dlCheck {
 		"$WGET" -q "$DLSRC" -O "$DLTMP" >/dev/null 2>&1 || DLRC=$?
 	fi
 	if [ "$DLRC" -ne 0 ] || [ ! -s "$DLTMP" ]; then
-		writelog "ERROR" "${FUNCNAME[0]} - Download of '$DLSRC' failed (wget status $DLRC)"
+		# a cancelled download is not an error, but must not be used either
+		if [ "$DLCANCELLED" -eq 1 ]; then
+			writelog "INFO" "${FUNCNAME[0]} - Download of '$DLSRC' cancelled"
+		else
+			writelog "ERROR" "${FUNCNAME[0]} - Download of '$DLSRC' failed (wget status $DLRC)"
+		fi
 		rm -f -- "$DLTMP"
 		[ "$DLRC" -ne 0 ] || DLRC=1
 		return "$DLRC"
