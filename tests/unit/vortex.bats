@@ -394,3 +394,19 @@ EOT
 	run_vortex_helpers setVortexDLMime
 	test ! -f "$fvd-old"
 }
+
+@test "vortex url: a Steam game context does not swallow the nxm URI" {
+	# The browser inherits STEAM_COMPAT_APP_ID when opened from a
+	# Steam-launched Vortex, so the handler sees a game id.
+	export AID="611670"
+	export NEXUSGAMEID="skyrimvr"
+	export PLACEHOLDERAID="31337"
+	StatusWindow() { return 0; }
+	export -f StatusWindow
+	local url="nxm://skyrimspecialedition/mods/30457/files/499284?key=abc&expires=1&user_id=1"
+	run_vortex_helpers startVortex "noask" "url" "$url"
+
+	grep -q -- "-d" "$WINE_LOG"
+	grep -qF -- "$url" "$WINE_LOG"
+	! grep -q -- "--game" "$WINE_LOG"
+}

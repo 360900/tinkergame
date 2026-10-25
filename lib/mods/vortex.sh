@@ -1155,24 +1155,28 @@ function startVortex {
 			setVortexReleaseChannel
 			setVortexNoDecoration
 
-			if [ -n "$2" ] && [ "$2" -eq "$2" ] 2>/dev/null; then
-				StatusWindow "${VTX^}" "prepareVortexGame $2" "PrepareVortexGameStatus"
-			elif [ -n "$AID" ] && [ "$AID" != "$PLACEHOLDERAID" ]; then
-				StatusWindow "${VTX^}" "prepareVortexGame $AID" "PrepareVortexGameStatus"
-			fi
-
-			if [ -n "$NEXUSGAMEID" ]; then
-				writelog "INFO" "${FUNCNAME[0]} - Starting ${VTX^} now with command 'runVortex \"--game\" \"$NEXUSGAMEID\"' in WINEPREFIX '$VORTEXPFX'"
-				runVortex "--game" "$NEXUSGAMEID"
+			if [ "$2" == "url" ]; then
+				# nxm:// handoff: never swallow the URL. The browser is often a
+				# child of a Steam-launched Vortex (opened from inside it), so
+				# the handler inherits STEAM_COMPAT_APP_ID and would otherwise
+				# take the "--game" branch below and drop the download.
+				if [ -z "$3" ]; then
+					writelog "INFO" "${FUNCNAME[0]} - need arg3"
+					howto
+				else
+					writelog "INFO" "${FUNCNAME[0]} - Starting ${VTX^} now with command 'runVortex \"-d\" \"$3\""
+					runVortex "-d" "$3"
+				fi
 			else
-				if [ "$2" == "url" ]; then
-					if [ -z "$3" ]; then
-						writelog "INFO" "${FUNCNAME[0]} - need arg3"
-						howto
-					else
-						writelog "INFO" "${FUNCNAME[0]} - Starting ${VTX^} now with command 'runVortex \"-d\" \"$3\""
-						runVortex "-d" "$3"
-					fi
+				if [ -n "$2" ] && [ "$2" -eq "$2" ] 2>/dev/null; then
+					StatusWindow "${VTX^}" "prepareVortexGame $2" "PrepareVortexGameStatus"
+				elif [ -n "$AID" ] && [ "$AID" != "$PLACEHOLDERAID" ]; then
+					StatusWindow "${VTX^}" "prepareVortexGame $AID" "PrepareVortexGameStatus"
+				fi
+
+				if [ -n "$NEXUSGAMEID" ]; then
+					writelog "INFO" "${FUNCNAME[0]} - Starting ${VTX^} now with command 'runVortex \"--game\" \"$NEXUSGAMEID\"' in WINEPREFIX '$VORTEXPFX'"
+					runVortex "--game" "$NEXUSGAMEID"
 				elif [ "$2" == "getset" ]; then
 					writelog "INFO" "${FUNCNAME[0]} - Showing ${VTX^} settings as requested"
 					runVortex "--get" "settings"
