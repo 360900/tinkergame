@@ -883,6 +883,7 @@ function prepareVortexGame {
 
 	if grep -q "\"$VAID\"" "$SEENVORTEXGAMES" 2>/dev/null; then
 		NEXUSGAMEID="$(grep "\"$VAID\"" "$VORTEXGAMES" | cut -d ';' -f1)"
+		NEXUSGAMEID="${NEXUSGAMEID//\"}"
 		writelog "INFO" "${FUNCNAME[0]} - '$NEXUSGAMEID ($VAID)' is already setup for '${VTX^}' - remove from '$SEENVORTEXGAMES' for retry"
 	else
 		if grep -q "\"$VAID\"" "$VORTEXGAMES"; then
