@@ -363,3 +363,34 @@ EOF
 		return 1
 	fi
 }
+
+@test "vortex dlmime: stale handler desktop file is rewritten without Path=" {
+	local fvd="$HOME/.local/share/applications/vortex-tinkergame-dl.desktop"
+	# Old-style file: same prefix, but 'Path=' points at a dir that no longer
+	# exists (Vortex moved its default install dir), which makes every
+	# launch of the handler fail before TinkerGame starts.
+	cat >"$fvd" <<EOT
+[Desktop Entry]
+Type=Application
+Exec=/old/tinkergame mods vortex url %u
+Path=$VORTEXPFX/drive_c/Program Files/Black Tree Gaming Ltd/Vortex
+EOT
+
+	run_vortex_helpers setVortexDLMime
+
+	! grep -q "^Path=" "$fvd"
+	grep -q "^Exec=.* mods vortex url %u$" "$fvd"
+	grep -q "^MimeType=x-scheme-handler/nxm;x-scheme-handler/nxm-protocol$" "$fvd"
+	test -f "$fvd-old"
+	grep -q "^Path=" "$fvd-old"
+}
+
+@test "vortex dlmime: up-to-date handler desktop file is left alone" {
+	local fvd="$HOME/.local/share/applications/vortex-tinkergame-dl.desktop"
+	run_vortex_helpers setVortexDLMime
+	test -f "$fvd"
+	test ! -f "$fvd-old"
+
+	run_vortex_helpers setVortexDLMime
+	test ! -f "$fvd-old"
+}

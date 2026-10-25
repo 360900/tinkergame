@@ -616,57 +616,13 @@ function setMO2DLMime {
 	setMO2Vars
 
 	MO2D="$MO-${PROGNAME,,}-dl.desktop"
-	FMO2D="$HOME/.local/share/applications/$MO2D"
-
-	if [ ! -f "$FMO2D" ]; then
-		writelog "INFO" "${FUNCNAME[0]} - Creating new desktop file $MO2D"
-		{
-		echo "[Desktop Entry]"
-		echo "Type=Application"
-		echo "Categories=Utilities;"
-		echo "Name=$MO ($PROGNAME - ${PROGNAME,,})"
-		echo "Comment=Link Handler - For internal use only"
-		echo "Icon=$STLICON"
-		echo "MimeType=x-scheme-handler/nxm;x-scheme-handler/nxm-protocol"
-		echo "Terminal=false"
-		echo "X-KeepTerminal=false"
-		echo "Path=$(dirname "$MO2EXE")"
-		if [ "$INFLATPAK" -eq 1 ]; then
-			echo "Exec=/usr/bin/flatpak run --command=tinkergame $FLATPAK_ID mods mo2 url %u"
-		else
-			echo "Exec=$(realpath "$0") mods mo2 url %u"
-		fi
-		echo "NoDisplay=true"
-		echo "Hidden=false"
-		} >> "$FMO2D"
-
-		VD="$VTX-${PROGNAME,,}-dl.desktop"
-		FVD="$HOME/.local/share/applications/$VD"
-		if [ -f "$FVD" ]; then
-			writelog "INFO" "${FUNCNAME[0]} - Renaming desktopfile ${FVD} to ${FVD}-off, because '$MO2D' was created"
-			mv "$FVD" "$FVD-off"
-		fi
+	if [ "$INFLATPAK" -eq 1 ]; then
+		MO2DEXEC="/usr/bin/flatpak run --command=tinkergame $FLATPAK_ID mods mo2 url %u"
 	else
-		if grep -q "$MO2PFX" "$FMO2D"; then
-			writelog "INFO" "${FUNCNAME[0]} - Desktopfile '$FMO2D' looks to be up2date"
-			# Do NOT return here: re-(re)apply the xdg-mime default association
-			# every run so a stale mimeapps.list cannot silently break nxm:// handling.
-		else
-			writelog "INFO" "${FUNCNAME[0]} - Renaming desktopfile '$FMO2D' and creating a new one for ${PROGNAME,,}"
-			mv "$FMO2D" "$FMO2D-old"
-			setMO2DLMime
-		fi
+		MO2DEXEC="$(realpath "$0") mods mo2 url %u"
 	fi
 
-	# setting mime types for nxm
-
-	if [ -x "$(command -v "$XDGMIME" 2>/dev/null)" ]; then
-		writelog "INFO" "${FUNCNAME[0]} - Setting download defaults for nexusmod protocol via $XDGMIME pointing at $MO2D"
-		"$XDGMIME" default "$MO2D" x-scheme-handler/nxm
-		"$XDGMIME" default "$MO2D" x-scheme-handler/nxm-protocol
-	else
-		writelog "SKIP" "${FUNCNAME[0]} - $XDGMIME not found - couldn't set download defaults for nexusmod protocol - skipping"
-	fi
+	installDLMimeDesktop "$MO2D" "$(dlMimeDesktopContent "$MO" "$MO2DEXEC")" "$VTX-${PROGNAME,,}-dl.desktop"
 }
 
 function checkMO2 {
