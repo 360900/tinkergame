@@ -387,6 +387,7 @@ DESC_WINEDEFAULT="La version de Wine par défaut à utiliser si aucune n'est sé
 GUI_SELWINE="Wine n'est pas encore configuré - il faut télécharger une version de Wine ou choisir une version déjà disponible"
 GUI_SELIWINE="Choisir une des versions de Wine disponibles à utilisere"
 BUT_DLDWINE="TÉLÉCHARGER WINE"
+BUT_DOWNLOAD="TÉLÉCHARGER"
 BUT_SELWINE="UTILISER LE WINE DISPONIBLE"
 GUI_USEWICO="Utiliser wineconsole"
 DESC_USEWICO="Utiliser wineconsole lorsque l'exe est un programme de console"

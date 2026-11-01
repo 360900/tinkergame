@@ -270,7 +270,7 @@ function dlCustomProtonGUI {
 
 	DLDISPCUSTPROT="$(printf '%s\n' "${DLCELLS[@]}" | "$YAD" --f1-action="$F1ACTION" --window-icon="$STLICON" --center --on-top "${WINDECO[@]}" \
 	--list --column="$GUI_USEPROTON" --column="$GUI_URL" --hide-column=2 --separator="" --print-column="2" \
-	--button="$BUT_DONE":0 --button="$GUI_URL":3 --button="$BUT_CAN":1 \
+	--button="$BUT_DOWNLOAD":0 --button="$GUI_URL":3 --button="$BUT_CAN":1 \
 	--title="$TITLE" \
 	--text="$(spanFont "$GUI_DLCUSTPROTTEXT" "H")" \
 	"$GEOM"
@@ -283,7 +283,7 @@ function dlCustomProtonGUI {
 		--entry \
 		--title="$TITLE" \
 		--text="$(spanFont "$GUI_DLCUSTPROTTEXT" "H")" \
-		--button="$BUT_DONE":0 --button="$BUT_CAN":1 \
+		--button="$BUT_DOWNLOAD":0 --button="$BUT_CAN":1 \
 		"$GEOM")"; then
 			writelog "INFO" "${FUNCNAME[0]} - Manual URL entry cancelled"
 			return 0
