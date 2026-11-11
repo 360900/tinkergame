@@ -770,8 +770,8 @@ function prepareProtonDBRating {
 			PDBTOTAL="${PDBARR[2]}"
 			PDBTREND="${PDBARR[3]}"
 			PDBBESTT="${PDBARR[4]}"
-			printf '<b>ProtonDB Rating Trend:</b> %s' "${PDBTREND^}" > "$PDBRASINF"
-			printf '<u>%s</u>\n<b>Confidence:</b> %s\n<b>Score:</b> %s\n<b>Total Votes:</b> %s\n<b>Rating Trend:</b> %s\n<b>Best Rating:</b> %s\n' "$GUI_USEPDBRATING" "${PDBCONFI}" "${PDBSCORE}" "${PDBTOTAL}" "${PDBTREND}" "${PDBBESTT}" > "$PDBRAINFO"
+			printf '<b>ProtonDB rating trend:</b> %s' "${PDBTREND^}" > "$PDBRASINF"
+			printf '<u>%s</u>\n<b>Confidence:</b> %s\n<b>Score:</b> %s\n<b>Total votes:</b> %s\n<b>Rating trend:</b> %s\n<b>Best rating:</b> %s\n' "$GUI_USEPDBRATING" "${PDBCONFI}" "${PDBSCORE}" "${PDBTOTAL}" "${PDBTREND}" "${PDBBESTT}" > "$PDBRAINFO"
 		fi
 	fi
 }
