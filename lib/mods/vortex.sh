@@ -1168,24 +1168,26 @@ function startVortex {
 					writelog "INFO" "${FUNCNAME[0]} - Starting ${VTX^} now with command 'runVortex \"-d\" \"$3\""
 					runVortex "-d" "$3"
 				fi
+			elif [ "$2" == "getset" ]; then
+				# explicit subcommands win over a game id inherited from a
+				# Steam game context, like the url handoff above
+				writelog "INFO" "${FUNCNAME[0]} - Showing ${VTX^} settings as requested"
+				runVortex "--get" "settings"
+				grep -v "^info: Epic" "$VWRUN"
+				rm "$VWRUN" 2>/dev/null
+			elif [ "$1" == "activate" ]; then
+				writelog "INFO" "${FUNCNAME[0]} - Activating game '$2'"
+				activateVortexGame "$2"
 			else
 				if [ -n "$2" ] && [ "$2" -eq "$2" ] 2>/dev/null; then
 					StatusWindow "${VTX^}" "prepareVortexGame $2" "PrepareVortexGameStatus"
-				elif [ -n "$AID" ] && [ "$AID" != "$PLACEHOLDERAID" ]; then
+				elif [ -z "$2" ] && [ -n "$AID" ] && [ "$AID" != "$PLACEHOLDERAID" ]; then
 					StatusWindow "${VTX^}" "prepareVortexGame $AID" "PrepareVortexGameStatus"
 				fi
 
 				if [ -n "$NEXUSGAMEID" ]; then
 					writelog "INFO" "${FUNCNAME[0]} - Starting ${VTX^} now with command 'runVortex \"--game\" \"$NEXUSGAMEID\"' in WINEPREFIX '$VORTEXPFX'"
 					runVortex "--game" "$NEXUSGAMEID"
-				elif [ "$2" == "getset" ]; then
-					writelog "INFO" "${FUNCNAME[0]} - Showing ${VTX^} settings as requested"
-					runVortex "--get" "settings"
-					grep -v "^info: Epic" "$VWRUN"
-					rm "$VWRUN" 2>/dev/null
-				elif [ "$1" == "activate" ]; then
-					writelog "INFO" "${FUNCNAME[0]} - Activating game '$2'"
-					activateVortexGame "$2"
 				else
 					StatusWindow "${VTX^}" "prepareAllInstalledVortexGames" "PrepareVortexGameStatus"
 					writelog "INFO" "${FUNCNAME[0]} - Starting ${VTX^} without options" "E"

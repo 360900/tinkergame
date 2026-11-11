@@ -410,3 +410,51 @@ EOT
 	grep -qF -- "$url" "$WINE_LOG"
 	! grep -q -- "--game" "$WINE_LOG"
 }
+
+@test "vortex getset: a Steam game context does not start the game instead" {
+	export AID="611670"
+	export NEXUSGAMEID="skyrimvr"
+	export PLACEHOLDERAID="31337"
+	export VWRUN="$BATS_TEST_TMPDIR/vwrun.log"
+	: >"$VWRUN"
+	StatusWindow() { return 0; }
+	run_vortex_helpers startVortex "noask" "getset"
+
+	grep -q -- "--get settings" "$WINE_LOG"
+	run grep -c -- "--game" "$WINE_LOG"
+	[ "$output" -eq 0 ]
+}
+
+@test "vortex activate: activates the game instead of starting it" {
+	export AID="611670"
+	export PLACEHOLDERAID="31337"
+	unset NEXUSGAMEID
+	CALL_LOG="$BATS_TEST_TMPDIR/calls.log"
+	: >"$CALL_LOG"
+	# shellcheck disable=SC2086
+	StatusWindow() { $2; }
+	prepareVortexGame() { printf 'prepare %s\n' "$1" >>"$CALL_LOG"; NEXUSGAMEID="skyrimvr"; }
+	activateVortexGame() { printf 'activate %s\n' "$1" >>"$CALL_LOG"; }
+	run_vortex_helpers startVortex "activate" "611670"
+
+	[ "$(cat "$CALL_LOG")" = "activate 611670" ]
+	run grep -c -- "--game" "$WINE_LOG"
+	[ "$output" -eq 0 ]
+}
+
+@test "vortex start: a game id argument or a Steam game context starts that game" {
+	export PLACEHOLDERAID="31337"
+	# shellcheck disable=SC2086
+	StatusWindow() { $2; }
+	prepareVortexGame() { NEXUSGAMEID="skyrimvr"; }
+
+	unset NEXUSGAMEID
+	export AID="611670"
+	run_vortex_helpers startVortex "ask" ""
+	grep -q -- "--game skyrimvr" "$WINE_LOG"
+
+	: >"$WINE_LOG"
+	export AID="$PLACEHOLDERAID"
+	run_vortex_helpers startVortex "ask" "611670"
+	grep -q -- "--game skyrimvr" "$WINE_LOG"
+}
