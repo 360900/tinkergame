@@ -138,6 +138,10 @@ function prepareGUI {
 	# the command line), so '--css' reaches every '$YAD' call without touching
 	# each invocation site. An existing $YAD_OPTIONS value is preserved. Yad
 	# splits on plain spaces, so the file path must not contain any.
+	# TGMAINCSS is only set with the shipped default stylesheet: the Main Menu
+	# passes it as its own '--css' (overriding the one in YAD_OPTIONS) to style
+	# its Play button as the suggested action. A custom YADCSS always wins.
+	TGMAINCSS=""
 	if [ -n "$YADCSS" ] && [ "$YADCSS" != "$NON" ]; then
 		if [ -r "$YADCSS" ]; then
 			export YAD_OPTIONS="${YAD_OPTIONS:+$YAD_OPTIONS }--css=$YADCSS"
@@ -146,12 +150,15 @@ function prepareGUI {
 			writelog "SKIP" "${FUNCNAME[0]} - YADCSS '$YADCSS' is not a readable file - ignoring it"
 		fi
 	else
-		# no user CSS: fall back to the shipped default, which outlines
-		# notebook tabs so they are visually separated from each other
-		TGDEFCSS="$SYSTEMSTLCFGDIR/misc/tg-tabs.css"
+		# no user CSS: fall back to the shipped default stylesheet (oneDesign
+		# shapes, spacing and hierarchy, colors taken from the GTK theme)
+		TGDEFCSS="$SYSTEMSTLCFGDIR/misc/tg-one.css"
 		if [ -r "$TGDEFCSS" ]; then
 			export YAD_OPTIONS="${YAD_OPTIONS:+$YAD_OPTIONS }--css=$TGDEFCSS"
-			writelog "INFO" "${FUNCNAME[0]} - loading default tab CSS '$TGDEFCSS' for all TinkerGame windows"
+			writelog "INFO" "${FUNCNAME[0]} - loading default CSS '$TGDEFCSS' for all TinkerGame windows"
+			if [ -r "$SYSTEMSTLCFGDIR/misc/tg-one-main.css" ]; then
+				TGMAINCSS="$SYSTEMSTLCFGDIR/misc/tg-one-main.css"
+			fi
 		fi
 	fi
 

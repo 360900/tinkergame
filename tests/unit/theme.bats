@@ -19,6 +19,7 @@ pg_dump() {
 	  prepareGUI
 	  printf 'GTK_THEME=%s\n' "${GTK_THEME-}"
 	  printf 'YAD_OPTIONS=%s\n' "${YAD_OPTIONS-}"
+	  printf 'TGMAINCSS=%s\n' "${TGMAINCSS-}"
 	) > "$PGOUT"
 }
 
@@ -56,6 +57,26 @@ pg_dump() {
 	LOGLEVEL=2 pg_dump
 	grep -qx 'YAD_OPTIONS=' "$PGOUT"
 	grep -q "is not a readable file" "$TEMPLOG"
+}
+
+@test "prepareGUI: without YADCSS the shipped oneDesign stylesheet is loaded" {
+	SYSTEMSTLCFGDIR="$TG_ROOT"
+	pg_dump
+	grep -qx "YAD_OPTIONS=--css=$TG_ROOT/misc/tg-one.css" "$PGOUT"
+	grep -qx "TGMAINCSS=$TG_ROOT/misc/tg-one-main.css" "$PGOUT"
+}
+
+@test "prepareGUI: a custom YADCSS disables the Main Menu stylesheet" {
+	SYSTEMSTLCFGDIR="$TG_ROOT"
+	YADCSS="$CSSFILE"
+	pg_dump
+	grep -qx "YAD_OPTIONS=--css=$CSSFILE" "$PGOUT"
+	grep -qx 'TGMAINCSS=' "$PGOUT"
+}
+
+@test "theme: the Main Menu stylesheet imports the shared one next to it" {
+	grep -q '@import url("tg-one.css");' "$TG_ROOT/misc/tg-one-main.css"
+	[ -f "$TG_ROOT/misc/tg-one.css" ]
 }
 
 @test "prepareGUI: existing YAD_OPTIONS is preserved and extended" {

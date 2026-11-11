@@ -1,0 +1,32 @@
+/* TinkerGame Main Menu: the shared stylesheet plus the suggested action.
+ * Play is always the last dialog button and Exit the first. */
+
+@import url("tg-one.css");
+
+#yad-dialog-window buttonbox > button:last-child {
+	border-color: transparent;
+	background-color: @tg_accent;
+	color: @tg_on_accent;
+	font-weight: bold;
+}
+
+#yad-dialog-window buttonbox > button:last-child label {
+	color: @tg_on_accent;
+}
+
+#yad-dialog-window buttonbox > button:last-child:hover {
+	background-color: shade(@tg_accent, 1.08);
+}
+
+#yad-dialog-window buttonbox > button:last-child:active {
+	background-color: shade(@tg_accent, 0.92);
+}
+
+#yad-dialog-window buttonbox > button:first-child {
+	border-color: transparent;
+	background-color: transparent;
+}
+
+#yad-dialog-window buttonbox > button:first-child:hover {
+	background-color: @tg_fill;
+}

@@ -1,0 +1,174 @@
+/* TinkerGame default stylesheet, following the oneDesign language
+ * (https://github.com/360900/oneDesign).
+ *
+ * GTK 3 has no prefers-color-scheme media query, so like oneDesign's own
+ * GTK 3 layer this only sets shape, spacing and hierarchy. Every color is
+ * derived from the active GTK theme, so light and dark themes and the
+ * system accent are followed automatically.
+ *
+ * Loaded into every Yad window unless YADCSS points to a custom file. */
+
+@define-color tg_accent @theme_selected_bg_color;
+@define-color tg_on_accent @theme_selected_fg_color;
+@define-color tg_accent_container mix(@theme_selected_bg_color, @theme_base_color, 0.72);
+@define-color tg_fill alpha(@theme_fg_color, 0.07);
+@define-color tg_fill_hover alpha(@theme_fg_color, 0.11);
+@define-color tg_fill_active alpha(@theme_fg_color, 0.16);
+@define-color tg_stroke alpha(@theme_fg_color, 0.10);
+@define-color tg_text2 alpha(@theme_fg_color, 0.70);
+
+/* Buttons: flat tinted, 36 px high, control radius 10 */
+
+#yad-dialog-window button {
+	min-height: 24px;
+	padding: 5px 14px;
+	border-radius: 10px;
+	border: 1px solid @tg_stroke;
+	background-image: none;
+	background-color: @tg_fill;
+	box-shadow: none;
+	text-shadow: none;
+}
+
+#yad-dialog-window button:hover {
+	background-color: @tg_fill_hover;
+}
+
+#yad-dialog-window button:active,
+#yad-dialog-window button:checked {
+	background-color: @tg_fill_active;
+}
+
+#yad-dialog-window button:disabled {
+	background-color: alpha(@theme_fg_color, 0.04);
+	border-color: alpha(@theme_fg_color, 0.05);
+}
+
+/* Buttons that are parts of other widgets keep their own look */
+
+#yad-dialog-window spinbutton button,
+#yad-dialog-window treeview header button,
+#yad-dialog-window scrollbar button,
+#yad-dialog-window notebook > header button {
+	min-height: 0;
+	border-radius: 0;
+	border: none;
+	background-color: transparent;
+}
+
+#yad-dialog-window treeview header button {
+	padding: 4px 8px;
+	border-bottom: 1px solid @tg_stroke;
+}
+
+/* Dialog buttons: one row with a little air above it */
+
+#yad-dialog-window buttonbox {
+	margin-top: 8px;
+}
+
+/* Entries and combo boxes: filled, no heavy outline */
+
+#yad-dialog-window entry,
+#yad-dialog-window spinbutton {
+	min-height: 26px;
+	border-radius: 10px;
+	border: 1px solid transparent;
+	background-image: none;
+	background-color: @tg_fill;
+	box-shadow: none;
+}
+
+#yad-dialog-window spinbutton entry {
+	border: none;
+	background-color: transparent;
+}
+
+#yad-dialog-window entry:focus,
+#yad-dialog-window spinbutton:focus-within {
+	border-color: alpha(@tg_accent, 0.8);
+}
+
+#yad-dialog-window combobox > box > button {
+	padding: 5px 10px;
+}
+
+/* Checks and switches */
+
+#yad-dialog-window check {
+	border-radius: 6px;
+}
+
+#yad-dialog-window switch {
+	border-radius: 999px;
+}
+
+#yad-dialog-window switch slider {
+	border-radius: 999px;
+}
+
+/* Notebook (tabbed settings menus): pill tabs, selection as accent container */
+
+#yad-dialog-window notebook,
+#yad-dialog-window notebook > header {
+	border: none;
+	background-color: transparent;
+}
+
+#yad-dialog-window notebook > header {
+	padding: 4px 0 8px 0;
+}
+
+#yad-dialog-window notebook > header tab {
+	min-height: 24px;
+	margin: 0 2px;
+	padding: 5px 14px;
+	border: none;
+	border-radius: 999px;
+	background-color: transparent;
+	color: @tg_text2;
+	box-shadow: none;
+}
+
+#yad-dialog-window notebook > header tab:hover {
+	background-color: @tg_fill;
+	color: @theme_fg_color;
+}
+
+#yad-dialog-window notebook > header tab:checked {
+	background-color: @tg_accent_container;
+	color: @theme_fg_color;
+	font-weight: bold;
+}
+
+#yad-dialog-window notebook > stack {
+	border-top: 1px solid @tg_stroke;
+	background-color: transparent;
+}
+
+/* Lists: selection as accent container */
+
+#yad-dialog-window treeview.view:selected,
+#yad-dialog-window treeview.view:selected:focus {
+	background-color: @tg_accent_container;
+	color: @theme_fg_color;
+}
+
+/* Frames and scrolled lists: hairline, container radius 14 */
+
+#yad-dialog-window frame > border {
+	border: 1px solid @tg_stroke;
+	border-radius: 14px;
+}
+
+/* Progress bars: thin track */
+
+#yad-dialog-window progressbar trough,
+#yad-dialog-window progressbar progress {
+	min-height: 6px;
+	border-radius: 999px;
+}
+
+tooltip {
+	border-radius: 10px;
+}
