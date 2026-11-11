@@ -268,9 +268,9 @@ function dlProgressFeed {
 		CHUNK=""
 		IFS= read -r -t 0.2 -N 4096 CHUNK || RC=$?
 		BUF+="$CHUNK"
-		while [[ "$BUF" == *[$DELIMS]* ]]; do
-			dlProgressLine "${BUF%%[$DELIMS]*}"
-			BUF="${BUF#*[$DELIMS]}"
+		while [[ "$BUF" == *["$DELIMS"]* ]]; do
+			dlProgressLine "${BUF%%["$DELIMS"]*}"
+			BUF="${BUF#*["$DELIMS"]}"
 		done
 		# a status above 128 is the timeout, any other failure the end of input
 		if [ "$RC" -ne 0 ] && [ "$RC" -le 128 ]; then
@@ -592,8 +592,8 @@ function desktopExecArg {
 	for (( I=0; I<${#ARG}; I++ )); do
 		C="${ARG:I:1}"
 		case "$C" in
-			'"'|'`'|'$') OUT+='\\'"$C" ;;
-			'\') OUT+='\\\\' ;;
+			'"'|'`'|'$') OUT+="\\\\$C" ;;
+			\\) OUT+="\\\\\\\\" ;;
 			'%') OUT+='%%' ;;
 			*) OUT+="$C" ;;
 		esac
