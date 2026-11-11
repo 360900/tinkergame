@@ -719,7 +719,7 @@ function standaloneDesktopFile {
 				if [ "$INFLATPAK" -eq 1 ]; then
 					echo "Exec=/usr/bin/flatpak run --command=tinkergame $FLATPAK_ID play $AID"
 				else
-					echo "Exec=$(realpath "$0") play $AID"
+					echo "Exec=$(desktopExecArg "$(realpath "$0")") play $AID"
 				fi
 				echo "Icon=$WANTGPNG"
 				echo "Terminal=false"

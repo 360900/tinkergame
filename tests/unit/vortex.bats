@@ -545,3 +545,12 @@ EOT
 	run_vortex_helpers startVortex "ask" "611670"
 	grep -q -- "--game skyrimvr" "$WINE_LOG"
 }
+
+@test "desktop files: every Exec line built from this script's path is quoted" {
+	# an unquoted path breaks the launcher when the install path has spaces
+	run grep -rn 'Exec=\$(realpath' "$TG_ROOT/lib"
+	[ "$status" -eq 1 ]
+	# field codes like %u must never be quoted (Desktop Entry spec)
+	run grep -rn 'Exec=.*\\"%[uUfF]\\"' "$TG_ROOT/lib"
+	[ "$status" -eq 1 ]
+}

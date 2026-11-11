@@ -603,9 +603,9 @@ function createHMMDesktopFile {
 		echo "Comment=A mod manager for Hedgehog Engine games on PC (Installed by TinkerGame)"
 		echo "MimeType=x-scheme-handler/hedgemm"
 		if [ "$INFLATPAK" -eq 1 ]; then
-			echo "Exec=/usr/bin/flatpak run --command=tinkergame $FLATPAK_ID mods hedge start ${HMMAUTO} \"%u\""  # "hedge start" takes dl channel as argument, next arg is the URL
+			echo "Exec=/usr/bin/flatpak run --command=tinkergame $FLATPAK_ID mods hedge start ${HMMAUTO} %u"  # "hedge start" takes dl channel as argument, next arg is the URL (field codes must not be quoted)
 		else
-			echo "Exec=$(realpath "$0") mods hedge start ${HMMAUTO} \"%u\""  # "hedge start" takes dl channel as argument, next arg is the URL
+			echo "Exec=$(desktopExecArg "$(realpath "$0")") mods hedge start ${HMMAUTO} %u"  # "hedge start" takes dl channel as argument, next arg is the URL (field codes must not be quoted)
 		fi
 		echo "Icon=${HMMICOPATH}"
 		echo "Terminal=false"
@@ -641,7 +641,7 @@ function createHMMDesktopFile {
 		if [ "$INFLATPAK" -eq 1 ]; then
 			echo "Exec=/usr/bin/flatpak run --command=tinkergame $FLATPAK_ID mods hedge url %u"  # "hedge url" takes the download URL as argument
 		else
-			echo "Exec=$(realpath "$0") mods hedge url %u"  # "hedge url" takes the download URL as argument
+			echo "Exec=$(desktopExecArg "$(realpath "$0")") mods hedge url %u"  # "hedge url" takes the download URL as argument
 		fi
 		echo "NoDisplay=true"
 		echo "Hidden=false"
