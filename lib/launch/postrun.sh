@@ -116,7 +116,7 @@ function restoreSteamUser {
 	function askRestore {
 		writelog "INFO" "${FUNCNAME[0]} - Asking if $STUS data from '$BACKUPSRC' shall be restored to '$SteamUserDir'"
 
-		export CURWIKI="$PPW/Backup Support"
+		export CURWIKI="$PPW/Backup-Support"
 		TITLE="${PROGNAME}-Ask_Restore_SteamUser_data"
 		pollWinRes "$TITLE"
 

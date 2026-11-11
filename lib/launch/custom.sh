@@ -829,7 +829,7 @@ function launchCustomProg {
 		writelog "INFO" "${FUNCNAME[0]} - CUSTOMCMD variable is empty - opening file requester"
 		fixShowGnAid
 
-		export CURWIKI="$PPW/Custom-Program"
+		export CURWIKI="$PPW/Custom-Command"
 		TITLE="${PROGNAME}-OpenCustomProgram"
 		pollWinRes "$TITLE"
 
@@ -889,7 +889,7 @@ function launchCustomProg {
 			else
 				writelog "INFO" "${FUNCNAME[0]} - CUSTOMCMD file '$CUSTOMCMD' not found - opening file requester"
 				fixShowGnAid
-				export CURWIKI="$PPW/Custom-Program"
+				export CURWIKI="$PPW/Custom-Command"
 				TITLE="${PROGNAME}-OpenCustomProgram"
 				pollWinRes "$TITLE"
 

@@ -679,7 +679,7 @@ function addCustomProton {
 			echo "################################################"
 			} > "$CUSTOMPROTONLIST"
 		fi
-		export CURWIKI="$PPW/Custom-Proton-Autoupdate"
+		export CURWIKI="$PPW/Proton-Versions"
 		TITLE="${PROGNAME}-AddCustomProton"
 		pollWinRes "$TITLE"
 
