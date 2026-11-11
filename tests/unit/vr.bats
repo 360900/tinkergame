@@ -126,3 +126,18 @@ setup_openvr_fsr() {
 	[ ! -e "$EFD/$OVRFSENA" ]
 	[ ! -e "$EFD/openvr_fsr-tinkergame-enabled.txt" ]
 }
+
+@test "checkOpenVRFSR: uninstalling removes the installed mod config" {
+	setup_openvr_fsr
+	OVRMOD="openvr_mod.cfg"
+	printf 'cfg\n' > "$STLDLDIR/$OVFS/$OVRMOD"
+	USEOPENVRFSR=1
+	checkOpenVRFSR
+	[ -f "$EFD/bin/$OVRMOD" ]
+	grep -qx "/bin/$OVRMOD" "$EFD/$OVRFSENA"
+
+	USEOPENVRFSR=0
+	checkOpenVRFSR
+	[ ! -e "$EFD/bin/$OVRMOD" ]
+	[ "$(cat "$EFD/bin/$OVRA")" = "original" ]
+}

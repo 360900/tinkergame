@@ -322,7 +322,7 @@ function checkOpenVRFSR {
 			while read -r line; do
 				if grep -q "$OVRA" <<< "$line"; then
 					OVRAOP="$EFD/${line//$OVRA/$OVRAO}"
-				if [ -f "$OVRAOP" ]; then
+					if [ -f "$OVRAOP" ]; then
 						writelog "INFO" "${FUNCNAME[0]} - Restoring original $OVRA from '$OVRAOP'"
 						mv "$OVRAOP" "$EFD/$line" 2>/dev/null
 					else
@@ -330,7 +330,7 @@ function checkOpenVRFSR {
 					fi
 				else
 					writelog "INFO" "${FUNCNAME[0]} - Removing '$EFD/$line'"
-					rm "$EDF/$line" 2>/dev/null
+					rm "$EFD/$line" 2>/dev/null
 				fi
 			done < "$OVRFP"
 			rm "$OVRFP" 2>/dev/null
