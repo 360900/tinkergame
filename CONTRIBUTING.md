@@ -31,9 +31,9 @@ There are no strict rules on how to name or format your pull requests. Just try 
 ### Versioning
 **Note:** Version strings don't have to be updated when submitting PRs with no code updates. You're still free to do so, but it isn't really necessary if you're not touching `tinkergame`. It is cleaner for me though! :-)
 
-Before a Pull Request can be merged, the `PROGVERS` should be bumped. This value controls how config files are versioned, and how new data is pulled into them. TinkerGame follows [Semantic Versioning](https://semver.org) with a pre-release suffix while it is in Alpha: `vMAJOR.MINOR.PATCH-stage.N`, e.g. `v0.1.0-alpha.1`. Anything may change at any time while the major version is `0`.
+Before a Pull Request can be merged, the `PROGVERS` should be bumped. This value controls how config files are versioned, and how new data is pulled into them. TinkerGame follows [Semantic Versioning](https://semver.org) with a pre-release suffix while it is in alpha or beta: `vMAJOR.MINOR.PATCH-stage.N`, e.g. `v0.1.0-alpha.1`. Anything may change at any time while the major version is `0`.
 
-In practice, *only the number after the stage needs to be changed by you*: bump the counter for each release (`v0.1.0-alpha.1` -> `v0.1.0-alpha.2`). The `MINOR` version is bumped (and the counter reset) by the maintainer when a batch of features lands (`v0.2.0-alpha.1`). Once the app is feature-complete, the stage moves to `beta` (`v1.0.0-beta.1`), and the suffix is dropped entirely for a stable release (`v1.0.0`). Git tags match `PROGVERS` exactly.
+In practice, *only the number after the stage needs to be changed by you*: bump the counter for each release (`v0.1.0-alpha.1` -> `v0.1.0-alpha.2`). The `MINOR` version is bumped (and the counter reset) by the maintainer when a batch of features lands (`v0.2.0-alpha.1`). Once the app is feature-complete, the stage moves to `beta` (`v0.2.0-beta.1`), and the suffix is dropped entirely for a stable release (`v1.0.0`). Git tags match `PROGVERS` exactly.
 
 That means, if you're developing a bugfix on top of `v0.1.0-alpha.1`, you would set the string to `v0.1.0-alpha.2`.
 
