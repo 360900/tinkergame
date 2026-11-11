@@ -17,9 +17,7 @@
 # response code the notebook tells the plugs (SIGUSR1) to print their field
 # values, which is exactly what the single form does on its own stdout.
 #
-# tgNotebookLaunch() is the generic notebook+plug machinery; it is also used
-# by openMainMenuTabs() in menus.sh to group the Main Menu tool buttons into
-# notebook tabs.
+# tgNotebookLaunch() is the generic notebook+plug machinery behind it.
 #
 # The per-tab outputs are concatenated in tab order into $MKCFG while the
 # category-chunked template is concatenated the same way, so the existing
@@ -87,8 +85,8 @@ function tgMarkupEscape {
 }
 
 function tgNotebookLaunch {
-	# generic yad --notebook + --plug launcher shared by the tabbed settings
-	# menus (openTabbedMenu) and the tabbed Main Menu (openMainMenuTabs).
+	# generic yad --notebook + --plug launcher used by the tabbed settings
+	# menus (openTabbedMenu).
 	# Globals coming in:
 	#   TGNB_TABS      - array of tab labels
 	#   TGNB_FUNCS     - array of plug function names (one per tab), each is

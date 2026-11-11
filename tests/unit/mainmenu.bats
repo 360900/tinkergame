@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Main Menu tests (lib/gui/menus.sh) for the grouped tabbed Main Menu and its
-# classic single form fallback.
+# Main Menu tests (lib/gui/menus.sh): the single form Main Menu with its tool
+# buttons grouped into titled sections, the header and the rc dispatch.
 #
 # yad is replaced by a stub faithful to the notebook/plug semantics (see
 # tests/unit/tabs.bats) which additionally serves plain --form invocations.
@@ -103,7 +103,7 @@ STUB
 	export STLICON="$BATS_TEST_TMPDIR/icon.png"
 	export SHOWPIC="$BATS_TEST_TMPDIR/showpic.png"
 	export F1ACTIONCG="bash -c setColGui"
-	export AID="12345" GN="Test Game" SETMENU="Settings Menu"
+	export AID="12345" GN="Test Game" SETMENU="Settings Menu" SGNAID="Test Game (12345)" TGMAINCSS=""
 	export SMALLDESK=1 ONSTEAMDECK=0 STEAMDECKCOMPATRATING="Good"
 	export SHADDESTDIR="/tmp/shaders" VTX="vortex" HEADLINEFONT="larger"
 	export BUT_EXIT="EXIT" BUT_GUISET_CATMENUSHORT="CATEGORIES" BUT_GM="GAME MENU"
@@ -162,37 +162,144 @@ teardown() {
 	pkill -f -- "$BATS_TEST_TMPDIR/stubbin/yad" 2>/dev/null || true
 }
 
-@test "mainmenu: tabbed Main Menu with grouped tabs and rc dispatch to the game menu" {
-	STUB_PLUGS=6
+# fields of the logged form call, one per line, in order
+form_fields() {
+	grep '^form:' "$STUB_YAD_LOG" | grep -o -- "--field=[^:]*:[A-Z]*" 
+}
+
+@test "mainmenu: one form with all 20 tool buttons in six titled sections" {
 	STUB_YAD_RC=6
 	run MainMenu "12345"
 	[ "$status" -eq 0 ]
 	[ -f "$MARK/openGameMenu" ]
-	# one notebook with six tabs
-	[ "$(grep -c '^notebook:' "$STUB_YAD_LOG")" -eq 1 ]
-	grep -qF 'notebook:--notebook --key=' "$STUB_YAD_LOG"
-	[ "$(grep '^notebook:' "$STUB_YAD_LOG" | grep -o -- '--tab=' | wc -l)" -eq 6 ]
-	grep -qF -- '--tab=Downloads' "$STUB_YAD_LOG"
-	grep -qF -- '--tab=Steam' "$STUB_YAD_LOG"
-	grep -qF -- '--tab=Game Tools' "$STUB_YAD_LOG"
-	# the header text and the game picture are on the notebook
-	grep -qF -- '--text=<span' "$STUB_YAD_LOG"
-	grep -qF -- "TinkerGame" "$STUB_YAD_LOG"
-	grep -qF -- "--image=$SHOWPIC" "$STUB_YAD_LOG"
-	# six plugs, one per tab, with the grouped buttons (3/3/3/2/4/5 fields).
-	# the plug lines appear in race order, so match per tabnum.
-	[ "$(grep -c '^plug:' "$STUB_YAD_LOG")" -eq 6 ]
-	[ "$(grep '^plug:' "$STUB_YAD_LOG" | grep -o -- '--field=' | wc -l)" -eq 20 ]
-	[ "$(grep '^plug:' "$STUB_YAD_LOG" | grep -o -- '--tabnum=[0-9]*' | sort | tr '\n' ' ')" = "--tabnum=1 --tabnum=2 --tabnum=3 --tabnum=4 --tabnum=5 --tabnum=6 " ]
-	[ "$(grep '^plug:.*--tabnum=1 ' "$STUB_YAD_LOG" | grep -o -- '--field=' | wc -l)" -eq 3 ]
-	[ "$(grep '^plug:.*--tabnum=6 ' "$STUB_YAD_LOG" | grep -o -- '--field=' | wc -l)" -eq 5 ]
-	# plug outputs were flushed to files on the even response code
-	[ "$(wc -l < "$MTEMP/mainmenu-tab-out-1")" -eq 3 ]
-	[ "$(wc -l < "$MTEMP/mainmenu-tab-out-6")" -eq 5 ]
+	# a single plain form, no notebook
+	[ "$(grep -c '^form:' "$STUB_YAD_LOG")" -eq 1 ]
+	[ "$(grep -c '^notebook:' "$STUB_YAD_LOG")" -eq 0 ]
+	[ "$(form_fields | grep -c ':FBTN$')" -eq 20 ]
+	# six section titles, markup escaped
+	[ "$(form_fields | grep ':LBL$' | grep -c "fgalpha='65%'")" -eq 6 ]
+	grep -qF -- 'Wine &amp; Proton</span>:LBL' "$STUB_YAD_LOG"
+	grep -qF -- 'Game Tools</span>:LBL' "$STUB_YAD_LOG"
+	# labels and AID-carrying commands intact
+	grep -qF -- 'DL CUSTOM PROTON' "$STUB_YAD_LOG"
+	grep -qF -- 'proton getslr-gui "12345"' "$STUB_YAD_LOG"
+	grep -qF -- 'game compatdata "12345" "s"' "$STUB_YAD_LOG"
+	# header text and game picture
+	grep -qF -- "--image $SHOWPIC" "$STUB_YAD_LOG"
+	grep -qF -- '--columns=4' "$STUB_YAD_LOG"
 }
 
-@test "mainmenu: tabbed rc=16 dispatches to the game" {
-	STUB_PLUGS=6
+@test "mainmenu: sections are never split across columns" {
+	for cols in 1 2 3 4 6; do
+		COLCOUNT="$cols"
+		MM_G1=(a 1 b 2 c 3) MM_G2=(a 1 b 2 c 3) MM_G3=(a 1 b 2 c 3)
+		MM_G4=(a 1 b 2) MM_G5=(a 1 b 2 c 3 d 4) MM_G6=(a 1 b 2 c 3 d 4 e 5)
+		MM_TITLES=(T1 T2 T3 T4 T5 T6)
+		MM_ORDER=( 6 4 2 3 1 5 )
+		buildMainMenuForm
+		# two words per form cell
+		cells=$(( ${#MMFORM[@]} / 2 ))
+		rows=$(( (cells + cols - 1) / cols ))
+		# every title starts a column or follows a whole section in the same column
+		i=0
+		col_start=0
+		while [ "$i" -lt "$cells" ]; do
+			f="${MMFORM[$(( i * 2 ))]}"
+			if [[ "$f" == *"</span>:LBL" ]]; then
+				t="${f%</span>:LBL}"; t="${t##*>}"
+				n="${t#T}"
+				declare -n G="MM_G$n"
+				size=$(( ${#G[@]} / 2 + 1 ))
+				unset -n G
+				# the whole section fits before the column ends
+				[ $(( i % rows + size )) -le "$rows" ]
+			fi
+			i=$(( i + 1 ))
+		done
+		# no more columns than asked for
+		[ $(( (cells + rows - 1) / rows )) -le "$cols" ]
+	done
+}
+
+@test "mainmenu: two columns keep the section order and pad with blank labels" {
+	COLCOUNT=2
+	MM_G1=(a 1 b 2 c 3) MM_G2=(a 1 b 2 c 3) MM_G3=(a 1 b 2 c 3)
+	MM_G4=(a 1 b 2) MM_G5=(a 1 b 2 c 3 d 4) MM_G6=(a 1 b 2 c 3 d 4 e 5)
+	MM_TITLES=(T1 T2 T3 T4 T5 T6)
+	MM_ORDER=( 6 4 2 3 1 5 )
+	buildMainMenuForm
+	# 6 + 3 + 4 = 13 rows in the first column, 4 + 4 + 5 = 13 in the second
+	[ "${#MMFORM[@]}" -eq 52 ]
+	[ "$(printf '%s\n' "${MMFORM[@]}" | grep -c -- '^--field= :LBL$')" -eq 0 ]
+	[ "$(printf '%s\n' "${MMFORM[@]}" | grep -o 'T[0-9]</span>' | tr -d '\n')" = "T6</span>T4</span>T2</span>T3</span>T1</span>T5</span>" ]
+
+	COLCOUNT=4
+	buildMainMenuForm
+	# 8 rows: T6 (6) + 2 pad | T4 + T2 (7) + 1 pad | T3 + T1 (8) | T5 (5)
+	[ "$(printf '%s\n' "${MMFORM[@]}" | grep -c -- '^--field= :LBL$')" -eq 3 ]
+}
+
+@test "mainmenu: invalid COLCOUNT falls back to one column" {
+	COLCOUNT="abc"
+	MM_G1=(a 1) MM_G2=(a 1) MM_G3=(a 1) MM_G4=(a 1) MM_G5=(a 1) MM_G6=(a 1)
+	MM_TITLES=(T1 T2 T3 T4 T5 T6)
+	MM_ORDER=( 1 2 3 4 5 6 )
+	buildMainMenuForm
+	[ "${#MMFORM[@]}" -eq 24 ]
+	[ "$(printf '%s\n' "${MMFORM[@]}" | grep -c -- '^--field= :LBL$')" -eq 0 ]
+}
+
+@test "mainmenu: header shows the game title, the version and no empty config line" {
+	SGNAID="Test Game (12345)"
+	fixShowGnAid() { :; }
+	PROGVERS="v9.9.9"
+	run MainMenu "12345"
+	[ "$status" -eq 0 ]
+	grep -qF -- "font_weight='bold'>Test Game</span>  <span fgalpha='55%'>12345</span>" "$STUB_YAD_LOG"
+	grep -qF -- "TinkerGame v9.9.9</span>" "$STUB_YAD_LOG"
+	[ "$(grep -cF -- 'TinkerGame (tinkergame)' "$STUB_YAD_LOG")" -eq 0 ]
+	# CfgFiles is empty in setup
+	[ "$(grep -cF -- 'editable config files' "$STUB_YAD_LOG")" -eq 0 ]
+}
+
+@test "mainmenu: config file count is shown when there are config files" {
+	CfgFiles=(a b c)
+	GUI_EDITABLECFGS="editable config files found"
+	run MainMenu "12345"
+	[ "$status" -eq 0 ]
+	grep -qF -- '3 editable config files found' "$STUB_YAD_LOG"
+}
+
+@test "mainmenu: sized to content off the Steam Deck, fixed geometry with scrolling on it" {
+	GEOM="--geometry=1280x800+0+0"
+	run MainMenu "12345"
+	[ "$(grep -cF -- '--geometry=' "$STUB_YAD_LOG")" -eq 0 ]
+	[ "$(grep -cF -- '--scroll' "$STUB_YAD_LOG")" -eq 0 ]
+
+	: >"$STUB_YAD_LOG"
+	ONSTEAMDECK=1
+	run MainMenu "12345"
+	grep -qF -- '--scroll --geometry=1280x800+0+0' "$STUB_YAD_LOG"
+}
+
+@test "mainmenu: the Main Menu stylesheet is passed only with the default CSS" {
+	TGMAINCSS="/usr/share/tinkergame/misc/tg-one-main.css"
+	run MainMenu "12345"
+	grep -qF -- "form:--css=$TGMAINCSS " "$STUB_YAD_LOG"
+
+	: >"$STUB_YAD_LOG"
+	TGMAINCSS=""
+	run MainMenu "12345"
+	[ "$(grep -cF -- '--css=' "$STUB_YAD_LOG")" -eq 0 ]
+}
+
+@test "mainmenu: Exit is the first and Play the last dialog button" {
+	run MainMenu "12345"
+	[ "$(grep '^form:' "$STUB_YAD_LOG" | grep -o -- '--button=[^:]*:[0-9]*' | head -n1)" = "--button=EXIT:0" ]
+	[ "$(grep '^form:' "$STUB_YAD_LOG" | grep -o -- '--button=[^:]*:[0-9]*' | tail -n1)" = "--button=PLAY:16" ]
+}
+
+@test "mainmenu: rc=16 dispatches to the game" {
 	STUB_YAD_RC=16
 	run MainMenu "12345"
 	[ "$status" -eq 0 ]
@@ -200,16 +307,14 @@ teardown() {
 	[ ! -f "$MARK/openGameMenu" ]
 }
 
-@test "mainmenu: tabbed rc=18 dispatches to the settings search" {
-	STUB_PLUGS=6
+@test "mainmenu: rc=18 dispatches to the settings search" {
 	STUB_YAD_RC=18
 	run MainMenu "12345"
 	[ "$status" -eq 0 ]
 	[ -f "$MARK/openSearchMenu" ]
 }
 
-@test "mainmenu: tabbed rc=0 exits through closeSTL" {
-	STUB_PLUGS=6
+@test "mainmenu: rc=0 exits through closeSTL" {
 	STUB_YAD_RC=0
 	run MainMenu "12345"
 	[ "$status" -eq 0 ]
@@ -217,42 +322,24 @@ teardown() {
 	[ ! -f "$MARK/goBack" ]
 }
 
-@test "mainmenu: tabbed ESC (252) falls through without dispatching" {
-	STUB_PLUGS=6
+@test "mainmenu: ESC (252) falls through without dispatching" {
 	STUB_YAD_RC=252
 	run MainMenu "12345"
 	[ "$status" -eq 0 ]
 	[ -f "$MARK/goBack" ]
 	[ ! -f "$MARK/openGameMenu" ]
 	[ ! -f "$MARK/startSteamGame" ]
-	# ESC never asks the plugs to print values
-	[ ! -s "$MTEMP/mainmenu-tab-out-1" ]
 }
 
-@test "mainmenu: USETABBEDMENU=0 falls back to the classic single form" {
+@test "mainmenu: USETABBEDMENU=0 and no DISPLAY open the same single form" {
 	USETABBEDMENU=0
-	STUB_YAD_RC=16
 	run MainMenu "12345"
-	[ "$status" -eq 0 ]
-	[ "$(grep -c '^notebook:' "$STUB_YAD_LOG")" -eq 0 ]
-	[ "$(grep -c '^plug:' "$STUB_YAD_LOG")" -eq 0 ]
 	[ "$(grep -c '^form:' "$STUB_YAD_LOG")" -eq 1 ]
-	# all 20 buttons in one form, labels and AID-carrying commands intact
-	[ "$(grep '^form:' "$STUB_YAD_LOG" | grep -o -- '--field=' | wc -l)" -eq 20 ]
-	grep -qF -- 'DL CUSTOM PROTON' "$STUB_YAD_LOG"
-	grep -qF -- 'VORTEX' "$STUB_YAD_LOG"
-	grep -qF -- 'GAME FILES' "$STUB_YAD_LOG"
-	grep -qF -- 'proton getslr-gui "12345"' "$STUB_YAD_LOG"
-	grep -qF -- 'game compatdata "12345" "s"' "$STUB_YAD_LOG"
-	[ -f "$MARK/startSteamGame" ]
-}
-
-@test "mainmenu: no DISPLAY falls back to the classic single form" {
+	: >"$STUB_YAD_LOG"
+	USETABBEDMENU=1
 	unset DISPLAY
 	STUB_YAD_RC=16
 	run MainMenu "12345"
-	[ "$status" -eq 0 ]
-	[ "$(grep -c '^notebook:' "$STUB_YAD_LOG")" -eq 0 ]
 	[ "$(grep -c '^form:' "$STUB_YAD_LOG")" -eq 1 ]
 	[ -f "$MARK/startSteamGame" ]
 }

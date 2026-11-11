@@ -380,68 +380,66 @@ function refreshProtList {
 	fi
 }
 
-function openMainMenuTabs {
-	# tabbed Main Menu - the 20 tool buttons from MM_G1..MM_G6 are shown as
-	# one notebook tab per group instead of one long button list.
-	# Requires MM_G1..MM_G6 (yad argument word arrays) and MM_TABS (labels).
-	# Returns the notebook exit code, or 3 so the caller falls back to the
-	# classic single form Main Menu.
+function buildMainMenuForm {
+	# Main Menu tool buttons as titled sections in one form. Yad fills form
+	# columns top to bottom, so every section is kept whole inside one column
+	# by padding that column with blank labels. The row count is the smallest
+	# one that fits all sections, in order, into COLCOUNT columns.
+	# Requires MM_G1..MM_G6 (yad argument word arrays, two words per button),
+	# MM_TITLES (section titles) and MM_ORDER (section numbers in display order).
+	# Fills MMFORM.
+	local MMCOLS MMROWS MMCOL MMUSED MMSEC MMSIZE
+	local -a MMSIZES=()
 
-	# only an explicit "0" disables the tabs - unset means default (enabled)
-	if [ -n "$USETABBEDMENU" ] && [ "$USETABBEDMENU" -eq 0 ]; then
-		return 3
+	MMCOLS="$COLCOUNT"
+	if ! [ "$MMCOLS" -ge 1 ] 2>/dev/null; then
+		MMCOLS=1
 	fi
 
-	if ! tgTabsSupported; then
-		writelog "SKIP" "${FUNCNAME[0]} - no Yad notebook support - using the classic single form Main Menu"
-		return 3
-	fi
+	MMROWS=1
+	for MMSEC in "${MM_ORDER[@]}"; do
+		local -n MMGRP="MM_G$MMSEC"
+		MMSIZE=$(( ${#MMGRP[@]} / 2 + 1 ))	# the buttons plus the section title
+		unset -n MMGRP
+		MMSIZES+=( "$MMSIZE" )
+		if [ "$MMSIZE" -gt "$MMROWS" ]; then
+			MMROWS="$MMSIZE"
+		fi
+	done
 
-	if [ "${#MM_TABS[@]}" -le 1 ]; then
-		return 3
-	fi
+	while :; do
+		MMCOL=1
+		MMUSED=0
+		for MMSIZE in "${MMSIZES[@]}"; do
+			if [ $(( MMUSED + MMSIZE )) -gt "$MMROWS" ]; then
+				MMCOL=$(( MMCOL + 1 ))
+				MMUSED=0
+			fi
+			MMUSED=$(( MMUSED + MMSIZE ))
+		done
+		if [ "$MMCOL" -le "$MMCOLS" ]; then
+			break
+		fi
+		MMROWS=$(( MMROWS + 1 ))
+	done
 
-	mkProjDir "$MTEMP"
-
-	MM_TAB_PLUG() {
-		# one notebook tab with its group of tool buttons ($1 = tab number)
-		MMFLDS=()
-		case "$1" in
-			1) MMFLDS=("${MM_G1[@]}") ;;
-			2) MMFLDS=("${MM_G2[@]}") ;;
-			3) MMFLDS=("${MM_G3[@]}") ;;
-			4) MMFLDS=("${MM_G4[@]}") ;;
-			5) MMFLDS=("${MM_G5[@]}") ;;
-			6) MMFLDS=("${MM_G6[@]}") ;;
-		esac
-		GDK_BACKEND=x11 "${YAD:-yad}" --plug="$TGKEY" --tabnum="$1" --form --columns="$COLCOUNT" "${MMFLDS[@]}" --scroll
-	}
-
-	TGNB_TABS=("${MM_TABS[@]}")
-	TGNB_FUNCS=(MM_TAB_PLUG MM_TAB_PLUG MM_TAB_PLUG MM_TAB_PLUG MM_TAB_PLUG MM_TAB_PLUG)
-	TGNB_TITLE="$TITLE"
-	TGNB_TEXT="$SETHEAD"
-	TGNB_IMAGE="$SHOWPIC"
-	TGNB_OUTPREFIX="$MTEMP/mainmenu"
-	TGNB_F1ACTION="$F1ACTIONCG"
-	TGNB_BUTTONS=(
-		--button="$BUT_EXIT":0
-		--button="$BUT_GUISET_CATMENUSHORT":4
-		--button="$BUT_GM":6
-		--button="$BUT_DGM":8
-		--button="$BUT_GLM":10
-		--button="$BUT_FAV":12
-		--button="$BUT_EDITORMENU":14
-		--button="$BUT_SEARCH":18
-		--button="$BUT_PLAY":16
-	)
-
-	writelog "INFO" "${FUNCNAME[0]} - Opening the tabbed Main Menu with '${#MM_TABS[@]}' tabs"
-
-	TGNBRC=0
-	tgNotebookLaunch || TGNBRC=$?
-
-	return "$TGNBRC"
+	MMFORM=()
+	MMUSED=0
+	for MMSEC in "${MM_ORDER[@]}"; do
+		local -n MMGRP="MM_G$MMSEC"
+		MMSIZE=$(( ${#MMGRP[@]} / 2 + 1 ))
+		if [ $(( MMUSED + MMSIZE )) -gt "$MMROWS" ]; then
+			while [ "$MMUSED" -lt "$MMROWS" ]; do
+				MMFORM+=( "--field= :LBL" "" )
+				MMUSED=$(( MMUSED + 1 ))
+			done
+			MMUSED=0
+		fi
+		MMFORM+=( "--field=<span weight='bold' fgalpha='65%'>$(tgMarkupEscape "${MM_TITLES[$(( MMSEC - 1 ))]}")</span>:LBL" "" )
+		MMFORM+=( "${MMGRP[@]}" )
+		unset -n MMGRP
+		MMUSED=$(( MMUSED + MMSIZE ))
+	done
 }
 
 function MainMenu {
@@ -474,19 +472,24 @@ function MainMenu {
 	fi
 
 	LAPL="$(getLaPl)"
-	SETHEAD="$(spanFont "${PROGNAME} (${PROGNAME,,}) - ${PROGVERS} \n \n$SGNAID" "H")"
+	# game name as the title with the muted AppID next to it ($SGNAID is "Name (AppID)")
+	MMGNHEAD="${SGNAID% (*}"
+	MMAIDHEAD="${SGNAID##* (}"
+	MMAIDHEAD="${MMAIDHEAD%)}"
+	SETHEAD="$(spanFont "$MMGNHEAD" "H")  <span fgalpha='55%'>${MMAIDHEAD}</span>"
 
 	TT_OPENURL="Help Url Gui"
 
-	# Last played date/time with STL
+	# Last played date/time
 	if [ -n "$LAPL" ]; then
 		writelog "INFO" "${FUNCNAME[0]} - Game Info Gotten!"
-		SETHEAD="${SETHEAD}\n<i>$LAPL</i>"
+		SETHEAD="${SETHEAD}\n$LAPL"
 	fi
 
-	# Game config file info
-	# TODO hide if no gamecfgs - Maybe this check needs an overhaul?
-	SETHEAD="${SETHEAD}\n<i>(${#CfgFiles[@]} $GUI_EDITABLECFGS)\n($GUI_EDITABLEGAMECFGS)</i>"
+	# Game config file info, only when there is something to edit
+	if [ "${#CfgFiles[@]}" -gt 0 ]; then
+		SETHEAD="${SETHEAD}\n${#CfgFiles[@]} $GUI_EDITABLECFGS"
+	fi
 
 	# Show Steam Deck compatibility on Main Menu when in Steam Deck Desktop Mode
 	if [ "$SMALLDESK" -eq 1 ]; then
@@ -495,7 +498,7 @@ function MainMenu {
 
 	if [ "$SMALLDESK" -eq 0 ]; then
 		if [ -n "$DEVELOPER" ]; then
-			SETHEAD="$SETHEAD \n\n<b>${GUI_DEV}:</b> $DEVELOPER"
+			SETHEAD="$SETHEAD \n<b>${GUI_DEV}:</b> $DEVELOPER"
 		fi
 
 		if [ -n "$PUBLISHER" ]; then
@@ -542,7 +545,8 @@ function MainMenu {
 		if [ -z "$GAMEEXE" ]; then
 			GAMEEXE="$( basename "$( getGameExe "$AID" "1" )" )"
 		fi
-		if [ -n "$GAMEEXE" ]; then
+		# getGameExe prints this message instead of failing when nothing is found
+		if [ -n "$GAMEEXE" ] && [ "$GAMEEXE" != "No Executable or TinkerGame file found for '$AID'" ]; then
 			SETHEAD="$SETHEAD \n<b>${GUI_SGE}:</b> $GAMEEXE"
 		fi
 
@@ -557,11 +561,12 @@ function MainMenu {
 	# filter html incompatible chars here
 	#SETHEAD="${SETHEAD//&/+}"
 
+	SETHEAD="$SETHEAD \n<span font_size='small' fgalpha='55%'>${PROGNAME} ${PROGVERS}</span>"
+
 	createProtonList X
 
 	# The 20 Main Menu tool buttons, grouped by topic. Each group is one
-	# notebook tab in the tabbed Main Menu (openMainMenuTabs); the classic
-	# single form fallback shows them all in one list, in the same order.
+	# titled section of the form (buildMainMenuForm).
 	MM_G1=(	# Downloads
 		"--field=${FBUT_GUISET_DCP}:FBTN" "$(realpath "$0") proton download"
 		"--field=${FBUT_GUISET_DW}:FBTN" "$(realpath "$0") wine download"
@@ -594,34 +599,42 @@ function MainMenu {
 		"--field=${FBUT_GUISET_GASCO}!${TT_GASCO}:FBTN" "$(realpath "$0") game gamescope \"$AID\" \"$GN\""
 		"--field=${GUI_GAFI}!${TT_GAFI}:FBTN" "$(realpath "$0") game files \"$AID\""
 	)
-	MM_TABS=( "$GUI_MMTAB_DL" "$GUI_MMTAB_WP" "$GUI_MMTAB_SH" "$GUI_MMTAB_MODS" "$GUI_MMTAB_STEAM" "$GUI_MMTAB_GT" )
+	MM_TITLES=( "$GUI_MMTAB_DL" "$GUI_MMTAB_WP" "$GUI_MMTAB_SH" "$GUI_MMTAB_MODS" "$GUI_MMTAB_STEAM" "$GUI_MMTAB_GT" )
+
+	# section display order: game specific tools first, then compatibility
+	# tools, then downloads and Steam integration
+	MM_ORDER=( 6 4 2 3 1 5 )
+	buildMainMenuForm
+
+	# Sized to its content. On the Steam Deck the fixed screen sized geometry
+	# stays, with scrolling as a safety net for the small screen.
+	MMGEOM=()
+	if [ "$ONSTEAMDECK" -eq 1 ]; then
+		MMGEOM=( --scroll "$GEOM" )
+	fi
+
+	# the shipped default stylesheet plus the Play button as suggested action
+	MMCSS=()
+	if [ -n "$TGMAINCSS" ]; then
+		MMCSS=( --css="$TGMAINCSS" )
+	fi
 
 	MMRC=0
-	openMainMenuTabs || MMRC=$?
+	"$YAD" "${MMCSS[@]}" --image "$SHOWPIC" "${YADIMGTOP[@]}" --center --window-icon="$STLICON" --form "${WINDECO[@]}" --title="$TITLE" \
+	--text="$SETHEAD" \
+	--columns="$COLCOUNT" --f1-action="$F1ACTIONCG" --separator="" \
+	"${MMFORM[@]}" \
+	--button="$BUT_EXIT":0 \
+	--button="$BUT_GUISET_CATMENUSHORT":4 \
+	--button="$BUT_GM":6 \
+	--button="$BUT_DGM":8 \
+	--button="$BUT_GLM":10 \
+	--button="$BUT_FAV":12 \
+	--button="$BUT_EDITORMENU":14 \
+	--button="$BUT_SEARCH":18 \
+	--button="$BUT_PLAY":16 \
+	"${MMGEOM[@]}" || MMRC=$?
 
-	if [ "$MMRC" -eq 3 ]; then
-		writelog "INFO" "${FUNCNAME[0]} - Opening the classic single form Main Menu"
-		MMRC=0
-		"$YAD" --image "$SHOWPIC" "${YADIMGTOP[@]}" --scroll --center --window-icon="$STLICON" --form "${WINDECO[@]}" --title="$TITLE" \
-		--text="$SETHEAD" \
-		--columns="$COLCOUNT" --f1-action="$F1ACTIONCG" --separator="" \
-		"${MM_G1[@]}" \
-		"${MM_G2[@]}" \
-		"${MM_G3[@]}" \
-		"${MM_G4[@]}" \
-		"${MM_G5[@]}" \
-		"${MM_G6[@]}" \
-		--button="$BUT_EXIT":0 \
-		--button="$BUT_GUISET_CATMENUSHORT":4 \
-		--button="$BUT_GM":6 \
-		--button="$BUT_DGM":8 \
-		--button="$BUT_GLM":10 \
-		--button="$BUT_FAV":12 \
-		--button="$BUT_EDITORMENU":14 \
-		--button="$BUT_SEARCH":18 \
-		--button="$BUT_PLAY":16 \
-		"$GEOM" || MMRC=$?
-	fi
 	case "$MMRC" in
 	0)  {
 			clickInfo "${FUNCNAME[0]}" "$MMRC" "$BUT_EXIT" "$SETMENU" "Exit"
