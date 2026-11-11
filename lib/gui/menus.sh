@@ -381,64 +381,62 @@ function refreshProtList {
 }
 
 function buildMainMenuForm {
-	# Main Menu tool buttons as titled sections in one form. Yad fills form
-	# columns top to bottom, so every section is kept whole inside one column
-	# by padding that column with blank labels. The row count is the smallest
-	# one that fits all sections, in order, into COLCOUNT columns.
+	# Main Menu tool buttons as titled sections in one form, laid out as a
+	# grid: the sections fill rows ("bands") of MMCOLUMNS sections each, and
+	# every section in a band is padded with blank labels to the height of the
+	# tallest one, so all section titles of a band line up across the columns.
+	# Yad fills form columns top to bottom, so the fields are emitted column by
+	# column. MMCOLUMNS is the largest divisor of the section count that is not
+	# above COLCOUNT, which keeps every band full.
 	# Requires MM_G1..MM_G6 (yad argument word arrays, two words per button),
-	# MM_TITLES (section titles) and MM_ORDER (section numbers in display order).
-	# Fills MMFORM.
-	local MMCOLS MMROWS MMCOL MMUSED MMSEC MMSIZE
-	local -a MMSIZES=()
+	# MM_TITLES (section titles) and MM_ORDER (section numbers in display order,
+	# left to right, then top to bottom). Fills MMFORM and MMCOLUMNS.
+	local MMWANT MMSECS MMBANDS MMBAND MMCOL MMIDX MMSEC MMSIZE MMH MMPAD
+	local -a MMBANDH=()
 
-	MMCOLS="$COLCOUNT"
-	if ! [ "$MMCOLS" -ge 1 ] 2>/dev/null; then
-		MMCOLS=1
+	MMWANT="$COLCOUNT"
+	if ! [ "$MMWANT" -ge 1 ] 2>/dev/null; then
+		MMWANT=1
 	fi
+	MMSECS="${#MM_ORDER[@]}"
 
-	MMROWS=1
-	for MMSEC in "${MM_ORDER[@]}"; do
-		local -n MMGRP="MM_G$MMSEC"
-		MMSIZE=$(( ${#MMGRP[@]} / 2 + 1 ))	# the buttons plus the section title
-		unset -n MMGRP
-		MMSIZES+=( "$MMSIZE" )
-		if [ "$MMSIZE" -gt "$MMROWS" ]; then
-			MMROWS="$MMSIZE"
+	MMCOLUMNS=1
+	for (( MMCOL = 1; MMCOL <= MMSECS && MMCOL <= MMWANT; MMCOL++ )); do
+		if [ $(( MMSECS % MMCOL )) -eq 0 ]; then
+			MMCOLUMNS="$MMCOL"
 		fi
 	done
+	MMBANDS=$(( MMSECS / MMCOLUMNS ))
 
-	while :; do
-		MMCOL=1
-		MMUSED=0
-		for MMSIZE in "${MMSIZES[@]}"; do
-			if [ $(( MMUSED + MMSIZE )) -gt "$MMROWS" ]; then
-				MMCOL=$(( MMCOL + 1 ))
-				MMUSED=0
+	# height of every band: its tallest section (the buttons plus the title)
+	for (( MMBAND = 0; MMBAND < MMBANDS; MMBAND++ )); do
+		MMH=0
+		for (( MMCOL = 0; MMCOL < MMCOLUMNS; MMCOL++ )); do
+			MMSEC="${MM_ORDER[$(( MMBAND * MMCOLUMNS + MMCOL ))]}"
+			local -n MMGRP="MM_G$MMSEC"
+			MMSIZE=$(( ${#MMGRP[@]} / 2 + 1 ))
+			unset -n MMGRP
+			if [ "$MMSIZE" -gt "$MMH" ]; then
+				MMH="$MMSIZE"
 			fi
-			MMUSED=$(( MMUSED + MMSIZE ))
 		done
-		if [ "$MMCOL" -le "$MMCOLS" ]; then
-			break
-		fi
-		MMROWS=$(( MMROWS + 1 ))
+		MMBANDH+=( "$MMH" )
 	done
 
 	MMFORM=()
-	MMUSED=0
-	for MMSEC in "${MM_ORDER[@]}"; do
-		local -n MMGRP="MM_G$MMSEC"
-		MMSIZE=$(( ${#MMGRP[@]} / 2 + 1 ))
-		if [ $(( MMUSED + MMSIZE )) -gt "$MMROWS" ]; then
-			while [ "$MMUSED" -lt "$MMROWS" ]; do
+	for (( MMCOL = 0; MMCOL < MMCOLUMNS; MMCOL++ )); do
+		for (( MMBAND = 0; MMBAND < MMBANDS; MMBAND++ )); do
+			MMIDX=$(( MMBAND * MMCOLUMNS + MMCOL ))
+			MMSEC="${MM_ORDER[$MMIDX]}"
+			local -n MMGRP="MM_G$MMSEC"
+			MMSIZE=$(( ${#MMGRP[@]} / 2 + 1 ))
+			MMFORM+=( "--field=<span weight='bold' fgalpha='65%'>$(tgMarkupEscape "${MM_TITLES[$(( MMSEC - 1 ))]}")</span>:LBL" "" )
+			MMFORM+=( "${MMGRP[@]}" )
+			unset -n MMGRP
+			for (( MMPAD = MMSIZE; MMPAD < MMBANDH[MMBAND]; MMPAD++ )); do
 				MMFORM+=( "--field= :LBL" "" )
-				MMUSED=$(( MMUSED + 1 ))
 			done
-			MMUSED=0
-		fi
-		MMFORM+=( "--field=<span weight='bold' fgalpha='65%'>$(tgMarkupEscape "${MM_TITLES[$(( MMSEC - 1 ))]}")</span>:LBL" "" )
-		MMFORM+=( "${MMGRP[@]}" )
-		unset -n MMGRP
-		MMUSED=$(( MMUSED + MMSIZE ))
+		done
 	done
 }
 
@@ -601,9 +599,9 @@ function MainMenu {
 	)
 	MM_TITLES=( "$GUI_MMTAB_DL" "$GUI_MMTAB_WP" "$GUI_MMTAB_SH" "$GUI_MMTAB_MODS" "$GUI_MMTAB_STEAM" "$GUI_MMTAB_GT" )
 
-	# section display order: game specific tools first, then compatibility
-	# tools, then downloads and Steam integration
-	MM_ORDER=( 6 4 2 3 1 5 )
+	# section display order, left to right and then top to bottom: the taller
+	# sections share the first row so the rows below stay short
+	MM_ORDER=( 6 5 2 3 1 4 )
 	buildMainMenuForm
 
 	# Sized to its content. On the Steam Deck the fixed screen sized geometry
@@ -622,7 +620,7 @@ function MainMenu {
 	MMRC=0
 	"$YAD" "${MMCSS[@]}" --image "$SHOWPIC" "${YADIMGTOP[@]}" --center --window-icon="$STLICON" --form "${WINDECO[@]}" --title="$TITLE" \
 	--text="$SETHEAD" \
-	--columns="$COLCOUNT" --f1-action="$F1ACTIONCG" --separator="" \
+	--columns="$MMCOLUMNS" --f1-action="$F1ACTIONCG" --separator="" \
 	"${MMFORM[@]}" \
 	--button="$BUT_EXIT":0 \
 	--button="$BUT_GUISET_CATMENUSHORT":4 \

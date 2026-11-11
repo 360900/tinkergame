@@ -186,57 +186,67 @@ form_fields() {
 	grep -qF -- 'game compatdata "12345" "s"' "$STUB_YAD_LOG"
 	# header text and game picture
 	grep -qF -- "--image $SHOWPIC" "$STUB_YAD_LOG"
-	grep -qF -- '--columns=4' "$STUB_YAD_LOG"
+	# COLCOUNT=4 gives three columns of two section rows
+	grep -qF -- '--columns=3' "$STUB_YAD_LOG"
 }
 
-@test "mainmenu: sections are never split across columns" {
-	for cols in 1 2 3 4 6; do
-		COLCOUNT="$cols"
-		MM_G1=(a 1 b 2 c 3) MM_G2=(a 1 b 2 c 3) MM_G3=(a 1 b 2 c 3)
-		MM_G4=(a 1 b 2) MM_G5=(a 1 b 2 c 3 d 4) MM_G6=(a 1 b 2 c 3 d 4 e 5)
-		MM_TITLES=(T1 T2 T3 T4 T5 T6)
-		MM_ORDER=( 6 4 2 3 1 5 )
-		buildMainMenuForm
-		# two words per form cell
-		cells=$(( ${#MMFORM[@]} / 2 ))
-		rows=$(( (cells + cols - 1) / cols ))
-		# every title starts a column or follows a whole section in the same column
-		i=0
-		col_start=0
-		while [ "$i" -lt "$cells" ]; do
-			f="${MMFORM[$(( i * 2 ))]}"
-			if [[ "$f" == *"</span>:LBL" ]]; then
-				t="${f%</span>:LBL}"; t="${t##*>}"
-				n="${t#T}"
-				declare -n G="MM_G$n"
-				size=$(( ${#G[@]} / 2 + 1 ))
-				unset -n G
-				# the whole section fits before the column ends
-				[ $(( i % rows + size )) -le "$rows" ]
-			fi
-			i=$(( i + 1 ))
-		done
-		# no more columns than asked for
-		[ $(( (cells + rows - 1) / rows )) -le "$cols" ]
-	done
-}
-
-@test "mainmenu: two columns keep the section order and pad with blank labels" {
-	COLCOUNT=2
+# test sections: sizes with title 4, 4, 4, 3, 5, 6 (sections 1..6)
+mm_sections() {
 	MM_G1=(a 1 b 2 c 3) MM_G2=(a 1 b 2 c 3) MM_G3=(a 1 b 2 c 3)
 	MM_G4=(a 1 b 2) MM_G5=(a 1 b 2 c 3 d 4) MM_G6=(a 1 b 2 c 3 d 4 e 5)
 	MM_TITLES=(T1 T2 T3 T4 T5 T6)
-	MM_ORDER=( 6 4 2 3 1 5 )
-	buildMainMenuForm
-	# 6 + 3 + 4 = 13 rows in the first column, 4 + 4 + 5 = 13 in the second
-	[ "${#MMFORM[@]}" -eq 52 ]
-	[ "$(printf '%s\n' "${MMFORM[@]}" | grep -c -- '^--field= :LBL$')" -eq 0 ]
-	[ "$(printf '%s\n' "${MMFORM[@]}" | grep -o 'T[0-9]</span>' | tr -d '\n')" = "T6</span>T4</span>T2</span>T3</span>T1</span>T5</span>" ]
+	MM_ORDER=( 6 5 2 3 1 4 )
+}
 
+# row index of every section title, keyed by title, for the current MMFORM
+# laid out in MMCOLUMNS columns (yad fills columns top to bottom)
+mm_title_rows() {
+	local cells rows i f t
+	cells=$(( ${#MMFORM[@]} / 2 ))
+	rows=$(( cells / MMCOLUMNS ))
+	for (( i = 0; i < cells; i++ )); do
+		f="${MMFORM[$(( i * 2 ))]}"
+		if [[ "$f" == *"</span>:LBL" ]]; then
+			t="${f%</span>:LBL}"; t="${t##*>}"
+			printf '%s %d %d\n' "$t" $(( i % rows )) $(( i / rows ))
+		fi
+	done
+}
+
+@test "mainmenu: every column holds the same number of cells" {
+	mm_sections
+	for cols in 1 2 3 4 5 6 9; do
+		COLCOUNT="$cols"
+		buildMainMenuForm
+		[ $(( ${#MMFORM[@]} / 2 % MMCOLUMNS )) -eq 0 ]
+	done
+}
+
+@test "mainmenu: columns are the largest divisor of the section count up to COLCOUNT" {
+	mm_sections
+	for pair in 1:1 2:2 3:3 4:3 5:3 6:6 9:6; do
+		COLCOUNT="${pair%:*}"
+		buildMainMenuForm
+		[ "$MMCOLUMNS" -eq "${pair#*:}" ]
+	done
+}
+
+@test "mainmenu: section titles of a band share one row across the columns" {
+	mm_sections
 	COLCOUNT=4
 	buildMainMenuForm
-	# 8 rows: T6 (6) + 2 pad | T4 + T2 (7) + 1 pad | T3 + T1 (8) | T5 (5)
-	[ "$(printf '%s\n' "${MMFORM[@]}" | grep -c -- '^--field= :LBL$')" -eq 3 ]
+	[ "$MMCOLUMNS" -eq 3 ]
+	# band 1: T6 (6), T5 (5), T2 (4) -> 6 rows; band 2: T3, T1, T4 -> 4 rows
+	[ "$(( ${#MMFORM[@]} / 2 ))" -eq 30 ]
+	run mm_title_rows
+	[ "$(sort <<< "$output" | tr '\n' '|')" = "T1 6 1|T2 0 2|T3 6 0|T4 6 2|T5 0 1|T6 0 0|" ]
+
+	COLCOUNT=2
+	buildMainMenuForm
+	# bands: T6 T5 (6), T2 T3 (4), T1 T4 (4) -> 14 rows per column
+	[ "$(( ${#MMFORM[@]} / 2 ))" -eq 28 ]
+	run mm_title_rows
+	[ "$(sort <<< "$output" | tr '\n' '|')" = "T1 10 0|T2 6 0|T3 6 1|T4 10 1|T5 0 1|T6 0 0|" ]
 }
 
 @test "mainmenu: invalid COLCOUNT falls back to one column" {
@@ -245,6 +255,7 @@ form_fields() {
 	MM_TITLES=(T1 T2 T3 T4 T5 T6)
 	MM_ORDER=( 1 2 3 4 5 6 )
 	buildMainMenuForm
+	[ "$MMCOLUMNS" -eq 1 ]
 	[ "${#MMFORM[@]}" -eq 24 ]
 	[ "$(printf '%s\n' "${MMFORM[@]}" | grep -c -- '^--field= :LBL$')" -eq 0 ]
 }
