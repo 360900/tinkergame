@@ -109,6 +109,8 @@ GCD="GameCfgDiffers"
 OVFS="openvr_fsr"
 OVRA="openvr_api.dll"
 OVRMOD="openvr_mod.cfg"
+# install log of OpenVR-FSR in the game dir (see MIGRATION.md)
+OVRFSENA="${OVFS}-${SHOSTL}-enabled.txt"
 GWXTEMP="$STLSHM/gamewinXID.txt"
 TRAYCUSC="$STLSHM/customscript"
 TEMPGPIDFILE="$STLSHM/gamepid.txt"

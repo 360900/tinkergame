@@ -263,9 +263,15 @@ function dlOvrFSR {
 }
 
 function checkOpenVRFSR {
-	OVRFSENA="${OVFS}-${PROGNAME,,}-enabled.txt"
 	OVRFP="$EFD/$OVRFSENA"
 	OVRAO="openvr_api.orig.dll"
+
+	# earlier alpha releases wrote the install log under the long name: keep
+	# using it, or the patched dll is neither restored nor detected
+	if [ ! -f "$OVRFP" ] && [ -f "$EFD/${OVFS}-${PROGNAME,,}-enabled.txt" ]; then
+		writelog "INFO" "${FUNCNAME[0]} - Renaming old '$OVFS' install log to '$OVRFP'"
+		mv "$EFD/${OVFS}-${PROGNAME,,}-enabled.txt" "$OVRFP"
+	fi
 
 	if [ "$USEOPENVRFSR" -eq 1 ]; then
 		OVRPATH="$(find "$EFD" -name "*$OVRA" | head -n1)"

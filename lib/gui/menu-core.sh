@@ -342,7 +342,7 @@ function EditorDialog {
 	fi
 
 	if [ "$USEOPENVRFSR" -eq 1 ]; then
-		OVRFP="$EFD/${OVFS}-${SHOSTL}-enabled.txt"
+		OVRFP="$EFD/$OVRFSENA"
 		if [ -f "$OVRFP" ]; then
 			OVRMODF="$EFD/$(grep "$OVRMOD" "$OVRFP")"
 			if [ -f "$OVRMODF" ]; then

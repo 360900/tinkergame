@@ -89,3 +89,40 @@ setup() {
 	# CLOSETMP was never created by the session - it must not appear now
 	[ ! -e "$CLOSETMP" ]
 }
+
+setup_openvr_fsr() {
+	EFD="$BATS_TEST_TMPDIR/game dir"
+	STLDLDIR="$BATS_TEST_TMPDIR/downloads"
+	mkdir -p "$EFD/bin" "$STLDLDIR/$OVFS"
+	printf 'original\n' > "$EFD/bin/$OVRA"
+	printf 'fsr\n' > "$STLDLDIR/$OVFS/$OVRA"
+	writelog() { :; }
+}
+
+@test "checkOpenVRFSR: the install log uses the tg name the Editor Menu reads" {
+	setup_openvr_fsr
+	[ "$OVRFSENA" = "openvr_fsr-tg-enabled.txt" ]
+	USEOPENVRFSR=1
+	checkOpenVRFSR
+	[ "$(cat "$EFD/bin/$OVRA")" = "fsr" ]
+	grep -qx "/bin/$OVRA" "$EFD/$OVRFSENA"
+	grep -q 'OVRFP="$EFD/$OVRFSENA"' "$TG_ROOT/lib/gui/menu-core.sh"
+
+	USEOPENVRFSR=0
+	checkOpenVRFSR
+	[ "$(cat "$EFD/bin/$OVRA")" = "original" ]
+	[ ! -e "$EFD/$OVRFSENA" ]
+}
+
+@test "checkOpenVRFSR: an install log under the old long name is still restored" {
+	setup_openvr_fsr
+	USEOPENVRFSR=1
+	checkOpenVRFSR
+	mv "$EFD/$OVRFSENA" "$EFD/openvr_fsr-tinkergame-enabled.txt"
+
+	USEOPENVRFSR=0
+	checkOpenVRFSR
+	[ "$(cat "$EFD/bin/$OVRA")" = "original" ]
+	[ ! -e "$EFD/$OVRFSENA" ]
+	[ ! -e "$EFD/openvr_fsr-tinkergame-enabled.txt" ]
+}
