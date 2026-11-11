@@ -168,6 +168,32 @@ setup() {
 	[ "${lines[1]}" = "# 1.25M --.-KB/s" ]
 }
 
+@test "dlProgressFeed: updates split across reads or chunks are not lost" {
+	# an update that arrives in two parts, the second after the read timeout
+	slowProgress() {
+		printf '/dev/null  42%%[=>  ]  1'
+		command sleep 0.5
+		printf '0K  1MB/s\r/dev/null  43%%[=>  ]  11K  1MB/s'
+	}
+	run dlProgressFeed < <(slowProgress)
+	[ "$status" -eq 0 ]
+	[ "$output" = "42
+# 42%  10K 1MB/s
+43
+# 43%  11K 1MB/s" ]
+
+	# far more output than one chunk holds
+	local I
+	for I in $(seq 1 300); do
+		printf '/dev/null  %s%%[=>   ]  %sK  1MB/s\r' "$((I / 3))" "$I"
+	done > "$BATS_TEST_TMPDIR/long-progress.txt"
+	run dlProgressFeed < "$BATS_TEST_TMPDIR/long-progress.txt"
+	[ "$status" -eq 0 ]
+	[ "${#lines[@]}" -eq 600 ]
+	[ "${lines[598]}" = "100" ]
+	[ "${lines[599]}" = "# 100%  300K 1MB/s" ]
+}
+
 # Fake yad: records every call, drains a --progress window's input to
 # $FAKEYAD_PROGRESS, keeps text windows open until killed.
 setup_progress_fakes() {

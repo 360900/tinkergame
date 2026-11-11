@@ -256,27 +256,43 @@ function StatusWindow {
 # a known size wget draws '<=>' instead of a percentage: that becomes a 'pulse'
 # line, which only pulses a --pulsate bar.
 function dlProgressFeed {
-	local C LINE="" PCT INFO BARRE='([0-9]{1,3})% ?\[[^]]*\](.*)' PULSERE='\[ *<=> *\](.*)'
+	local CHUNK BUF="" RC DELIMS=$'\r\n\e'
 	# the bar window may be closed before wget is done: never let that abort
 	# the download through SIGPIPE
 	trap '' PIPE
-	# one character at a time, as no single delimiter fits both: a filter like
-	# tr would buffer the updates into bursts
-	while IFS= read -r -N 1 C || [ -n "$LINE" ]; do
-		case "$C" in
-			$'\r'|$'\n'|$'\e'|"") ;;
-			*) LINE+="$C"; continue ;;
-		esac
-		if [[ "$LINE" =~ $PULSERE ]]; then
-			read -r -a INFO <<< "${BASH_REMATCH[1]}"
-			printf 'pulse\n# %s\n' "${INFO[*]}" 2>/dev/null
-		elif [[ "$LINE" =~ $BARRE ]]; then
-			PCT="${BASH_REMATCH[1]}"
-			read -r -a INFO <<< "${BASH_REMATCH[2]}"
-			printf '%s\n# %s%%  %s\n' "$PCT" "$PCT" "${INFO[*]}" 2>/dev/null
+	# no single read delimiter fits both, and a filter like tr would buffer
+	# the updates into bursts: take whatever arrived within a short timeout
+	# and split it on every delimiter
+	while :; do
+		RC=0
+		CHUNK=""
+		IFS= read -r -t 0.2 -N 4096 CHUNK || RC=$?
+		BUF+="$CHUNK"
+		while [[ "$BUF" == *[$DELIMS]* ]]; do
+			dlProgressLine "${BUF%%[$DELIMS]*}"
+			BUF="${BUF#*[$DELIMS]}"
+		done
+		# a status above 128 is the timeout, any other failure the end of input
+		if [ "$RC" -ne 0 ] && [ "$RC" -le 128 ]; then
+			dlProgressLine "$BUF"
+			break
 		fi
-		LINE=""
 	done
+	return 0
+}
+
+# Print the yad --progress input for one line of wget's progress output, and
+# nothing for anything else.
+function dlProgressLine {
+	local PCT INFO BARRE='([0-9]{1,3})% ?\[[^]]*\](.*)' PULSERE='\[ *<=> *\](.*)'
+	if [[ "$1" =~ $PULSERE ]]; then
+		read -r -a INFO <<< "${BASH_REMATCH[1]}"
+		printf 'pulse\n# %s\n' "${INFO[*]}" 2>/dev/null
+	elif [[ "$1" =~ $BARRE ]]; then
+		PCT="${BASH_REMATCH[1]}"
+		read -r -a INFO <<< "${BASH_REMATCH[2]}"
+		printf '%s\n# %s%%  %s\n' "$PCT" "$PCT" "${INFO[*]}" 2>/dev/null
+	fi
 	return 0
 }
 
