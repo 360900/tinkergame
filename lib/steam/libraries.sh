@@ -647,13 +647,13 @@ function dlMimeDesktopStale {
 
 # Install the nxm:// handler desktop file '$3' for mod manager '$1' (mods
 # subcommand '$2', see dlMimeDesktopContent) and make it the default. '$4' is
-# the competing mod manager's handler, disabled when this one is (re)created.
+# the competing mod manager's handler, always disabled.
 # The file is rewritten whenever its content would differ (see
 # dlMimeDesktopStale for the icon), so a moved entry point or install dir
 # cannot leave a stale handler behind that silently breaks nxm:// links.
 function installDLMimeDesktop {
 	local DLMD="$3" DLMCONTENT DLMAPPS="$HOME/.local/share/applications"
-	local FDLMD FDLMOTHER
+	local FDLMD FDLMOTHER DLMCHANGED=0
 	DLMCONTENT="$(dlMimeDesktopContent "$1" "$2")"
 	FDLMD="$DLMAPPS/$DLMD"
 	FDLMOTHER="$DLMAPPS/$4"
@@ -669,15 +669,19 @@ function installDLMimeDesktop {
 			writelog "INFO" "${FUNCNAME[0]} - Creating new desktop file '$FDLMD'"
 		fi
 		echo "$DLMCONTENT" > "$FDLMD"
+		DLMCHANGED=1
+	fi
 
-		if [ -f "$FDLMOTHER" ]; then
-			writelog "INFO" "${FUNCNAME[0]} - Renaming desktopfile '$FDLMOTHER' to '${FDLMOTHER}-off', because '$DLMD' was created"
-			mv "$FDLMOTHER" "${FDLMOTHER}-off"
-		fi
+	# also when this handler was already up to date: both registered leaves
+	# the nxm:// links to whichever one the desktop picks
+	if [ -f "$FDLMOTHER" ]; then
+		writelog "INFO" "${FUNCNAME[0]} - Renaming desktopfile '$FDLMOTHER' to '${FDLMOTHER}-off', because '$DLMD' is the handler now"
+		mv "$FDLMOTHER" "${FDLMOTHER}-off"
+		DLMCHANGED=1
+	fi
 
-		if [ -x "$(command -v update-desktop-database 2>/dev/null)" ]; then
-			update-desktop-database "$DLMAPPS" 2>/dev/null
-		fi
+	if [ "$DLMCHANGED" -eq 1 ] && [ -x "$(command -v update-desktop-database 2>/dev/null)" ]; then
+		update-desktop-database "$DLMAPPS" 2>/dev/null
 	fi
 
 	# Always (re)apply the default association: a stale mimeapps.list breaks

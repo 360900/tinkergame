@@ -395,6 +395,19 @@ EOT
 	test ! -f "$fvd-old"
 }
 
+@test "vortex dlmime: the MO2 handler is disabled even when Vortex's is up to date" {
+	local apps="$HOME/.local/share/applications"
+	local fvd="$apps/vortex-tinkergame-dl.desktop" fmo="$apps/ModOrganizer-tinkergame-dl.desktop"
+	run_vortex_helpers setVortexDLMime
+	test -f "$fvd"
+	printf '[Desktop Entry]\nExec=tinkergame mods mo2 url %%u\n' >"$fmo"
+
+	run_vortex_helpers setVortexDLMime
+	test ! -f "$fvd-old"
+	test ! -f "$fmo"
+	grep -q "mods mo2 url" "$fmo-off"
+}
+
 @test "vortex dlmime: a switched icon alone does not rewrite the handler" {
 	local fvd="$HOME/.local/share/applications/vortex-tinkergame-dl.desktop"
 	local png="$BATS_TEST_TMPDIR/shm/tinkergame.png" svg="$TG_ROOT/misc/tinkergame.svg"
