@@ -413,6 +413,10 @@ function waitForGamePid {
 }
 
 function getGameWinXIDFromPid {
+	if ! tgHaveXdo "finding the game window"; then
+		return 1
+	fi
+
 	GPID="$1"
 	while read -r WINS; do
 		if [ "$("$XPROP" -id "$(printf 0x%x'\n' "$WINS")" | grep "_NET_WM_STATE(ATOM)" -c)" -ge 1 ]; then
@@ -430,10 +434,18 @@ function getGameWinXIDFromPid {
 }
 
 function getGameWinNameFromXid {
+	if ! tgHaveXdo "reading the game window name"; then
+		return 1
+	fi
 	"$XDO" getwindowname "$1"
 }
 
 function getGameWindowPID {
+	if ! tgHaveXdo "finding the game window pid"; then
+		echo "$NON"
+		return
+	fi
+
 	if [ "$MO2MODE" == "gui" ]; then
 		writelog "SKIP" "${FUNCNAME[0]} - Skipping check for window pid, because MO2MODE is '$MO2MODE'"
 	fi
@@ -523,6 +535,10 @@ function storeGameWindowNameMeta {
 }
 
 function pickGameWindowNameMeta {
+	if ! tgHaveXdo "picking the game window"; then
+		return 1
+	fi
+
 	if [ -n "$1" ]; then
 		AID="$1"
 	fi
@@ -1273,13 +1289,13 @@ function SBSrunVRVideoPlayer {
 			# player windowid:
 			SBSVRWID=$("$XWININFO" -name "$SBSVRWINNAME" -stats | grep "^$XWININFO" | awk -F 'id: ' '{print $2}' | cut -d ' ' -f1)
 
-			if [ -n "$SBSVRWID" ]; then
+			if [ -n "$SBSVRWID" ] && tgHaveXdo "adjusting the side-by-side VR view"; then
 				writelog "INFO" "${FUNCNAME[0]} - Pressing w in '$VRVIDEOPLAYER' window '$SBSVRWINNAME' to adjust view: '$XDO windowactivate --sync $SBSVRWID key w'"
 				"$XDO" windowactivate --sync "$SBSVRWID" key w
 
 				writelog "INFO" "${FUNCNAME[0]} - Activating game window with id '$GAMEWINXID' for input"
 				"$XDO" windowactivate --sync "$GAMEWINXID" click 1
-			else
+			elif [ -z "$SBSVRWID" ]; then
 				writelog "SKIP" "${FUNCNAME[0]} - WARN - SBSVRWID '$SBSVRWID' is empty!"
 			fi
 		fi

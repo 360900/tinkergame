@@ -35,12 +35,14 @@ PKILL="pkill"
 TAR="tar"
 UNZIP="unzip"
 WGET="wget"
-XDO="xdotool"
 XPROP="xprop"
 XRANDR="xrandr"
 XWININFO="xwininfo"
 XXD="xxd"
 #ENDINTDEPS
+
+# optional: only the window automation features use it, see tgHaveXdo
+XDO="xdotool"
 
 ### (optionally) used programs ###
 GAMEMODERUN="gamemoderun"

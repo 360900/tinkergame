@@ -5,6 +5,17 @@
 #  cross-module references are invisible to per-file analysis)
 # TinkerGame library module -- sourced by the "tinkergame" entry point. Do not execute directly.
 
+function tgHaveXdo {
+	# xdotool is optional: only window automation features (toggling windows,
+	# picking or focusing the game window, IGCS, the UUU patch, side-by-side
+	# VR, pausing from the tray) use it. $1 names the feature for the log.
+	if [ -x "$(command -v "$XDO")" ]; then
+		return 0
+	fi
+	writelog "SKIP" "${FUNCNAME[1]} - '$XDO' is not installed - skipping ${1:-this feature}"
+	return 1
+}
+
 function checkIntDeps {
 
 	if [ "$SKIPINTDEPCHECK" -eq 1 ] || [ "$1" == "yad" ]; then

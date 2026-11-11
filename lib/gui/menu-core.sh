@@ -573,6 +573,11 @@ function openTrayIcon {
 			}
 
 			function PauseGame {
+				# only writelog is exported into the tray, so check xdotool inline
+				if ! [ -x "$(command -v "$XDO")" ]; then
+					writelog "SKIP" "${FUNCNAME[0]} - '$XDO' is not installed - can't pause the game"
+					return
+				fi
 				PAUSEPID="$(sleep 5 && "$XDO" getactivewindow getwindowpid)"
 				# idea taken with friendly permission from $GHURL/Ilazki:
 				GAMESTATE="$(ps -q "$PAUSEPID" -o state --no-headers)"

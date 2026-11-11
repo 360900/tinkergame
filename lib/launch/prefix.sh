@@ -394,7 +394,7 @@ function postIGCS {
 	COUNTER=0
 	if [ -f "$IGCSINITLOCK" ]; then
 		writelog "SKIP" "${FUNCNAME[0]} - Lock file $IGCSINITLOCK still exists - giving up"
-	else
+	elif tgHaveXdo "closing the $IGCS window"; then
 		COUNTER=0
 		WAITWIN=3
 		writelog "INFO" "${FUNCNAME[0]} - $IGCS just started, now waiting a bit for its window"
@@ -513,6 +513,9 @@ function injectUUUPatch {
 
 function checkUUUPatchLaunch {
 	if [ "$UUUSEPATCH" -eq 1 ] || [ "$UUUSEVR" -eq 1 ]; then
+		if ! tgHaveXdo "the UUU patch command"; then
+			return
+		fi
 		createUUUPatchCommand
 		injectUUUPatch &
 	fi
@@ -870,7 +873,7 @@ function togWindows {
 		fi
 	}
 
-	if [ "$TOGGLEWINDOWS" -eq 1 ]; then
+	if [ "$TOGGLEWINDOWS" -eq 1 ] && tgHaveXdo "toggling open windows"; then
 		writelog "INFO" "${FUNCNAME[0]} - Setting windows to $1"
 		"$1"
 	fi

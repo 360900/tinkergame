@@ -74,16 +74,18 @@ dependencies.
 Debian/Ubuntu:
 
 ```sh
-sudo apt-get install bash yad git wget tar unzip jq xdotool xxd x11-xserver-utils x11-utils
+sudo apt-get install bash yad git wget tar unzip jq xxd x11-xserver-utils x11-utils
 ```
 
 Arch:
 
 ```sh
-sudo pacman -S bash git jq tar unzip wget xdotool xxd xorg-xprop xorg-xrandr xorg-xwininfo yad
+sudo pacman -S bash git jq tar unzip wget xxd xorg-xprop xorg-xrandr xorg-xwininfo yad
 ```
 
-(`xdotool` is only needed for a few optional legacy features.)
+`xdotool` is optional. Without it, the X11 window automation features
+(toggling open windows, picking or focusing the game window, IGCS, the UUU
+patch, side-by-side VR and pausing from the tray icon) are skipped.
 
 When installed for the current user, make sure `~/.local/bin` is in `PATH`.
 

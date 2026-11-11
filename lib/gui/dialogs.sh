@@ -38,8 +38,12 @@ function getScreenRes {
 		FOUNDH="$(heightList | head -n1 | tr -dc '0-9')"
 	else
 		XCUT="$("$XRANDR" --listactivemonitors 2>/dev/null | grep -Eo "\+[1-9][[:digit:]]*\+" | grep -Eo "[[:digit:]]*")"
-		MPOS="$("$XDO" getmouselocation --shell | head -n1 | cut -d '=' -f2)"
-		if [ "$MPOS" -gt "$XCUT" ]; then
+		# the mouse position picks the monitor; without xdotool the first one is used
+		MPOS=0
+		if tgHaveXdo "picking the monitor under the mouse"; then
+			MPOS="$("$XDO" getmouselocation --shell | head -n1 | cut -d '=' -f2)"
+		fi
+		if [ "$MPOS" -gt "$XCUT" ] 2>/dev/null; then
 			FOUNDW="$(widthList | tail -n1 | tr -dc '0-9')"
 			FOUNDH="$(heightList | tail -n1 | tr -dc '0-9')"
 		else
