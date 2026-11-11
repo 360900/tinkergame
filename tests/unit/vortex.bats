@@ -395,6 +395,16 @@ EOT
 	test ! -f "$fvd-old"
 }
 
+@test "desktopExecArg: quotes an Exec argument per the Desktop Entry spec" {
+	run desktopExecArg "/opt/my games/tinkergame"
+	[ "$output" = '"/opt/my games/tinkergame"' ]
+
+	# inside the quotes '"', '`', '$' and '\' are escaped, then the string
+	# escaping doubles every backslash; '%' is doubled for the field codes
+	run desktopExecArg '/a"b`c$d\e%f'"'g;h"
+	[ "$output" = '"/a\\"b\\`c\\$d\\\\e%%f'"'g;h\"" ]
+}
+
 @test "dlmime: the handler runs the mod manager's own subcommand and leaks no globals" {
 	local apps="$HOME/.local/share/applications"
 	export INFLATPAK=0
@@ -405,6 +415,8 @@ EOT
 	)
 	grep -q "^Exec=.* mods mo2 url %u$" "$apps/ModOrganizer-tinkergame-dl.desktop"
 	grep -qx "Name=ModOrganizer (TinkerGame - tinkergame)" "$apps/ModOrganizer-tinkergame-dl.desktop"
+
+	grep -qx "Exec=\"$(realpath "$0")\" mods mo2 url %u" "$apps/ModOrganizer-tinkergame-dl.desktop"
 
 	export INFLATPAK=1 FLATPAK_ID="com.example.TinkerGame"
 	run_vortex_helpers setVortexDLMime

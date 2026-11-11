@@ -582,6 +582,25 @@ function writeDesktopFile {
 	fi
 }
 
+# Quote '$1' as one argument of a desktop file's Exec key, so a path with
+# spaces or other reserved characters stays one argument.  Per the Desktop
+# Entry spec '"', '`', '$' and '\' get a backslash inside the double quotes,
+# the string escaping of the key then doubles every backslash, and '%' is
+# doubled so it is not read as a field code.
+function desktopExecArg {
+	local ARG="$1" OUT="" C I
+	for (( I=0; I<${#ARG}; I++ )); do
+		C="${ARG:I:1}"
+		case "$C" in
+			'"'|'`'|'$') OUT+='\\'"$C" ;;
+			'\') OUT+='\\\\' ;;
+			'%') OUT+='%%' ;;
+			*) OUT+="$C" ;;
+		esac
+	done
+	printf '"%s"\n' "$OUT"
+}
+
 # Content of the nxm:// handler desktop file for mod manager '$1', which runs
 # the '$2' mods subcommand ('mods $2 url %u').
 # No 'Path=' key on purpose: the handler is this script, which needs no
@@ -593,7 +612,7 @@ function dlMimeDesktopContent {
 	if [ "$INFLATPAK" -eq 1 ]; then
 		DLMEXEC="/usr/bin/flatpak run --command=tinkergame $FLATPAK_ID mods $2 url %u"
 	else
-		DLMEXEC="$(realpath "$0") mods $2 url %u"
+		DLMEXEC="$(desktopExecArg "$(realpath "$0")") mods $2 url %u"
 	fi
 
 	echo "[Desktop Entry]"
