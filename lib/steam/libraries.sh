@@ -304,11 +304,15 @@ function dlProgressWindow {
 	"$YAD" --window-icon="$STLICON" --title="$STATUSWINTITLE" --on-top --no-buttons --center \
 		--width=500 --fixed --borders=16 "${BARMODE[@]}" --auto-close \
 		--text="$BARTEXT..."$'\n'"<span size='x-small'> </span>" "${WINDECO[@]}" || YADRC=$?
-	# auto-close and end of input exit 0, Esc and the close button 252
-	if [ "$YADRC" -ne 0 ]; then
+	# auto-close and end of input exit 0, Esc and the close button 252.  The
+	# bar has no buttons, so any other status is yad failing, which must not
+	# take the download with it
+	if [ "$YADRC" -eq 252 ]; then
 		writelog "INFO" "${FUNCNAME[0]} - Progress window closed, cancelling the download"
 		kill "$(head -n 1 "$DLPIDFILE")" 2>/dev/null || :
 		echo "cancelled" >> "$DLPIDFILE"
+	elif [ "$YADRC" -ne 0 ]; then
+		writelog "WARN" "${FUNCNAME[0]} - Progress window failed (yad status $YADRC), continuing the download without it"
 	fi
 	return 0
 }

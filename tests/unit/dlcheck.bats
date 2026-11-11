@@ -184,6 +184,8 @@ case " $* " in
 	*" --progress "*)
 		# FAKEYAD_CLOSE: the user closes the bar right away
 		[ -z "${FAKEYAD_CLOSE:-}" ] || exit 252
+		# FAKEYAD_FAIL: the bar dies with this status, e.g. on startup
+		[ -z "${FAKEYAD_FAIL:-}" ] || exit "$FAKEYAD_FAIL"
 		cat >>"$FAKEYAD_PROGRESS"; exit 0 ;;
 esac
 echo $$ >>"$FAKEYAD_PIDS"
@@ -324,6 +326,24 @@ no_window_left_open() {
 	grep -q "Download of 'https://example.invalid/archive' cancelled" "$DLCHECK_LOG"
 	! grep -q "^ERROR" "$DLCHECK_LOG"
 	no_window_left_open
+}
+
+@test "dlCheck: a progress bar that fails to start does not cancel the download" {
+	setup_progress_fakes
+	local RC
+	for RC in 1 127 139; do
+		export FAKEYAD_FAIL="$RC"
+		: > "$DLCHECK_LOG"
+		rm -f -- "$DLCHECK_DEST"
+
+		run StatusWindow "Downloading test thing" progressTask "TestStatus"
+		[ "$status" -eq 0 ]
+		[ "$(cat "$DLCHECK_DEST")" = 'downloaded content' ]
+		grep -q "^WARN dlProgressWindow - Progress window failed (yad status $RC)" "$DLCHECK_LOG"
+		run grep -c "cancel" "$DLCHECK_LOG"
+		[ "$output" -eq 0 ]
+		no_window_left_open
+	done
 }
 
 @test "dlCheck: no progress bar when wget fails before its first update" {
