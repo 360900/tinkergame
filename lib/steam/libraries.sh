@@ -629,12 +629,28 @@ function dlMimeDesktopContent {
 	echo "Hidden=false"
 }
 
+# Succeed when the existing handler desktop file '$1' differs from the wanted
+# content '$2'.  A different Icon line only counts once the icon it names is
+# gone: STLICON switches between two icons on the Steam Deck, which would
+# otherwise rewrite the file on every start.
+function dlMimeDesktopStale {
+	local OLDICON
+	if [ "$(cat "$1")" == "$2" ]; then
+		return 1
+	elif [ "$(grep -v "^Icon=" "$1")" != "$(grep -v "^Icon=" <<< "$2")" ]; then
+		return 0
+	fi
+	OLDICON="$(grep -m1 "^Icon=" "$1")"
+	OLDICON="${OLDICON#Icon=}"
+	[ ! -f "$OLDICON" ]
+}
+
 # Install the nxm:// handler desktop file '$3' for mod manager '$1' (mods
 # subcommand '$2', see dlMimeDesktopContent) and make it the default. '$4' is
 # the competing mod manager's handler, disabled when this one is (re)created.
-# The file is rewritten whenever its content would differ, so a moved entry
-# point or install dir cannot leave a stale handler behind that silently
-# breaks nxm:// links.
+# The file is rewritten whenever its content would differ (see
+# dlMimeDesktopStale for the icon), so a moved entry point or install dir
+# cannot leave a stale handler behind that silently breaks nxm:// links.
 function installDLMimeDesktop {
 	local DLMD="$3" DLMCONTENT DLMAPPS="$HOME/.local/share/applications"
 	local FDLMD FDLMOTHER
@@ -642,7 +658,7 @@ function installDLMimeDesktop {
 	FDLMD="$DLMAPPS/$DLMD"
 	FDLMOTHER="$DLMAPPS/$4"
 
-	if [ -f "$FDLMD" ] && [ "$(cat "$FDLMD")" == "$DLMCONTENT" ]; then
+	if [ -f "$FDLMD" ] && ! dlMimeDesktopStale "$FDLMD" "$DLMCONTENT"; then
 		writelog "INFO" "${FUNCNAME[0]} - Desktopfile '$FDLMD' is up2date"
 	else
 		mkdir -p "$DLMAPPS"

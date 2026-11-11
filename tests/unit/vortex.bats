@@ -395,6 +395,40 @@ EOT
 	test ! -f "$fvd-old"
 }
 
+@test "vortex dlmime: a switched icon alone does not rewrite the handler" {
+	local fvd="$HOME/.local/share/applications/vortex-tinkergame-dl.desktop"
+	local png="$BATS_TEST_TMPDIR/shm/tinkergame.png" svg="$TG_ROOT/misc/tinkergame.svg"
+	touch "$png"
+	export STLICON="$png"
+	run_vortex_helpers setVortexDLMime
+	grep -qxF "Icon=$png" "$fvd"
+
+	# Steam Deck: STLICON flips to the svg while the png is missing
+	export STLICON="$svg"
+	run_vortex_helpers setVortexDLMime
+	test ! -f "$fvd-old"
+	grep -qxF "Icon=$png" "$fvd"
+
+	# the icon the file names is gone: now it is stale
+	rm "$png"
+	run_vortex_helpers setVortexDLMime
+	test -f "$fvd-old"
+	grep -qxF "Icon=$svg" "$fvd"
+
+	# back to the png while it is missing: the svg is still there
+	rm "$fvd-old"
+	export STLICON="$png"
+	run_vortex_helpers setVortexDLMime
+	test ! -f "$fvd-old"
+
+	# an icon that does not exist yet is no reason to rewrite either
+	rm "$fvd"
+	run_vortex_helpers setVortexDLMime
+	grep -qxF "Icon=$png" "$fvd"
+	run_vortex_helpers setVortexDLMime
+	test ! -f "$fvd-old"
+}
+
 @test "desktopExecArg: quotes an Exec argument per the Desktop Entry spec" {
 	run desktopExecArg "/opt/my games/tinkergame"
 	[ "$output" = '"/opt/my games/tinkergame"' ]
