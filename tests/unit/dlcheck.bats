@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Download and integrity failures must never look like successful downloads.
 
+bats_require_minimum_version 1.5.0
+
 setup() {
 	load helpers
 	tg_load
@@ -39,7 +41,7 @@ setup() {
 	[ "$status" -eq 8 ]
 	[ ! -e "$DLCHECK_DEST" ]
 	[ -z "$(find "$BATS_TEST_TMPDIR" -name '*.part.*' -print)" ]
-	! grep -q "Download finished" "$DLCHECK_NOTICES"
+	run ! grep -q "Download finished" "$DLCHECK_NOTICES"
 }
 
 @test "dlCheck: quiet downloads preserve the wget failure status" {
@@ -111,7 +113,7 @@ setup() {
 	brokenChecksum() { printf '%s\n' deadbeef; return 9; }
 	run dlCheck brokenChecksum "$DLCHECK_DEST" C deadbeef
 	[ "$status" -ne 0 ]
-	! grep -q 'is correct' "$DLCHECK_NOTICES"
+	run ! grep -q 'is correct' "$DLCHECK_NOTICES"
 }
 
 @test "dlCheck: downloaded checksum mismatches never replace an existing cache" {
@@ -160,7 +162,7 @@ setup() {
 	[ "$status" -eq 0 ]
 	[ "${lines[0]}" = "pulse" ]
 	[ "${lines[3]}" = "# 320.00K 1.55MB/s" ]
-	! grep -qx "[0-9]*" <<< "$output"
+	run ! grep -qx "[0-9]*" <<< "$output"
 
 	run dlProgressFeed < "$TG_FIXTURES/wget2-show-progress-nosize.txt"
 	[ "$status" -eq 0 ]
@@ -296,7 +298,7 @@ no_window_left_open() {
 	run progressTask
 	[ "$status" -eq 0 ]
 	[ ! -s "$FAKEYAD_CALLS" ]
-	! grep -q -- "--show-progress" "$DLCHECK_CALLS"
+	run ! grep -q -- "--show-progress" "$DLCHECK_CALLS"
 }
 
 @test "dlCheck: no progress bar from a subshell of the StatusWindow" {
@@ -305,7 +307,7 @@ no_window_left_open() {
 
 	run StatusWindow "Downloading test thing" subshellTask "TestStatus"
 	[ "$status" -eq 0 ]
-	! grep -q -- "--progress" "$FAKEYAD_CALLS"
+	run ! grep -q -- "--progress" "$FAKEYAD_CALLS"
 	no_window_left_open
 }
 
@@ -350,7 +352,7 @@ no_window_left_open() {
 	grep -q "cancelling the download" "$DLCHECK_LOG"
 	# cancelled, not failed
 	grep -q "Download of 'https://example.invalid/archive' cancelled" "$DLCHECK_LOG"
-	! grep -q "^ERROR" "$DLCHECK_LOG"
+	run ! grep -q "^ERROR" "$DLCHECK_LOG"
 	no_window_left_open
 }
 
@@ -416,6 +418,6 @@ no_window_left_open() {
 
 	run StatusWindow "Downloading test thing" progressTask "TestStatus"
 	[ "$status" -eq 4 ]
-	! grep -q -- "--progress" "$FAKEYAD_CALLS"
+	run ! grep -q -- "--progress" "$FAKEYAD_CALLS"
 	no_window_left_open
 }

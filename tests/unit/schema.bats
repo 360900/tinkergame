@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Unit tests for the option schema loader (lib/config/schema.sh + data/options.def).
 
+bats_require_minimum_version 1.5.0
+
 setup() {
 	load helpers
 	tg_load
@@ -35,11 +37,11 @@ setup() {
 
 @test "tgSchemaHasKey: known and unknown keys" {
 	tgSchemaHasKey "url" "RESHADEPROJURL"
-	! tgSchemaHasKey "url" "RESHADEPROJURl"   # legacy typo key is not in the schema
+	run ! tgSchemaHasKey "url" "RESHADEPROJURl"   # legacy typo key is not in the schema
 	tgSchemaHasKey "default_template" "MO2SILENTMODEEXEOVERRIDE"
-	! tgSchemaHasKey "default_template" "MO2SILENTMODEDESC_MO2SILENTMODEEXEOVERRIDE"
+	run ! tgSchemaHasKey "default_template" "MO2SILENTMODEDESC_MO2SILENTMODEEXEOVERRIDE"
 	tgSchemaHasKey "global" "CUPROTOCOMPAT"
-	! tgSchemaHasKey "global" "NOT_A_REAL_KEY"
+	run ! tgSchemaHasKey "global" "NOT_A_REAL_KEY"
 }
 
 @test "tgSchemaDesc: raw description templates are returned unexpanded" {

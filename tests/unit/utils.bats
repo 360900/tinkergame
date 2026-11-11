@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Unit tests for small pure utility functions and updateConfigEntry.
 
+bats_require_minimum_version 1.5.0
+
 setup() {
 	load helpers
 	tg_load
@@ -90,7 +92,7 @@ EOF
 	printf '#FOO="old"\n' >"$BATS_TEST_TMPDIR/conf"
 	run updateConfigEntry "FOO" "new" "$BATS_TEST_TMPDIR/conf"
 	grep -q '^FOO="new"$' "$BATS_TEST_TMPDIR/conf"
-	! grep -q '^#FOO' "$BATS_TEST_TMPDIR/conf"
+	run ! grep -q '^#FOO' "$BATS_TEST_TMPDIR/conf"
 }
 
 @test "updateConfigEntry: converts TRUE/FALSE to 1/0" {
@@ -133,7 +135,7 @@ EOF
 	run updateConfigEntry "FOO" 'C:\tools\nstuff' "$BATS_TEST_TMPDIR/conf"
 	# '\t' and '\n' in Windows paths must stay literal, not become tab/newline:
 	grep -q '^FOO="C:\\tools\\nstuff"$' "$BATS_TEST_TMPDIR/conf"
-	! grep -qP '\t|\n' "$BATS_TEST_TMPDIR/conf"
+	run ! grep -qP '\t|\n' "$BATS_TEST_TMPDIR/conf"
 }
 
 @test "updateConfigEntry: STLCFGDIR placeholder is substituted on update and append" {

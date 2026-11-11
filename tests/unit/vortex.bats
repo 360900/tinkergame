@@ -19,6 +19,8 @@
 # tests under errexit while the real script does not; the asserts check the
 # produced files rather than the exit path.
 
+bats_require_minimum_version 1.5.0
+
 setup() {
 	load helpers
 	tg_load
@@ -378,7 +380,7 @@ EOT
 
 	run_vortex_helpers setVortexDLMime
 
-	! grep -q "^Path=" "$fvd"
+	run ! grep -q "^Path=" "$fvd"
 	grep -q "^Exec=.* mods vortex url %u$" "$fvd"
 	grep -q "^MimeType=x-scheme-handler/nxm;x-scheme-handler/nxm-protocol$" "$fvd"
 	test -f "$fvd-old"
@@ -493,7 +495,7 @@ EOT
 
 	grep -q -- "-d" "$WINE_LOG"
 	grep -qF -- "$url" "$WINE_LOG"
-	! grep -q -- "--game" "$WINE_LOG"
+	run ! grep -q -- "--game" "$WINE_LOG"
 }
 
 @test "vortex getset: a Steam game context does not start the game instead" {

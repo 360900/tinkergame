@@ -5,6 +5,8 @@
 # plugs are up, then - on an even response code - signals them with SIGUSR1 so
 # they print their field values, exactly like the real yad notebook does.
 
+bats_require_minimum_version 1.5.0
+
 load helpers
 
 setup() {
@@ -146,7 +148,7 @@ TPL
 	# combined template: Gui header, USEPROTON, USEMANGOHUD, USEGAMESCOPE
 	# (the MENU_GLOBAL-only STLLANG field is filtered out by ARGSPAT)
 	[ "$(wc -l <"${TGMENU}-${TMPL}")" -eq 4 ]
-	! grep -q "STLLANG" "${TGMENU}-${TMPL}"
+	run ! grep -q "STLLANG" "${TGMENU}-${TMPL}"
 	grep -q "('USEPROTON')" "${TGMENU}-${TMPL}"
 	grep -q "('USEMANGOHUD')" "${TGMENU}-${TMPL}"
 	grep -q "('USEGAMESCOPE')" "${TGMENU}-${TMPL}"
@@ -219,7 +221,7 @@ TPL
 	run openTabbedMenu 0 "$TGMENU" "TestMenu" "$STLICON" "EMPTY" "1" "Test Title" "none" "MENU_GAME"
 	[ "$status" -eq 3 ]
 	# no notebook was started
-	! grep -q '^notebook:' "$STUB_YAD_LOG"
+	run ! grep -q '^notebook:' "$STUB_YAD_LOG"
 }
 
 @test "tabs: fallback when a plug dies during setup" {

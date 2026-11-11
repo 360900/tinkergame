@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Custom Proton installation must stop on transport, integrity or archive errors.
 
+bats_require_minimum_version 1.5.0
+
 setup() {
 	load helpers
 	tg_load
@@ -207,7 +209,7 @@ assertNoProtonInstall() {
 	run dlCustomProton https://example.invalid/Test-Proton.tar.gz
 	[ "$status" -eq 0 ]
 	grep -qxF "$CUSTPROTEXTDIR/Test-Proton/proton" "$REGISTER_CALLS"
-	! grep -qxF "$PROTFULLPATH" "$REGISTER_CALLS"
+	run ! grep -qxF "$PROTFULLPATH" "$REGISTER_CALLS"
 }
 
 @test "dlCustomProton: invalid URLs and unsupported archives do not download" {

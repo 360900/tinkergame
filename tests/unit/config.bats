@@ -2,6 +2,8 @@
 # Unit tests for the schema-driven config writers (save.sh) and the
 # config upgrade path (updateConfigFile/tgUpgradeConfigFile in manage.sh).
 
+bats_require_minimum_version 1.5.0
+
 setup() {
 	load helpers
 	tg_load
@@ -56,7 +58,7 @@ setup() {
 	local f="$BATS_TEST_TMPDIR/url.conf"
 	saveCfg "$f" X
 	grep -q '^RESHADEPROJURL="https://github.com/crosire/reshade"$' "$f"
-	! grep -q '^RESHADEPROJURl=' "$f"
+	run ! grep -q '^RESHADEPROJURl=' "$f"
 	grep -q '^## ReShade Project URL$' "$f"   # desc expands ${RESH}
 }
 
@@ -70,7 +72,7 @@ setup() {
 	local f="$BATS_TEST_TMPDIR/default_template.conf"
 	saveCfg "$f" X
 	grep -q '^MO2SILENTMODEEXEOVERRIDE="none"$' "$f"
-	! grep -q '^MO2SILENTMODEDESC_MO2SILENTMODEEXEOVERRIDE=' "$f"
+	run ! grep -q '^MO2SILENTMODEDESC_MO2SILENTMODEEXEOVERRIDE=' "$f"
 }
 
 @test "saveCfg: default_template.conf persists keys the old writer dropped" {
@@ -123,7 +125,7 @@ setup() {
 	printf '## config Version: v0.0.1\nRESHADEPROJURl="https://example/old"\n' >"$f"
 	updateConfigFile "$f" "url"
 	grep -q '^RESHADEPROJURL="https://example/old"$' "$f"
-	! grep -q 'RESHADEPROJURl' "$f"
+	run ! grep -q 'RESHADEPROJURl' "$f"
 }
 
 @test "updateConfigFile: renames the mangled MO2 key" {
@@ -154,7 +156,7 @@ setup() {
 	grep -q '^STLDXVKCFG="/tmp/dxvk/1.conf"$' "$f"
 	grep -q '^INSTALL_RESHADE="1"$' "$f"
 	grep -q '^CHECKCATEGORIES="0"$' "$f"
-	! grep -q '^GHOSTKEY=' "$f"
+	run ! grep -q '^GHOSTKEY=' "$f"
 }
 
 @test "updateConfigFile: comments of dropped keys are discarded, of kept keys preserved" {
@@ -167,7 +169,7 @@ setup() {
 		printf 'KEEPSTLOPEN="0"\n'
 	} >"$f"
 	updateConfigFile "$f" "default_template"
-	! grep -q 'comment of a ghost key' "$f"
+	run ! grep -q 'comment of a ghost key' "$f"
 	grep -q '^## comment of a real key$' "$f"
 }
 

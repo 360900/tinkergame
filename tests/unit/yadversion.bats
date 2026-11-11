@@ -7,6 +7,8 @@
 # empty string -- which used to abort the run with "Yad version '' is too old",
 # even for commands that never open a window.
 
+bats_require_minimum_version 1.5.0
+
 setup() {
 	load helpers
 	tg_load
@@ -47,7 +49,7 @@ tg_fakeyad() {
 	tg_fakeyad ""
 	run checkIntDeps
 	[ "$status" -eq 0 ]
-	! printf '%s\n' "$output" | grep -q "too old"
+	run ! grep -q "too old" <<< "$output"
 }
 
 @test "checkIntDeps: a yad that reports no version is reported as unknown" {
@@ -66,7 +68,7 @@ tg_fakeyad() {
 	tg_fakeyad "9.3"
 	run checkIntDeps
 	[ "$status" -eq 0 ]
-	! printf '%s\n' "$output" | grep -q "too old"
+	run ! grep -q "too old" <<< "$output"
 }
 
 @test "checkIntDeps: an unknown version is not written to the global config" {

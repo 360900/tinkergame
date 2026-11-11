@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+bats_require_minimum_version 1.5.0
+
 load helpers
 
 ENTRYSSRC=""
@@ -57,8 +59,8 @@ EOF
 	[ "$status" -eq 0 ]
 	[ "$(grep -cx "USEA" "$STLSETENTRIES")" -eq 1 ]
 	[ "$(grep -cx "USEB" "$STLSETENTRIES")" -eq 1 ]
-	! grep -qx "STALEMARKER" "$STLSETENTRIES"
-	! grep -qx "STALEMARKER" "$STLRAWENTRIES"
+	run ! grep -qx "STALEMARKER" "$STLSETENTRIES"
+	run ! grep -qx "STALEMARKER" "$STLRAWENTRIES"
 	[ "$(grep -c -- "--field" "$STLRAWENTRIES")" -eq 2 ]
 	[ ! -f "$MTEMP/stale-template" ]
 	[ -d "$MTEMP" ]

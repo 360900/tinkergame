@@ -5,6 +5,8 @@
 # - editorDontAskAgain explicitly disables the requester (WAITEDITOR=0 + ASKCNT=0)
 # - askSettings opens the start menu directly - no requester window in between
 
+bats_require_minimum_version 1.5.0
+
 load helpers
 
 setup() {
@@ -72,7 +74,7 @@ teardown() {
 	grep -q '^ASKCNT="6"$' "$GAMECFG"
 	# the silent rewrite is gone
 	grep -q '^WAITEDITOR="5"$' "$GAMECFG"
-	! grep -q '^WAITEDITOR="0"$' "$GAMECFG"
+	run ! grep -q '^WAITEDITOR="0"$' "$GAMECFG"
 }
 
 @test "editorDontAskAgain: explicitly disables the requester and resets the counter" {

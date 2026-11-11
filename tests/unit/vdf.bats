@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Unit tests for the text-VDF helper functions.
 
+bats_require_minimum_version 1.5.0
+
 setup() {
 	load helpers
 	tg_load
@@ -49,7 +51,7 @@ setup() {
 	# indent-1 tabs + '}' -- the block's own closing brace
 	[ "$(wc -l <<<"$first")" = "7" ]
 	grep -q '"730"' <<<"$first"
-	! grep -q '"440"' <<<"$first"
+	run ! grep -q '"440"' <<<"$first"
 }
 
 @test "getNestedVdfSection: walks a slash-separated path down the tree" {
@@ -60,7 +62,7 @@ setup() {
 	grep -q '"proton_8"' <<<"$output"
 	grep -q '"570"' <<<"$output"
 	grep -q '"Proton-tg"' <<<"$output"
-	! grep -q '"UserLocalConfigStore"' <<<"$output"
+	run ! grep -q '"UserLocalConfigStore"' <<<"$output"
 }
 
 @test "getVdfSectionValue: returns the full property line by default" {
@@ -114,7 +116,7 @@ setup() {
 	substituteVdfSection "$section" "$newsection" "$BATS_TEST_TMPDIR/edit.vdf"
 
 	grep -q '"proton_9"' "$BATS_TEST_TMPDIR/edit.vdf"
-	! grep -q '"proton_8"' "$BATS_TEST_TMPDIR/edit.vdf"
+	run ! grep -q '"proton_8"' "$BATS_TEST_TMPDIR/edit.vdf"
 	# rest of the file survives
 	grep -q '"UserLocalConfigStore"' "$BATS_TEST_TMPDIR/edit.vdf"
 }
