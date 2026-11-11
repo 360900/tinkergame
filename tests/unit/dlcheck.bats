@@ -328,6 +328,43 @@ no_window_left_open() {
 	no_window_left_open
 }
 
+@test "dlCheck: the progress bar gets every update, including the first" {
+	setup_progress_fakes
+
+	run StatusWindow "Downloading test thing" progressTask "TestStatus"
+	[ "$status" -eq 0 ]
+	[ "$(cat "$FAKEYAD_PROGRESS")" = "0
+# 0%  0 --.-KB/s
+23
+# 23%  559.64K 2.72MB/s
+100
+# 100%  2.29M 7.82MB/s in 0.3s" ]
+
+	: > "$FAKEYAD_PROGRESS"
+	DLCHECK_FIXTURE="$TG_FIXTURES/wget-show-progress-nosize.txt"
+	run StatusWindow "Downloading test thing" progressTask "TestStatus"
+	[ "$status" -eq 0 ]
+	[ "$(head -n 1 "$FAKEYAD_PROGRESS")" = "pulse" ]
+}
+
+@test "dlCheck: a percentage progress bar never gets a pulse line" {
+	setup_progress_fakes
+	DLCHECK_FIXTURE="$BATS_TEST_TMPDIR/mixed-progress.txt"
+	printf '%s\r' "/dev/null  10%[=>   ]  1K  1MB/s" "/dev/null      [ <=>  ]  2K  1MB/s" \
+		"/dev/null  50%[==>  ]  5K  1MB/s" > "$DLCHECK_FIXTURE"
+
+	run StatusWindow "Downloading test thing" progressTask "TestStatus"
+	[ "$status" -eq 0 ]
+	run grep -c -- "--progress --auto-close" "$FAKEYAD_CALLS"
+	[ "$output" -eq 1 ]
+	run grep -cx "pulse" "$FAKEYAD_PROGRESS"
+	[ "$output" -eq 0 ]
+	[ "$(head -n 1 "$FAKEYAD_PROGRESS")" = "10" ]
+	grep -qx "50" "$FAKEYAD_PROGRESS"
+	# the pulse line's size still updates the text
+	grep -qx "# 2K 1MB/s" "$FAKEYAD_PROGRESS"
+}
+
 @test "dlCheck: a progress bar that fails to start does not cancel the download" {
 	setup_progress_fakes
 	local RC

@@ -280,6 +280,21 @@ function dlProgressFeed {
 	return 0
 }
 
+# Pass dlProgressFeed's output to the bar, starting with the first update ($1)
+# dlProgressWindow already read to pick the bar mode ($2...).  A percentage
+# bar would read a 'pulse' line as 0, so it never gets one.
+function dlProgressBarInput {
+	local FIRST="$1"
+	shift
+	printf '%s\n' "$FIRST"
+	if [[ " $* " == *" --pulsate "* ]]; then
+		cat
+	else
+		grep --line-buffered -vx "pulse"
+	fi
+	return 0
+}
+
 # Swap StatusWindow's text window for the bar once wget reports its first
 # update: a normal bar for a known size, a pulsating one otherwise.  Closing
 # the bar cancels the download by killing the wget whose pid is in $1, and
@@ -301,9 +316,12 @@ function dlProgressWindow {
 	BARTEXT="${BARTEXT//>/\&gt;}"
 	# sized to its content like the text window: the saved window geometry
 	# leaves empty space below the bar
+	# a process substitution, not a pipe: closing the bar must not wait for
+	# the next update to reach the filter
 	"$YAD" --window-icon="$STLICON" --title="$STATUSWINTITLE" --on-top --no-buttons --center \
 		--width=500 --fixed --borders=16 "${BARMODE[@]}" --auto-close \
-		--text="$BARTEXT..."$'\n'"<span size='x-small'> </span>" "${WINDECO[@]}" || YADRC=$?
+		--text="$BARTEXT..."$'\n'"<span size='x-small'> </span>" "${WINDECO[@]}" \
+		< <(dlProgressBarInput "$FIRST" "${BARMODE[@]}") || YADRC=$?
 	# auto-close and end of input exit 0, Esc and the close button 252.  The
 	# bar has no buttons, so any other status is yad failing, which must not
 	# take the download with it
