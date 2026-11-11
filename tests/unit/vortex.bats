@@ -395,6 +395,23 @@ EOT
 	test ! -f "$fvd-old"
 }
 
+@test "dlmime: the handler runs the mod manager's own subcommand and leaks no globals" {
+	local apps="$HOME/.local/share/applications"
+	export INFLATPAK=0
+	( set +e
+	  unset DLMD DLMCONTENT DLMAPPS FDLMD FDLMOTHER
+	  installDLMimeDesktop "$MO" "$MO2" "$MO-${PROGNAME,,}-dl.desktop" "$VTX-${PROGNAME,,}-dl.desktop"
+	  [ -z "${DLMD+x}${DLMCONTENT+x}${DLMAPPS+x}${FDLMD+x}${FDLMOTHER+x}" ]
+	)
+	grep -q "^Exec=.* mods mo2 url %u$" "$apps/ModOrganizer-tinkergame-dl.desktop"
+	grep -qx "Name=ModOrganizer (TinkerGame - tinkergame)" "$apps/ModOrganizer-tinkergame-dl.desktop"
+
+	export INFLATPAK=1 FLATPAK_ID="com.example.TinkerGame"
+	run_vortex_helpers setVortexDLMime
+	grep -qx "Exec=/usr/bin/flatpak run --command=tinkergame com.example.TinkerGame mods vortex url %u" \
+		"$apps/vortex-tinkergame-dl.desktop"
+}
+
 @test "vortex url: a Steam game context does not swallow the nxm URI" {
 	# The browser inherits STEAM_COMPAT_APP_ID when opened from a
 	# Steam-launched Vortex, so the handler sees a game id.

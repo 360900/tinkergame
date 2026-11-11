@@ -615,14 +615,7 @@ function dlMod2nexurl {
 function setMO2DLMime {
 	setMO2Vars
 
-	MO2D="$MO-${PROGNAME,,}-dl.desktop"
-	if [ "$INFLATPAK" -eq 1 ]; then
-		MO2DEXEC="/usr/bin/flatpak run --command=tinkergame $FLATPAK_ID mods mo2 url %u"
-	else
-		MO2DEXEC="$(realpath "$0") mods mo2 url %u"
-	fi
-
-	installDLMimeDesktop "$MO2D" "$(dlMimeDesktopContent "$MO" "$MO2DEXEC")" "$VTX-${PROGNAME,,}-dl.desktop"
+	installDLMimeDesktop "$MO" "$MO2" "$MO-${PROGNAME,,}-dl.desktop" "$VTX-${PROGNAME,,}-dl.desktop"
 }
 
 function checkMO2 {

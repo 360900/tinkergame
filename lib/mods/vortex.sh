@@ -98,84 +98,10 @@ function cleanVortex {
 	fi
 }
 
-# Content of the nxm:// handler desktop file for a mod manager.
-# No 'Path=' key on purpose: the handler is this script, which needs no
-# working directory, and a 'Path=' pointing at a directory that no longer
-# exists (the Vortex install dir changed between versions) makes every
-# launch fail before TinkerGame even starts.
-function dlMimeDesktopContent {
-	echo "[Desktop Entry]"
-	echo "Type=Application"
-	echo "Categories=Utility;"
-	echo "Name=$1 ($PROGNAME - ${PROGNAME,,})"
-	echo "Comment=Link Handler - For internal use only"
-	echo "Icon=$STLICON"
-	echo "MimeType=x-scheme-handler/nxm;x-scheme-handler/nxm-protocol"
-	echo "Terminal=false"
-	echo "X-KeepTerminal=false"
-	echo "Exec=$2"
-	echo "NoDisplay=true"
-	echo "Hidden=false"
-}
-
-# Install the nxm:// handler desktop file '$1' with content '$2' and make it
-# the default. '$3' is the competing mod manager's handler, disabled when
-# this one is (re)created. The file is rewritten whenever its content would
-# differ, so a moved entry point or install dir cannot leave a stale handler
-# behind that silently breaks nxm:// links.
-function installDLMimeDesktop {
-	DLMD="$1"
-	DLMCONTENT="$2"
-	DLMAPPS="$HOME/.local/share/applications"
-	FDLMD="$DLMAPPS/$DLMD"
-	FDLMOTHER="$DLMAPPS/$3"
-
-	if [ -f "$FDLMD" ] && [ "$(cat "$FDLMD")" == "$DLMCONTENT" ]; then
-		writelog "INFO" "${FUNCNAME[0]} - Desktopfile '$FDLMD' is up2date"
-	else
-		mkdir -p "$DLMAPPS"
-		if [ -f "$FDLMD" ]; then
-			writelog "INFO" "${FUNCNAME[0]} - Desktopfile '$FDLMD' is outdated - replacing it, old one kept as '$FDLMD-old'"
-			mv "$FDLMD" "$FDLMD-old"
-		else
-			writelog "INFO" "${FUNCNAME[0]} - Creating new desktop file '$FDLMD'"
-		fi
-		echo "$DLMCONTENT" > "$FDLMD"
-
-		if [ -f "$FDLMOTHER" ]; then
-			writelog "INFO" "${FUNCNAME[0]} - Renaming desktopfile '$FDLMOTHER' to '${FDLMOTHER}-off', because '$DLMD' was created"
-			mv "$FDLMOTHER" "${FDLMOTHER}-off"
-		fi
-
-		if [ -x "$(command -v update-desktop-database 2>/dev/null)" ]; then
-			update-desktop-database "$DLMAPPS" 2>/dev/null
-		fi
-	fi
-
-	# Always (re)apply the default association: a stale mimeapps.list breaks
-	# nxm:// handling while the desktop file itself looks fine.
-	if [ -x "$(command -v "$XDGMIME" 2>/dev/null)" ]; then
-		writelog "INFO" "${FUNCNAME[0]} - Setting download defaults for nexusmod protocol via $XDGMIME pointing at $DLMD"
-		# stderr silenced: xdg-mime probes for optional helpers like qtpaths
-		# and prints "command not found" noise on systems without them
-		"$XDGMIME" default "$DLMD" x-scheme-handler/nxm 2>/dev/null
-		"$XDGMIME" default "$DLMD" x-scheme-handler/nxm-protocol 2>/dev/null
-	else
-		writelog "SKIP" "${FUNCNAME[0]} - $XDGMIME not found - couldn't set download defaults for nexusmod protocol - skipping"
-	fi
-}
-
 function setVortexDLMime {
 	writelog "INFO" "${FUNCNAME[0]} - INFO: Linking Nexus Mods downloads to ${VTX^}"
 
-	VD="$VTX-${PROGNAME,,}-dl.desktop"
-	if [ "$INFLATPAK" -eq 1 ]; then
-		VDEXEC="/usr/bin/flatpak run --command=tinkergame $FLATPAK_ID mods vortex url %u"
-	else
-		VDEXEC="$(realpath "$0") mods vortex url %u"
-	fi
-
-	installDLMimeDesktop "$VD" "$(dlMimeDesktopContent "${VTX^}" "$VDEXEC")" "$MO-${PROGNAME,,}-dl.desktop"
+	installDLMimeDesktop "${VTX^}" "$VTX" "$VTX-${PROGNAME,,}-dl.desktop" "$MO-${PROGNAME,,}-dl.desktop"
 }
 
 function getLatestVortVer {
