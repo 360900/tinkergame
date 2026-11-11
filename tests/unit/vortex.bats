@@ -395,6 +395,15 @@ EOT
 	test ! -f "$fvd-old"
 }
 
+@test "getVortexNexusGameId: one unquoted id, also for an AppID listed twice" {
+	run getVortexNexusGameId 611670
+	[ "$output" = "skyrimvr" ]
+	run getVortexNexusGameId 41700
+	[ "$output" = "stalkercallofchernobyl" ]
+	run getVortexNexusGameId 999999999
+	[ -z "$output" ]
+}
+
 @test "vortex dlmime: the MO2 handler is disabled even when Vortex's is up to date" {
 	local apps="$HOME/.local/share/applications"
 	local fvd="$apps/vortex-tinkergame-dl.desktop" fmo="$apps/ModOrganizer-tinkergame-dl.desktop"

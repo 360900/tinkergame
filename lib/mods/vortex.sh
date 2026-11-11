@@ -672,9 +672,17 @@ function setGameVortexStaging {
 	fi
 }
 
+# Print the Nexus game id that VORTEXGAMES lists for Steam AppID '$1'.  Only
+# the first match counts: some games share an AppID there, and several lines
+# would make one multi-line id.
+function getVortexNexusGameId {
+	local VNGID
+	VNGID="$(grep -m1 "\"$1\"" "$VORTEXGAMES" | cut -d ';' -f1)"
+	printf '%s\n' "${VNGID//\"}"
+}
+
 function activateVortexGame {
-	NEXUSGAMEID="$(grep "\"$1\"" "$VORTEXGAMES" | cut -d ';' -f1)"
-	NEXUSGAMEID="${NEXUSGAMEID//\"}"
+	NEXUSGAMEID="$(getVortexNexusGameId "$1")"
 	if [ -n "$NEXUSGAMEID" ]; then
 			writelog "INFO" "${FUNCNAME[0]} - Activating game '$NEXUSGAMEID' ($1) in ${VTX^}" "E"
 			setVortSet "settings.mods.activator.$NEXUSGAMEID=\"\\\"hardlink_activator\\\"\""
@@ -808,14 +816,12 @@ function prepareVortexGame {
 	fi
 
 	if grep -q "\"$VAID\"" "$SEENVORTEXGAMES" 2>/dev/null; then
-		NEXUSGAMEID="$(grep "\"$VAID\"" "$VORTEXGAMES" | cut -d ';' -f1)"
-		NEXUSGAMEID="${NEXUSGAMEID//\"}"
+		NEXUSGAMEID="$(getVortexNexusGameId "$VAID")"
 		writelog "INFO" "${FUNCNAME[0]} - '$NEXUSGAMEID ($VAID)' is already setup for '${VTX^}' - remove from '$SEENVORTEXGAMES' for retry"
 	else
 		if grep -q "\"$VAID\"" "$VORTEXGAMES"; then
 			if [ -z "$NEXUSGAMEID" ]; then
-				NEXUSGAMEID="$(grep "\"$VAID\"" "$VORTEXGAMES" | cut -d ';' -f1)"
-				NEXUSGAMEID="${NEXUSGAMEID//\"}"
+				NEXUSGAMEID="$(getVortexNexusGameId "$VAID")"
 				updateConfigEntry "NEXUSGAMEID" "$NEXUSGAMEID" "$STLGAMECFG"
 				updateConfigEntry "NEXUSGAMEID" "$NEXUSGAMEID" "$GEMETA/$AID.conf"
 			fi
