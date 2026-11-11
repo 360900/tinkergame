@@ -354,3 +354,17 @@ mm_title_rows() {
 	[ "$(grep -c '^form:' "$STUB_YAD_LOG")" -eq 1 ]
 	[ -f "$MARK/startSteamGame" ]
 }
+
+@test "fixShowGnAid: a failed title lookup falls back to the game name, not its error text" {
+	# setup stubs fixShowGnAid out; load the real one
+	eval "$(sed -n '/^function fixShowGnAid {/,/^}/p' "$TG_ROOT/lib/gui/menus.sh")"
+	getTitleFromID() { echo "No Title found for '$1'"; return 1; }
+	AID="413150" GN="Stardew Valley"
+	fixShowGnAid
+	[ "$SGNAID" = "Stardew Valley (413150)" ]
+
+	getTitleFromID() { echo "Stardew Valley"; }
+	GN=""
+	fixShowGnAid
+	[ "$SGNAID" = "Stardew Valley (413150)" ]
+}

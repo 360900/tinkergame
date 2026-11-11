@@ -347,7 +347,8 @@ function fixShowGnAid {
     fi
 
 	# Will use "real" game name if it exists, e.g. "NieR:Automata" instead of NieRAutomata
-	PRETTYGAMENAME="$( getTitleFromID "$AID" "1" )"
+	# getTitleFromID prints an error message and fails when it finds nothing
+	PRETTYGAMENAME="$( getTitleFromID "$AID" "1" )" || PRETTYGAMENAME=""
 	if [ -n "$PRETTYGAMENAME" ]; then
 		SGNAID="$PRETTYGAMENAME ($AID)"
 		SGNAID="${SGNAID//&/+}"
