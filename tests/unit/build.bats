@@ -26,3 +26,17 @@ setup() {
 	[ "$status" -ne 0 ]
 	[[ "$output" == *'syntax error'* ]]
 }
+
+@test "make install: the desktop file runs the installed script by absolute path" {
+	# PREFIX/bin (e.g. ~/.local/bin) is often missing from the desktop session's PATH
+	local DIR
+	for DIR in collections data eval guicfgs lang misc; do mkdir -p "$BUILD_ROOT/$DIR"; done
+	cp "$TG_ROOT/misc/tinkergame.desktop" "$BUILD_ROOT/misc/"
+	: > "$BUILD_ROOT/misc/tinkergame.svg"
+	: > "$BUILD_ROOT/README.md"
+	: > "$BUILD_ROOT/MIGRATION.md"
+	run make -C "$BUILD_ROOT" install DESTDIR="$BATS_TEST_TMPDIR/dest" PREFIX="/opt/my games/50%"
+	[ "$status" -eq 0 ]
+	run grep '^Exec=' "$BATS_TEST_TMPDIR/dest/opt/my games/50%/share/applications/tinkergame.desktop"
+	[ "$output" = 'Exec="/opt/my games/50%%/bin/tinkergame" settings' ]
+}

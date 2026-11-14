@@ -47,7 +47,21 @@ install:
 
 	install -Dm644 README.md -t "$(DESTDIR)$(PREFIX)/share/doc/tinkergame"
 	install -Dm644 MIGRATION.md -t "$(DESTDIR)$(PREFIX)/share/doc/tinkergame"
-	install -Dm644 "misc/tinkergame.desktop" -t "$(DESTDIR)$(PREFIX)/share/applications"
+	@# point Exec at the installed script: PREFIX/bin may not be in the desktop session's PATH (e.g. ~/.local/bin)
+	@tmp="$$(mktemp)"; trap 'rm -f "$$tmp"' EXIT; \
+		TG_EXEC="$(PREFIX)/bin/tinkergame" awk 'BEGIN { \
+			e = ENVIRON["TG_EXEC"]; q = ""; \
+			for (i = 1; i <= length(e); i++) { \
+				c = substr(e, i, 1); \
+				if (c == "\\") q = q "\\\\\\\\"; \
+				else if (c == "\"" || c == "`" || c == "$$") q = q "\\\\" c; \
+				else if (c == "%") q = q "%%"; \
+				else q = q c; \
+			} \
+		} \
+		/^Exec=tinkergame( |$$)/ { $$0 = "Exec=\"" q "\"" substr($$0, 16) } \
+		{ print }' misc/tinkergame.desktop > "$$tmp"; \
+		install -Dm644 "$$tmp" "$(DESTDIR)$(PREFIX)/share/applications/tinkergame.desktop"
 	install -Dm644 "misc/tinkergame.svg" -t "$(DESTDIR)$(PREFIX)/share/icons/hicolor/scalable/apps"
 
 ifneq ($(DESTDIR),)
