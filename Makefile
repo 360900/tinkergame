@@ -36,24 +36,38 @@ check:
 test:
 	./tests/run.sh unit
 
+# hand PREFIX and DESTDIR to the recipes through the environment, unexpanded,
+# so no character in them can break the shell commands or the PREFIX rewrite
+export TG_PREFIX := $(value PREFIX)
+export TG_DESTDIR := $(value DESTDIR)
+
+# rewrites a script's PREFIX="/usr" line to the install PREFIX, single-quoted for bash
+SET_PREFIX = awk 'BEGIN { \
+		q = sprintf("%c", 39); p = ENVIRON["TG_PREFIX"]; r = ""; \
+		while ((i = index(p, q)) > 0) { r = r substr(p, 1, i - 1) q "\\" q q; p = substr(p, i + 1) } \
+		r = r p; \
+	} \
+	$$0 == "PREFIX=\"/usr\"" { $$0 = "PREFIX=" q r q } { print }'
+
 install:
 	@tmp="$$(mktemp)"; trap 'rm -f "$$tmp"' EXIT; \
-		sed "s:^PREFIX=\"/usr\":PREFIX=\"$(PREFIX)\":" tinkergame > "$$tmp"; \
-		install -Dm755 "$$tmp" "$(DESTDIR)$(PREFIX)/bin/tinkergame"
+		$(SET_PREFIX) tinkergame > "$$tmp"; \
+		install -Dm755 "$$tmp" "$$TG_DESTDIR$$TG_PREFIX/bin/tinkergame"
 
-	install -d "$(DESTDIR)$(PREFIX)/share/tinkergame"
-	cp -r collections data eval guicfgs lang misc lib "$(DESTDIR)$(PREFIX)/share/tinkergame"
-	sed -i "s:^PREFIX=\"/usr\":PREFIX=\"$(PREFIX)\":" "$(DESTDIR)$(PREFIX)/share/tinkergame/lib/core/common.sh"
+	install -d "$$TG_DESTDIR$$TG_PREFIX/share/tinkergame"
+	cp -r collections data eval guicfgs lang misc lib "$$TG_DESTDIR$$TG_PREFIX/share/tinkergame"
+	@lib="$$TG_DESTDIR$$TG_PREFIX/share/tinkergame/lib/core/common.sh"; tmp="$$(mktemp)"; trap 'rm -f "$$tmp"' EXIT; \
+		$(SET_PREFIX) "$$lib" > "$$tmp" && cat "$$tmp" > "$$lib"
 
-	install -Dm644 README.md -t "$(DESTDIR)$(PREFIX)/share/doc/tinkergame"
-	install -Dm644 MIGRATION.md -t "$(DESTDIR)$(PREFIX)/share/doc/tinkergame"
+	install -Dm644 README.md -t "$$TG_DESTDIR$$TG_PREFIX/share/doc/tinkergame"
+	install -Dm644 MIGRATION.md -t "$$TG_DESTDIR$$TG_PREFIX/share/doc/tinkergame"
 
-ifneq ($(DESTDIR),)
+ifneq ($(value DESTDIR),)
 	@echo "Skipping TinkerGame Steam compatibility-tool registration (DESTDIR staging build)"
 else
 	@# older releases installed a settings menu entry and its icon; drop stale copies
-	@for f in "$(PREFIX)/share/applications/tinkergame.desktop" \
-		"$(PREFIX)/share/icons/hicolor/scalable/apps/tinkergame.svg"; do \
+	@for f in "$$TG_PREFIX/share/applications/tinkergame.desktop" \
+		"$$TG_PREFIX/share/icons/hicolor/scalable/apps/tinkergame.svg"; do \
 		if [ -e "$$f" ]; then rm -f "$$f" && echo "Removed the legacy '$$f'"; fi; \
 	done
 	@echo "Registering TinkerGame as a Steam compatibility tool"
@@ -62,13 +76,13 @@ else
 	else \
 		REGCMD=""; \
 	fi; \
-	if $$REGCMD "$(PREFIX)/bin/tinkergame" compat add; then :; else \
+	if $$REGCMD "$$TG_PREFIX/bin/tinkergame" compat add; then :; else \
 		echo "warning: registration did not complete - run 'tinkergame compat add' once Steam is set up"; \
 	fi
 endif
 
 install-user:
-	@$(MAKE) --no-print-directory install PREFIX="$(HOME)/.local"
+	@$(MAKE) --no-print-directory install PREFIX="$$HOME/.local"
 
 uninstall:
-	bash uninstall.sh --yes --prefix="$(PREFIX)"
+	bash uninstall.sh --yes --prefix="$$TG_PREFIX"
