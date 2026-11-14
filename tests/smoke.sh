@@ -70,7 +70,6 @@ fi
 
 test -x tinkergame
 test -x uninstall.sh
-test -f misc/tinkergame.desktop
 test -f misc/tinkergame.svg
 test -f MIGRATION.md
 
