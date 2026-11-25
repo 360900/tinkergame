@@ -67,21 +67,28 @@ make install-user       # current user (~/.local)
 ```
 
 The install requires Bash, Make, YAD, Git, Wget, Tar, Unzip, `jq`
-(custom Proton and shader repository data), `xxd`, and the X11 tools
-`xprop`, `xrandr`, and `xwininfo`. Optional integrations add their own
+(custom Proton and shader repository data), `xxd`, the X11 tools
+`xprop`, `xrandr`, and `xwininfo`, `switcheroo-control` (finds the dedicated
+GPU on multi-GPU systems) and [MAKO](https://github.com/eugeniosegala/MAKO)
+(frame generation and scaling). Optional integrations add their own
 dependencies.
 
 Debian/Ubuntu:
 
 ```sh
-sudo apt-get install bash yad git wget tar unzip jq xxd x11-xserver-utils x11-utils
+sudo apt-get install bash yad git wget tar unzip jq xxd x11-xserver-utils x11-utils switcheroo-control
 ```
 
 Arch:
 
 ```sh
-sudo pacman -S bash git jq tar unzip wget xxd xorg-xprop xorg-xrandr xorg-xwininfo yad
+sudo pacman -S bash git jq tar unzip wget xxd xorg-xprop xorg-xrandr xorg-xwininfo yad switcheroo-control
 ```
+
+MAKO is not in the distribution repositories: install it from its
+[releases](https://github.com/eugeniosegala/MAKO/releases) (on Arch also the
+AUR packages `mako-render` and `lib32-mako-render`). Enable the switcheroo-control
+service if your distribution does not: `sudo systemctl enable --now switcheroo-control`.
 
 `xdotool` is optional. Without it, the X11 window automation features
 (toggling open windows, picking or focusing the game window, IGCS, the UUU

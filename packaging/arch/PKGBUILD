@@ -5,8 +5,9 @@ pkgdesc='Steam compatibility tool and game utility manager'
 arch=('any')
 url='https://github.com/360900/tinkergame'
 license=('GPL-3.0-or-later')
-depends=('bash' 'git' 'jq' 'tar' 'unzip' 'wget' 'xxd' 'xorg-xprop' 'xorg-xrandr' 'xorg-xwininfo' 'yad')
-optdepends=('xdotool: window automation (toggle windows, game window picking, IGCS, UUU patch, side-by-side VR, tray pause)')
+depends=('bash' 'git' 'jq' 'tar' 'unzip' 'wget' 'xxd' 'xorg-xprop' 'xorg-xrandr' 'xorg-xwininfo' 'yad' 'switcheroo-control' 'mako-render')
+optdepends=('lib32-mako-render: MAKO frame generation for 32-bit games'
+            'xdotool: window automation (toggle windows, game window picking, IGCS, UUU patch, side-by-side VR, tray pause)')
 # pkgver uses dots for the pre-release stage (Arch forbids dashes); the git tag keeps them
 _tagver="${pkgver//.alpha./-alpha.}"
 _tagver="${_tagver//.beta./-beta.}"
