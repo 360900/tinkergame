@@ -51,7 +51,7 @@ function dlCustomProton {
 
 	# Fetch and validate the expected digest once, for new and cached archives.
 	case "$CPURLFILE" in
-		*-GE*|GE-*|*-STL*)
+		*-GE*|GE-*|*-STL*|proton-cachyos-*)
 			DLCHK=sha512sum
 			CHKDATA="$("$WGET" -q "${CPURL%.*.*}.${DLCHK}" -O - 2> >(grep -v "SSL_INIT" >&2))" || return $?
 			read -r INCHK _ <<< "$CHKDATA"
@@ -591,6 +591,10 @@ function pickProviderProton {
 			CONFIGURL="${CP_PROTONTKG:-}"
 			BASEPAT='wine-tkg|Frogging-Family'
 			;;
+		cachyos)
+			CONFIGURL="${CP_PROTONCACHYOS:-}"
+			BASEPAT='proton-cachyos'
+			;;
 		*)
 			return 1
 			;;
@@ -612,6 +616,7 @@ function dlLatestGE {
 	case "${1:-}" in
 		latestge|lge) PROVIDER=ge ;;
 		latesttkg|ltkg) PROVIDER=tkg ;;
+		latestcachyos|lcachyos) PROVIDER=cachyos ;;
 	esac
 
 	if ! LATESTPROTON="$(printf "%s\n" "${ProtonDLList[@]}" | pickProviderProton "$PROVIDER")" || [ -z "$LATESTPROTON" ]; then
@@ -626,6 +631,9 @@ function dlLatestGE {
 			;;
 		tkg)
 			writelog "INFO" "${FUNCNAME[0]} - Downloading latest Proton TKG"
+			;;
+		cachyos)
+			writelog "INFO" "${FUNCNAME[0]} - Downloading latest Proton CachyOS"
 			;;
 		*)
 			writelog "INFO" "${FUNCNAME[0]} - Downloading latest custom Proton ${LATESTPROTON##*/}"
@@ -652,7 +660,7 @@ function dlCustomProtonGate {
 	fi
 
 	case "$1" in
-		latest|l|latestge|lge|latesttkg|ltkg)
+		latest|l|latestge|lge|latesttkg|ltkg|latestcachyos|lcachyos)
 			dlLatestGE "$1"
 			;;
 		*)

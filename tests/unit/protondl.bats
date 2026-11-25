@@ -469,3 +469,82 @@ https://example.invalid/GE-Proton11-6.tar.gz" ]
 	run dlCustomProtonGUI
 	[ "$status" -eq 1 ]
 }
+
+@test "dlLatestGE: latestcachyos picks the plain x86_64 CachyOS build" {
+	createDLProtList() {
+		ProtonDLList=(
+			"https://github.com/CachyOS/proton-cachyos/releases/download/a/proton-cachyos-11.0-20261125-base-arm64.tar.xz"
+			"https://github.com/CachyOS/proton-cachyos/releases/download/a/proton-cachyos-11.0-20261125-base-x86_64.tar.xz"
+			"https://github.com/CachyOS/proton-cachyos/releases/download/a/proton-cachyos-11.0-20261125-base-x86_64_v3.tar.xz"
+			"https://github.com/GloriousEggroll/proton-ge-custom/releases/download/GE-Proton11-7/GE-Proton11-7-x86_64.tar.gz"
+		)
+	}
+	CP_PROTONCACHYOS="https://github.com/CachyOS/proton-cachyos"
+	StatusWindow() { printf '%s\n' "$*" > "$BATS_TEST_TMPDIR/statusargs.txt"; }
+	[ "$(getHostProtonArch)" = "x86_64" ] || skip "x86_64 only"
+
+	run dlLatestGE "lcachyos"
+	[ "$status" -eq 0 ]
+	run cat "$BATS_TEST_TMPDIR/statusargs.txt"
+	[[ "$output" == *"proton-cachyos-11.0-20261125-base-x86_64.tar.xz"* ]]
+}
+
+autobump_setup() {
+	STLDLDIR="$BATS_TEST_TMPDIR/dl"
+	PROTONCSV="$BATS_TEST_TMPDIR/protons.csv"
+	STLGAMECFG="$BATS_TEST_TMPDIR/game.conf"
+	FUPDATE="$BATS_TEST_TMPDIR/fupdate"
+	printf '%s\n' "GE-Proton11-7;/a/proton" "GE-Proton11-14;/b/proton" "Proton-GE Latest;/c/proton" \
+		"cachyos-11.0-20261015-slr;/d/proton" "cachyos-11.0-20261125-base;/e/proton" "Proton 10.0;/f/proton" > "$PROTONCSV"
+	AUTOBUMPGE=1
+	ISGAME=2
+	dlLatestGE() { echo "$1" >> "$BATS_TEST_TMPDIR/dl.log"; }
+	getAvailableProtonVersions() { :; }
+	notiShow() { :; }
+	updateConfigEntry() { echo "$1=$2" >> "$BATS_TEST_TMPDIR/cfg.log"; }
+}
+
+@test "autoBumpGE: moves a GE game to the newest installed GE-Proton" {
+	autobump_setup
+	USEPROTON="GE-Proton11-7"
+	autoBumpGE
+	[ "$USEPROTON" = "GE-Proton11-14" ]
+	[ "$(cat "$BATS_TEST_TMPDIR/dl.log")" = "lge" ]
+}
+
+@test "autoBumpGE: moves a CachyOS game to the newest CachyOS build" {
+	autobump_setup
+	USEPROTON="cachyos-11.0-20261015-slr"
+	autoBumpGE
+	[ "$USEPROTON" = "cachyos-11.0-20261125-base" ]
+	[ "$(cat "$BATS_TEST_TMPDIR/dl.log")" = "lcachyos" ]
+}
+
+@test "autoBumpGE: checks online at most once a day" {
+	autobump_setup
+	USEPROTON="GE-Proton11-7"
+	autoBumpGE
+	USEPROTON="GE-Proton11-7"
+	autoBumpGE
+	[ "$(wc -l < "$BATS_TEST_TMPDIR/dl.log")" -eq 1 ]
+	[ "$USEPROTON" = "GE-Proton11-14" ]
+}
+
+@test "autoBumpGE: leaves rolling and Valve builds alone" {
+	autobump_setup
+	USEPROTON="Proton-GE Latest"
+	autoBumpGE
+	[ "$USEPROTON" = "Proton-GE Latest" ]
+	USEPROTON="Proton 10.0"
+	autoBumpGE
+	[ "$USEPROTON" = "Proton 10.0" ]
+	[ ! -f "$BATS_TEST_TMPDIR/dl.log" ]
+}
+
+@test "autoBumpGE: does nothing when disabled" {
+	autobump_setup
+	AUTOBUMPGE=0
+	USEPROTON="GE-Proton11-7"
+	autoBumpGE
+	[ "$USEPROTON" = "GE-Proton11-7" ]
+}

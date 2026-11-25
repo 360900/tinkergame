@@ -311,32 +311,57 @@ function setMangoHudCfg {
 	fi
 }
 
+# Keep the game on the newest build of its custom Proton family (GE-Proton
+# or CachyOS Proton): at most once a day the newest release of the family is
+# downloaded, then the game is moved to the newest installed build.
+# Rolling builds like 'Proton-GE Latest' update themselves and are left alone.
+# An argument forces the GE check (mod managers that require GE-Proton).
 function autoBumpGE {
-	if { [ "$AUTOBUMPGE" -eq 1 ] && grep -q "^GE" <<< "$USEPROTON" && [ "$ISGAME" -eq 2 ];} || [ -n "$1" ]; then
-		writelog "INFO" "${FUNCNAME[0]} - Current Proton version is $USEPROTON"
-		dlLatestGE "lge" "X"
-		getAvailableProtonVersions "up" X
+	local FAMPAT DLPROV BUMPSTAMP NEWESTPROT
 
-		if [ ! -f "$PROTONCSV" ]; then
-			writelog "ERROR" "${FUNCNAME[0]} - Could not find '$PROTONCSV'"
-		else
-			NEWESTGE="$(grep "^GE" "$PROTONCSV" | sort -V | tail -n1)"
-			NEWESTGE="${NEWESTGE%%;*}"
-			if [ "$NEWESTGE" == "$USEPROTON" ]; then
-				writelog "SKIP" "${FUNCNAME[0]} - $USEPROTON is already the newest GE Proton version"
-			else
-				writelog "INFO" "${FUNCNAME[0]} - $(strFix "$NOTY_BUMP" "Proton" "$USEPROTON" "$NEWESTGE")"
-				notiShow "$(strFix "$NOTY_BUMP" "Proton" "$USEPROTON" "$NEWESTGE")"
-				USEPROTON="$NEWESTGE"
-				touch "$FUPDATE"
-				updateConfigEntry "USEPROTON" "$USEPROTON" "$STLGAMECFG"
-			fi
-		fi
+	if [ -n "$1" ]; then
+		FAMPAT="^GE-Proton"
+		DLPROV="lge"
+	elif [ "$AUTOBUMPGE" -eq 1 ] && [ "$ISGAME" -eq 2 ]; then
+		case "$USEPROTON" in
+			GE-Proton*) FAMPAT="^GE-Proton"; DLPROV="lge" ;;
+			cachyos-*|proton-cachyos-*) FAMPAT="^(proton-)?cachyos-"; DLPROV="lcachyos" ;;
+			*) return 0 ;;
+		esac
+	else
+		return 0
+	fi
+
+	writelog "INFO" "${FUNCNAME[0]} - Current Proton version is $USEPROTON"
+	BUMPSTAMP="$STLDLDIR/proton-autoupdate-${DLPROV}.txt"
+	if [ -n "$1" ] || [ ! -f "$BUMPSTAMP" ] || test "$(find "$BUMPSTAMP" -mmin +1440)"; then
+		mkProjDir "$STLDLDIR"
+		date > "$BUMPSTAMP"
+		dlLatestGE "$DLPROV" "X"
+		getAvailableProtonVersions "up" X
+	else
+		writelog "SKIP" "${FUNCNAME[0]} - Checked for a new $USEPROTON release less than a day ago"
+	fi
+
+	if [ ! -f "$PROTONCSV" ]; then
+		writelog "ERROR" "${FUNCNAME[0]} - Could not find '$PROTONCSV'"
+		return 0
+	fi
+
+	NEWESTPROT="$(cut -d ';' -f1 "$PROTONCSV" | grep -E -- "$FAMPAT" | sort -V | tail -n1)"
+	if [ -z "$NEWESTPROT" ] || [ "$NEWESTPROT" == "$USEPROTON" ]; then
+		writelog "SKIP" "${FUNCNAME[0]} - $USEPROTON is already the newest installed version"
+	else
+		writelog "INFO" "${FUNCNAME[0]} - $(strFix "$NOTY_BUMP" "Proton" "$USEPROTON" "$NEWESTPROT")"
+		notiShow "$(strFix "$NOTY_BUMP" "Proton" "$USEPROTON" "$NEWESTPROT")"
+		USEPROTON="$NEWESTPROT"
+		touch "$FUPDATE"
+		updateConfigEntry "USEPROTON" "$USEPROTON" "$STLGAMECFG"
 	fi
 }
 
 function autoBumpProton {
-	if [ "$AUTOBUMPPROTON" -eq 1 ] && grep -v -q "^GE" <<< "$USEPROTON" && [ "$ISGAME" -eq 2 ]; then
+	if [ "$AUTOBUMPPROTON" -eq 1 ] && grep -v -q -E "^GE|cachyos-" <<< "$USEPROTON" && [ "$ISGAME" -eq 2 ]; then
 		writelog "INFO" "${FUNCNAME[0]} - Current Proton version is $USEPROTON"
 		NEWESTPROTON="$(grep -v "^GE" "$PROTONCSV" | sort -V | tail -n1)"
 		NEWESTPROTON="${NEWESTPROTON%%;*}"

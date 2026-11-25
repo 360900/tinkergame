@@ -29,7 +29,7 @@ setup() {
 	grep -q '^## The language to use$' "$f"
 	grep -q '^STLLANG="english"$' "$f"
 	# keys that the old writer never persisted:
-	grep -q '^CUPROTOCOMPAT="0"$' "$f"
+	grep -q '^CUPROTOCOMPAT="1"$' "$f"
 	grep -q '^AUTOPULLPROTON="1"$' "$f"
 }
 
@@ -44,10 +44,10 @@ setup() {
 	grep -vq "$STLCFGDIR" "$f"
 }
 
-@test "saveCfg: creates url.conf with all 35 keys and the url preamble" {
+@test "saveCfg: creates url.conf with all 36 keys and the url preamble" {
 	local f="$BATS_TEST_TMPDIR/url.conf"
 	saveCfg "$f" X
-	[ "$(grep -cE '^[A-Z0-9_]+=' "$f")" -eq 35 ]
+	[ "$(grep -cE '^[A-Z0-9_]+=' "$f")" -eq 36 ]
 	[ "$(sed -n 2p "$f")" = "##########################" ]
 	[ "$(sed -n 3p "$f")" = "## Url Config:" ]
 	[ "$(sed -n 4p "$f")" = "##########################" ]

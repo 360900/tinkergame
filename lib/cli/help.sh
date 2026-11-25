@@ -67,6 +67,7 @@ function howto {
 	echo "                                       - the 'latest|l' GE version"
 	echo "                                       - 'latestge|lge' for Proton-GE"
 	echo "                                       - 'latesttkg|ltkg' for Proton-TKG"
+	echo "                                       - 'latestcachyos|lcachyos' for Proton-CachyOS"
 	echo ""
 	echo "    proton getslr native                (optional) get the native Steam Linux Runtime"
 	echo ""

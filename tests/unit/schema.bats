@@ -14,7 +14,7 @@ setup() {
 }
 
 @test "tgSchemaKeys: scope key counts match the schema" {
-	[ "$(tgSchemaKeys "url" | grep -c .)" -eq 35 ]
+	[ "$(tgSchemaKeys "url" | grep -c .)" -eq 36 ]
 	[ "$(tgSchemaKeys "gui" | grep -c .)" -eq 4 ]
 	[ "$(tgSchemaKeys "global" | grep -c .)" -eq 134 ]
 	[ "$(tgSchemaKeys "default_template" | grep -c .)" -eq 190 ]
@@ -83,5 +83,5 @@ setup() {
 
 @test "gen-options: generated defaults contain the CUPROTOCOMPAT default added by the schema" {
 	grep -q 'CUPROTOCOMPAT="\$CUPROTOCOMPAT"\|CUPROTOCOMPAT=' "$TG_ROOT/lib/config/defaults.sh"
-	grep -q 'if \[ -z "\$CUPROTOCOMPAT" \]; then		CUPROTOCOMPAT="0"; fi' "$TG_ROOT/lib/config/defaults.sh"
+	grep -q 'if \[ -z "\$CUPROTOCOMPAT" \]; then		CUPROTOCOMPAT="1"; fi' "$TG_ROOT/lib/config/defaults.sh"
 }

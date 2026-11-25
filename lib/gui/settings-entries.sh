@@ -427,6 +427,7 @@ function AllSettingsEntriesDummyFunction {
 --field="     $GUI_PROJECTPAGE!$(strFix "$DESC_PROJECTPAGE" "$PROGNAME") ('PROJECTPAGE')" "${PROJECTPAGE/#-/ -}" `#CAT_Urls` `#MENU_URL` \
 --field="     $GUI_CP_PROTONTKG!$DESC_CP_PROTONTKG ('CP_PROTONTKG')" "${CP_PROTONTKG/#-/ -}" `#CAT_Urls` `#MENU_URL` \
 --field="     $GUI_CP_PROTONGE!$DESC_CP_PROTONGE ('CP_PROTONGE')" "${CP_PROTONGE/#-/ -}" `#CAT_Urls` `#MENU_URL` \
+--field="     $GUI_CP_PROTONCACHYOS!$DESC_CP_PROTONCACHYOS ('CP_PROTONCACHYOS')" "${CP_PROTONCACHYOS/#-/ -}" `#CAT_Urls` `#MENU_URL` \
 --field="     $GUI_CP_PROTONSTL!$DESC_CP_PROTONSTL ('CP_PROTONSTL')" "${CP_PROTONSTL/#-/ -}" `#CAT_Urls` `#MENU_URL` \
 --field="     $GUI_CW_KRON4EK!$DESC_CW_KRON4EK ('CW_KRON4EK')" "${CW_KRON4EK/#-/ -}" `#CAT_Urls` `#MENU_URL` \
 --field="     $GUI_CW_LUTRIS!$DESC_CW_LUTRIS ('CW_LUTRIS')" "${CW_LUTRIS/#-/ -}" `#CAT_Urls` `#MENU_URL` \

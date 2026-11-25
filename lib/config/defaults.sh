@@ -14,6 +14,7 @@ function setDefaultCfgValues {
 	function setDefaultCfgValuesurl {
 		if [ -z "$PROJECTPAGE" ]; then		PROJECTPAGE="$GHURL/360900/tinkergame"; fi
 		if [ -z "$CP_PROTONGE" ]; then		CP_PROTONGE="$GHURL/GloriousEggroll/proton-ge-custom"; fi
+		if [ -z "$CP_PROTONCACHYOS" ]; then		CP_PROTONCACHYOS="$GHURL/CachyOS/proton-cachyos"; fi
 		if [ -z "$CP_PROTONTKG" ]; then		CP_PROTONTKG="$GHURL/Frogging-Family/wine-tkg-git"; fi
 		if [ -z "$CP_PROTONSTL" ]; then		CP_PROTONSTL="$GHURL/sonic2kk/steamtinkerlaunch-tweaks"; fi
 		if [ -z "$CW_KRON4EK" ]; then		CW_KRON4EK="$GHURL/Kron4ek/Wine-Builds/releases"; fi
@@ -55,7 +56,7 @@ function setDefaultCfgValues {
 		if [ -z "$YAD" ]; then		YAD="$(command -v "yad")"; fi
 		if [ -z "$CUSTPROTDLDIR" ]; then		CUSTPROTDLDIR="$STLDLDIR/$PROCU"; fi
 		if [ -z "$CUSTPROTEXTDIR" ]; then		CUSTPROTEXTDIR="$STLCFGDIR/$PROCU"; fi
-		if [ -z "$CUPROTOCOMPAT" ]; then		CUPROTOCOMPAT="0"; fi
+		if [ -z "$CUPROTOCOMPAT" ]; then		CUPROTOCOMPAT="1"; fi
 		if [ -z "$WINEDLDIR" ]; then		WINEDLDIR="$STLDLDIR/wine"; fi
 		if [ -z "$WINEEXTDIR" ]; then		WINEEXTDIR="$STLCFGDIR/wine"; fi
 		if [ -z "$USEGLOBALWINEDPI" ]; then		USEGLOBALWINEDPI="0"; fi
@@ -197,7 +198,7 @@ function setDefaultCfgValues {
 		if [ -z "$REDIRCOMPDATA" ]; then		REDIRCOMPDATA="disabled"; fi
 		if [ -z "$REDIRSTEAMUSER" ]; then		REDIRSTEAMUSER="disabled"; fi
 		if [ -z "$ONLYPROTMAJORREDIRECT" ]; then		ONLYPROTMAJORREDIRECT="0"; fi
-		if [ -z "$AUTOBUMPGE" ]; then		AUTOBUMPGE="0"; fi
+		if [ -z "$AUTOBUMPGE" ]; then		AUTOBUMPGE="1"; fi
 		if [ -z "$AUTOBUMPPROTON" ]; then		AUTOBUMPPROTON="0"; fi
 		if [ -z "$USECUSTOMCMD" ]; then		USECUSTOMCMD="0"; fi
 		if [ -z "$CUSTOMCMD" ]; then		CUSTOMCMD="$DUMMYBIN"; fi
