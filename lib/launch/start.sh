@@ -1619,30 +1619,21 @@ function setWineCmd {
 
 	writelog "INFO" "${FUNCNAME[0]} - Starting game $GN with '$("$RUNWINE" --version)' and waiting for its PID to exit"
 
-	# start with gamemoderun:
-	if [ "$USEGAMEMODERUN" -eq 1 ]; then
-		if [ "$USEGAMESCOPE" -eq 1 ]; then
-			gameScopeArgs "$GAMESCOPE_ARGS"
-			notiShow "$(strFix "$NOTY_STARTPROTGAMOSC" "$RUNWINEVERSION" "$GN" "$AID")"
-			startWineGame "$GMR" "$GSC" "${GAMESCOPEARGSARR[@]}"
-			writelog "INFO" "${FUNCNAME[0]} - Started game $GN via wine using '$GAMEMODERUN' and '$GAMESCOPE' with PID '$WINEPID'"
-		else
-			notiShow "$(strFix "$NOTY_STARTPROTGAMO" "$RUNWINEVERSION" "$GN" "$AID")"
-			startWineGame "$GMR"
-			writelog "INFO" "${FUNCNAME[0]} - Started game $GN via wine using '$GAMEMODERUN' with PID '$WINEPID'"
-		fi
-	# start with gamescope:
+	# the same wrappers as Proton games (GameMode, GameScope, OBS, MAKO, MangoHud)
+	buildCustomCmdLaunch
+
+	if [ "$USEGAMEMODERUN" -eq 1 ] && [ "$USEGAMESCOPE" -eq 1 ]; then
+		notiShow "$(strFix "$NOTY_STARTPROTGAMOSC" "$RUNWINEVERSION" "$GN" "$AID")"
+	elif [ "$USEGAMEMODERUN" -eq 1 ]; then
+		notiShow "$(strFix "$NOTY_STARTPROTGAMO" "$RUNWINEVERSION" "$GN" "$AID")"
 	elif [ "$USEGAMESCOPE" -eq 1 ]; then
-		gameScopeArgs "$GAMESCOPE_ARGS"
 		notiShow "$(strFix "$NOTY_STARTPROTGAMSCO" "$RUNWINEVERSION" "$GN" "$AID")"
-		startWineGame "$GSC" "${GAMESCOPEARGSARR[@]}"
-		writelog "INFO" "${FUNCNAME[0]} - Started game $GN via wine using '$GAMESCOPE' with PID '$WINEPID'"
-	# regular start:
 	else
 		notiShow "$(strFix "$NOTY_STARTPROT" "$RUNWINEVERSION" "$GN" "$AID")"
-		startWineGame
-		writelog "INFO" "${FUNCNAME[0]} - Started game $GN via wine with PID '$WINEPID'"
 	fi
+
+	startWineGame "${FINALOUTCMD[@]}"
+	writelog "INFO" "${FUNCNAME[0]} - Started game $GN via wine using '${FINALOUTCMD[*]}' with PID '$WINEPID'"
 
 	wait "$WINEPID"
 	writelog "INFO" "${FUNCNAME[0]} - game PID '$WINEPID' exited..."
