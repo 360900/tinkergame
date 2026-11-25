@@ -68,9 +68,8 @@ make install-user       # current user (~/.local)
 
 The install requires Bash, Make, YAD, Git, Wget, Tar, Unzip, `jq`
 (custom Proton and shader repository data), `xxd`, the X11 tools
-`xprop`, `xrandr`, and `xwininfo`, `switcheroo-control` (finds the dedicated
-GPU on multi-GPU systems) and [MAKO](https://github.com/eugeniosegala/MAKO)
-(frame generation and scaling). Optional integrations add their own
+`xprop`, `xrandr`, and `xwininfo`, and `switcheroo-control` (finds the dedicated
+GPU on multi-GPU systems). Optional integrations add their own
 dependencies.
 
 Debian/Ubuntu:
@@ -85,14 +84,18 @@ Arch:
 sudo pacman -S bash git jq tar unzip wget xxd xorg-xprop xorg-xrandr xorg-xwininfo yad switcheroo-control
 ```
 
-MAKO is not in the distribution repositories: install it from its
-[releases](https://github.com/eugeniosegala/MAKO/releases) (on Arch also the
-AUR packages `mako-render` and `lib32-mako-render`). Enable the switcheroo-control
-service if your distribution does not: `sudo systemctl enable --now switcheroo-control`.
+Enable the switcheroo-control service if your distribution does not:
+`sudo systemctl enable --now switcheroo-control`.
 
 `xdotool` is optional. Without it, the X11 window automation features
 (toggling open windows, picking or focusing the game window, IGCS, the UUU
 patch, side-by-side VR and pausing from the tray icon) are skipped.
+
+[MAKO](https://github.com/eugeniosegala/MAKO) is optional. It adds frame
+generation and scaling for any Vulkan game. It is not in the distribution
+repositories: install it from its
+[releases](https://github.com/eugeniosegala/MAKO/releases), or on Arch from the
+AUR packages `mako-render` and `lib32-mako-render`.
 
 When installed for the current user, make sure `~/.local/bin` is in `PATH`.
 

@@ -51,7 +51,7 @@ command -v make >/dev/null 2>&1 || die "'make' is required but was not found"
 test -f Makefile || die "run this script from a TinkerGame checkout (Makefile not found)"
 command -v yad >/dev/null 2>&1 || printf '%s\n' "note: 'yad' was not found - TinkerGame needs it at runtime"
 command -v switcherooctl >/dev/null 2>&1 || printf '%s\n' "note: 'switcherooctl' (switcheroo-control) was not found - TinkerGame needs it to find the dedicated GPU"
-{ command -v mako-launch >/dev/null 2>&1 || [ -x "$HOME/.local/bin/mako-launch" ]; } || printf '%s\n' "note: 'mako-launch' (MAKO, https://github.com/eugeniosegala/MAKO) was not found - TinkerGame needs it for frame generation"
+{ command -v mako-launch >/dev/null 2>&1 || [ -x "$HOME/.local/bin/mako-launch" ]; } || printf '%s\n' "note: 'mako-launch' (MAKO, https://github.com/eugeniosegala/MAKO) was not found - it is optional, for frame generation"
 
 if [ -z "$MODE" ]; then
 	printf '%s\n' "" "Where should TinkerGame be installed?" \
