@@ -187,6 +187,8 @@ STUB
 	getGameFiles() { :; }
 	setGameFilesArray() { :; }
 	createProtonList() { :; }
+	haveDgpu() { return 1; }
+	haveMako() { return 1; }
 	pollWinRes() { COLCOUNT=4; }
 	refreshProtList() { :; }
 	clickInfo() { :; }
@@ -452,6 +454,31 @@ mm_output() {
 	setMainMenuContent
 	[ "${MM_FIELDVARS[*]}" = "USEPROTON GAMEARGS DXVK_FPSLIMIT USEMANGOHUD USEGAMEMODERUN USERESHADE USEGAMESCOPE" ]
 	[ "$(( ${#MM_PLAYFORM[@]} / 2 ))" -eq 7 ]
+}
+
+@test "mainmenu: dedicated GPU and MAKO switches only show when available" {
+	haveDgpu() { return 0; }
+	haveMako() { return 0; }
+	export GUI_MM_DGPU="DGPU" GUI_MM_MAKO="MAKO"
+	setMainMenuContent
+	[ "${MM_FIELDVARS[*]}" = "USEPROTON GAMEARGS DXVK_FPSLIMIT USEMANGOHUD USEGAMEMODERUN USEPRIMERUN USEMAKO USERESHADE USEGAMESCOPE" ]
+	printf '%s\n' "${MM_PLAYFORM[@]}" | grep -q '^--field=DGPU!'
+	printf '%s\n' "${MM_PLAYFORM[@]}" | grep -q '^--field=MAKO!'
+
+	haveMako() { return 1; }
+	setMainMenuContent
+	[ "${MM_FIELDVARS[*]}" = "USEPROTON GAMEARGS DXVK_FPSLIMIT USEMANGOHUD USEGAMEMODERUN USEPRIMERUN USERESHADE USEGAMESCOPE" ]
+}
+
+@test "mainmenu: dedicated GPU and MAKO switches are saved" {
+	haveDgpu() { return 0; }
+	haveMako() { return 0; }
+	setMainMenuContent
+	saveMainMenuFields "$(mm_output USEPRIMERUN=TRUE USEMAKO=TRUE)"
+	grep -qx 'USEPRIMERUN=TRUE' "$MARK/cfg"
+	grep -qx 'USEMAKO=TRUE' "$MARK/cfg"
+	[ "$USEPRIMERUN" = "1" ]
+	[ "$USEMAKO" = "1" ]
 }
 
 @test "mainmenu: leaving with a button saves the settings to the game config" {

@@ -626,6 +626,13 @@ function setMainMenuContent {
 	mmAddData DXVK_FPSLIMIT CBE "$GUI_MM_FPSLIMIT" "$TT_MM_FPSLIMIT" "$(cleanDropDown "${DXVK_FPSLIMIT/#-/ -}" "none!30!60!75!90!120!144!165!240")"
 	mmAddData USEMANGOHUD "$MMBOOL" "$GUI_MM_FPSCOUNTER" "$TT_MM_FPSCOUNTER" "${USEMANGOHUD:-0}"
 	mmAddData USEGAMEMODERUN "$MMBOOL" "$GUI_MM_GAMEMODE" "$TT_MM_GAMEMODE" "${USEGAMEMODERUN:-0}"
+	# hidden without the hardware or program, like the '#REQ_*' settings entries
+	if haveDgpu; then
+		mmAddData USEPRIMERUN "$MMBOOL" "$GUI_MM_DGPU" "$TT_MM_DGPU" "${USEPRIMERUN:-0}"
+	fi
+	if haveMako; then
+		mmAddData USEMAKO "$MMBOOL" "$GUI_MM_MAKO" "$TT_MM_MAKO" "${USEMAKO:-0}"
+	fi
 	mmAddData USERESHADE "$MMBOOL" "$GUI_MM_RESHADE" "$TT_MM_RESHADE" "${USERESHADE:-0}"
 	mmAddData USEGAMESCOPE "$MMBOOL" "$GUI_MM_GAMESCOPE" "$TT_MM_GAMESCOPE" "${USEGAMESCOPE:-0}"
 
