@@ -115,12 +115,36 @@ function favoritesMenu {
 	fi
 }
 
+# Hardware the entries tagged with '#REQ_<NAME>' need, as 'name=0|1' lines.
+# Entries for missing hardware are left out of the caches, so the GUI never offers them
+function getSettingsEntriesReqs {
+	if haveDgpu; then
+		echo "dgpu=1"
+	else
+		echo "dgpu=0"
+	fi
+}
+
 function listAllSettingsEntries {
+	local REQS
+
+	REQS="$(getSettingsEntriesReqs)"
+
 	# refresh the cache when the module source is newer (e.g. after an upgrade
 	# within the same boot) - otherwise new settings fields would stay invisible
-	# until reboot because the /dev/shm caches are never rewritten
-	if [ -f "$STLSETENTRIES" ] && [ "$TGSRC_SETENTRIES" -nt "$STLSETENTRIES" ]; then
-		writelog "INFO" "${FUNCNAME[0]} - '$TGSRC_SETENTRIES' changed - refreshing stale entry caches"
+	# until reboot because the /dev/shm caches are never rewritten.
+	# Also refresh it when the hardware changed (e.g. an eGPU got connected)
+	local STALE=""
+	if [ -f "$STLSETENTRIES" ]; then
+		if [ "$TGSRC_SETENTRIES" -nt "$STLSETENTRIES" ]; then
+			STALE="'$TGSRC_SETENTRIES' changed"
+		elif [ "$(cat "$STLSETENTRIESREQ" 2>/dev/null)" != "$REQS" ]; then
+			STALE="Available hardware changed"
+		fi
+	fi
+
+	if [ -n "$STALE" ]; then
+		writelog "INFO" "${FUNCNAME[0]} - $STALE - refreshing stale entry caches"
 		rm -f "$STLSETENTRIES" "$STLRAWENTRIES" 2>/dev/null
 		rm -rf "$MTEMP" 2>/dev/null
 		mkProjDir "$MTEMP"
@@ -130,7 +154,11 @@ function listAllSettingsEntries {
 		writelog "INFO" "${FUNCNAME[0]} - '$STLSETENTRIES' already exists - nothing to do"
 	else
 		writelog "INFO" "${FUNCNAME[0]} - Creating '$STLSETENTRIES'"
+		echo "$REQS" > "$STLSETENTRIESREQ"
 		while read -r ENTRY; do
+			if [[ "$ENTRY" == *'`#REQ_DGPU`'* ]] && ! grep -qx "dgpu=1" <<< "$REQS"; then
+				continue
+			fi
 			echo "$ENTRY" | tee -a "$STLRAWENTRIES" >/dev/null
 			grep -oP "\('\K[^\')]+" <<< "$ENTRY" | tee -a "$STLSETENTRIES" >/dev/null
 		done <<< "$(sed -n "/^#STARTSETENTRIES/,/^#ENDSETENTRIES/p;/^#ENDSETENTRIES/q" "$TGSRC_SETENTRIES" | grep "\--field")"
@@ -378,7 +406,7 @@ function AllSettingsEntriesDummyFunction {
 --field="     $GUI_USEOBSCAP!$DESC_USEOBSCAP ('USEOBSCAP')":CHK "${USEOBSCAP/#-/ -}" `#CAT_Tools` `#SUB_Checkbox` `#MENU_GAME` \
 --field="     $GUI_USEMAKO!$DESC_USEMAKO ('USEMAKO')":CHK "${USEMAKO/#-/ -}" `#CAT_Tools` `#SUB_Checkbox` `#MENU_GAME` \
 --field="     $GUI_USEZINK!$DESC_USEZINK ('USEZINK')":CHK "${USEZINK/#-/ -}" `#CAT_Tools` `#SUB_Checkbox` `#MENU_GAME` \
---field="     $GUI_USEPRIMERUN!$DESC_USEPRIMERUN ('USEPRIMERUN')":CHK "${USEPRIMERUN/#-/ -}" `#CAT_Tools` `#SUB_Checkbox` `#MENU_GAME` \
+--field="     $GUI_USEPRIMERUN!$DESC_USEPRIMERUN ('USEPRIMERUN')":CHK "${USEPRIMERUN/#-/ -}" `#CAT_Tools` `#SUB_Checkbox` `#MENU_GAME` `#REQ_DGPU` \
 --field="     $GUI_RUN_NYRNA!$DESC_RUN_NYRNA ('RUN_NYRNA')":CHK "${RUN_NYRNA/#-/ -}" `#CAT_Tools` `#SUB_Checkbox` `#MENU_GAME` \
 --field="     $GUI_RUN_REPLAY!$DESC_RUN_REPLAY ('RUN_REPLAY')":CHK "${RUN_REPLAY/#-/ -}" `#CAT_Tools` `#SUB_Checkbox` `#MENU_GAME` \
 --field="     $GUI_USEBOXTRON!$DESC_USEBOXTRON ('USEBOXTRON')":CHK "${USEBOXTRON/#-/ -}" `#CAT_Tools` `#SUB_Checkbox` `#MENU_GAME` \

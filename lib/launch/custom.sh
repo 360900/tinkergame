@@ -671,65 +671,100 @@ function checkWinesync {
 	fi
 }
 
-# Print '<driver> <pci slot>' of the GPU to offload games to, i.e. the first PCI GPU
-# which is not the boot (primary) GPU - prints nothing if there is no such GPU
-function findOffloadGpu {
-	local CARD DEV SLOT DRV
-	local -i GPUCOUNT=0
+# Count the GPUs the kernel exposes, cheap enough to run on every start
+function countDrmCards {
+	local CARD
+	local -i CARDS=0
 
 	for CARD in "${DRMSYSDIR:-/sys/class/drm}"/card*; do
-		[[ "${CARD##*/}" =~ ^card[0-9]+$ ]] || continue  # skip connectors like card0-HDMI-A-1
-		DEV="$CARD/device"
-		SLOT="$(readlink -f "$DEV")"
-		SLOT="${SLOT##*/}"
-		[[ "$SLOT" =~ ^[0-9a-f]{4}:[0-9a-f]{2}:[0-9a-f]{2}\.[0-9a-f]$ ]] || continue  # PCI GPUs only (skips simpledrm etc)
-		GPUCOUNT+=1
-
-		if [ -f "$DEV/boot_vga" ] && [ "$(< "$DEV/boot_vga")" = "1" ]; then
-			continue
-		fi
-
-		DRV="$(readlink -f "$DEV/driver")"
-		DRV="${DRV##*/}"
-		# Intel integrated graphics always sit at 00:02.0, so never offload to them
-		if [[ "$DRV" =~ ^(i915|xe)$ ]] && [[ "$SLOT" == *":00:02.0" ]]; then
-			continue
-		fi
-
-		if [ -n "$DRV" ]; then
-			printf '%s %s\n' "$DRV" "$SLOT"
-			return
-		fi
+		[[ "${CARD##*/}" =~ ^card[0-9]+$ ]] && CARDS+=1  # skip connectors like card0-HDMI-A-1
 	done
-
-	writelog "INFO" "${FUNCNAME[0]} - No secondary GPU found among $GPUCOUNT PCI GPU(s)"
+	echo "$CARDS"
 }
 
-# Run the game on the dedicated GPU, for any vendor: NVIDIA proprietary uses its PRIME render offload variables,
-# every Mesa driver (amdgpu, radeon, nouveau, i915, xe) uses DRI_PRIME, which covers OpenGL and Vulkan (via Mesa's device-select layer)
-function checkPrimerun {
-	local OFFGPU OFFDRV OFFSLOT
+# Set DGPUENV to the environment ('VAR=value' words) which runs a program on the dedicated GPU,
+# or to nothing if there is none to switch to: single-GPU systems, or the dedicated GPU is already the default one.
+# switcheroo-control decides which GPU is discrete per driver (amdgpu, nouveau, nvidia, i915, xe) and provides the
+# matching variables (DRI_PRIME for Mesa, the PRIME render offload variables for NVIDIA, the Vulkan driver selection).
+# Before switcheroo-control 3.0 there is no 'Discrete' key, so the first non-default GPU is used, as its 'launch' did.
+# The result is cached per boot and detected again when the number of GPUs changes (e.g. an eGPU)
+function detectDgpu {
+	local CARDS GPULIST
 
-	if [ "$USEPRIMERUN" -eq 1 ]; then
-		OFFGPU="$(findOffloadGpu)"
-		if [ -z "$OFFGPU" ]; then
-			writelog "SKIP" "${FUNCNAME[0]} - 'USEPRIMERUN' is enabled, but no dedicated GPU to offload to was found - the game already runs on the only or primary GPU"
+	CARDS="$(countDrmCards)"
+	if [ "${DGPUCARDS:-}" = "$CARDS" ]; then
+		return
+	fi
+
+	if [ -f "$DGPUSTATE" ] && [ "$(head -n1 "$DGPUSTATE")" = "$CARDS" ]; then
+		DGPUENV="$(sed -n '2p' "$DGPUSTATE")"
+		DGPUCARDS="$CARDS"
+		return
+	fi
+
+	DGPUENV=""
+	if [ "$CARDS" -lt 2 ]; then
+		writelog "INFO" "${FUNCNAME[0]} - Only $CARDS GPU found - no dedicated GPU to switch to"
+	elif [ ! -x "$(command -v "$SWITCHEROOCTL")" ]; then
+		writelog "WARN" "${FUNCNAME[0]} - Found $CARDS GPUs, but '$SWITCHEROOCTL' (switcheroo-control) is not installed - can't detect the dedicated GPU"
+		DGPUCARDS="$CARDS"
+		return
+	else
+		GPULIST="$("$SWITCHEROOCTL" list 2>/dev/null)"
+		if [ -z "$GPULIST" ]; then
+			# not cached: the service may just not be up yet
+			writelog "WARN" "${FUNCNAME[0]} - Found $CARDS GPUs, but '$SWITCHEROOCTL list' returned nothing - is the 'switcheroo-control' service running?"
+			DGPUCARDS="$CARDS"
 			return
 		fi
 
-		OFFDRV="${OFFGPU%% *}"
-		OFFSLOT="${OFFGPU#* }"
+		DGPUENV="$(awk '
+			/^Device:/ { n++ }
+			/^ *Default:/ { def[n] = $2 }
+			/^ *Discrete:/ { dis[n] = $2; hasdis = 1 }
+			/^ *Environment:/ { sub(/^ *Environment: */, ""); env[n] = $0 }
+			END {
+				for (i = 1; i <= n; i++) {
+					if (def[i] == "no" && (!hasdis || dis[i] == "yes") && env[i] != "") { print env[i]; exit }
+				}
+			}' <<< "$GPULIST")"
 
-		if [ "$OFFDRV" = "nvidia" ]; then
-			writelog "INFO" "${FUNCNAME[0]} - Offloading to NVIDIA GPU '$OFFSLOT' with PRIME render offload variables"
-			export __NV_PRIME_RENDER_OFFLOAD=1
-			export __VK_LAYER_NV_optimus=NVIDIA_only
-			export __GLX_VENDOR_LIBRARY_NAME=nvidia
+		if [ -n "$DGPUENV" ]; then
+			writelog "INFO" "${FUNCNAME[0]} - Dedicated GPU found, it is used with '$DGPUENV'"
 		else
-			OFFSLOT="${OFFSLOT//[:.]/_}"
-			writelog "INFO" "${FUNCNAME[0]} - Offloading to '$OFFDRV' GPU with 'DRI_PRIME=pci-$OFFSLOT'"
-			export DRI_PRIME="pci-$OFFSLOT"
+			writelog "INFO" "${FUNCNAME[0]} - No dedicated GPU besides the default one found among $CARDS GPUs"
 		fi
+	fi
+
+	DGPUCARDS="$CARDS"
+	if [ -d "${DGPUSTATE%/*}" ]; then
+		printf '%s\n%s\n' "$CARDS" "$DGPUENV" > "$DGPUSTATE"
+	fi
+}
+
+function haveDgpu {
+	detectDgpu
+	[ -n "$DGPUENV" ]
+}
+
+# Run the game on the dedicated GPU (any vendor) with the environment switcheroo-control provides for it
+function checkPrimerun {
+	local -a DGPUVARS
+	local DGPUVAR
+
+	if [ "$USEPRIMERUN" -eq 1 ]; then
+		if ! haveDgpu; then
+			writelog "SKIP" "${FUNCNAME[0]} - 'USEPRIMERUN' is enabled, but there is no dedicated GPU to switch to - the game runs on the default GPU"
+			return
+		fi
+
+		read -r -a DGPUVARS <<< "$DGPUENV"
+		for DGPUVAR in "${DGPUVARS[@]}"; do
+			if [[ "$DGPUVAR" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]]; then
+				writelog "INFO" "${FUNCNAME[0]} - Exporting '$DGPUVAR' to run the game on the dedicated GPU"
+				export "${DGPUVAR?}"
+			fi
+		done
 	fi
 }
 
