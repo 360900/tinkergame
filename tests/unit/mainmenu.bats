@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Main Menu tests (lib/gui/menus.sh): the single form Main Menu with its tool
-# buttons grouped into titled sections, the header and the rc dispatch.
+# Main Menu tests (lib/gui/menus.sh): the single form Main Menu with its
+# settings and tool buttons grouped into titled sections, the header, the rc
+# dispatch, the autosave of its settings, the section help and Extras.
 #
 # yad is replaced by a stub faithful to the notebook/plug semantics (see
 # tests/unit/tabs.bats) which additionally serves plain --form invocations.
@@ -79,6 +80,10 @@ case "$mode" in
 		;;
 	*)
 		printf 'form:%s\n' "$*" >>"$LOG"
+		if [ -n "$STUB_YAD_OUT" ]; then
+			cat "$STUB_YAD_OUT"
+			exit "${STUB_YAD_RC:-0}"
+		fi
 		i=1
 		while [ "$i" -le "$n" ]; do
 			printf 'formval%d\n' "$i"
@@ -109,20 +114,30 @@ STUB
 	export BUT_EXIT="EXIT" BUT_GUISET_CATMENUSHORT="CATEGORIES" BUT_GM="GAME MENU"
 	export BUT_DGM="DEFAULT GAME MENU" BUT_GLM="GLOBAL MENU" BUT_FAV="FAVORITES"
 	export BUT_EDITORMENU="EDITOR" BUT_SEARCH="SEARCH" BUT_PLAY="PLAY"
-	export GUI_MMTAB_DL="Downloads" GUI_MMTAB_WP="Wine & Proton" GUI_MMTAB_SH="Shaders & HUD"
-	export GUI_MMTAB_MODS="Mod Managers" GUI_MMTAB_STEAM="Steam" GUI_MMTAB_GT="Game Tools"
+	export BUT_EXTRAS="EXTRAS" BUT_BACK="BACK" BUT_DONE="DONE"
+	export GUI_MMSEC_PLAY="Play settings" GUI_MMSEC_FIX="Fix problems"
+	export GUI_MMSEC_LOOK="Look & performance" GUI_MMSEC_MODS="Mods"
+	export GUI_MMSEC_TOOLS="Game tools" GUI_MMSEC_MENUS="Steam and menus"
+	export GUI_MM_PROTON="PROTON" GUI_MM_ARGS="ARGS" GUI_MM_FPSLIMIT="FPS LIMIT"
+	export GUI_MM_FPSCOUNTER="FPS COUNTER" GUI_MM_GAMEMODE="GAMEMODE"
+	export GUI_MM_RESHADE="RESHADE" GUI_MM_GAMESCOPE="GAMESCOPE ON"
+	export TT_MM_PROTON="Pick the Proton version." TT_MMSECHELP="What do these do?"
+	export TT_RECREATEPFX="Start over with a fresh prefix."
+	export NOTY_RESHADEHOTKEY="RESHADE NOTE"
 	export FBUT_GUISET_DCP="DL CUSTOM PROTON" FBUT_GUISET_DW="DL WINE"
-	export FBUT_GUISET_RECREATEPFX="RECREATE PFX" FBUT_GUISET_WDC="WINE DEBUG"
-	export FBUT_GUISET_WTSEL="WINETRICKS" FBUT_GUISET_ADDNSGA="ADD NSG"
+	export FBUT_GUISET_RECREATEPFX="RESET PFX" FBUT_GUISET_WDC="WINE DEBUG"
+	export FBUT_GUISET_WTSEL="COMPONENTS" FBUT_GUISET_ADDNSGA="ADD NSG"
 	export FBUT_GUISET_CREATEEVALSC="CREATE EVALSC" FBUT_GUISET_OTR="ONE TIME RUN"
 	export FBUT_GUISET_DXHSEL="DXVK HUD" FBUT_GUISET_SHADERREPOS="SHADER REPOS"
 	export FBUT_GUISET_UPSHADER="UPDATE SHADERS" FBUT_GUISET_FAVSEL="FAVORITES SEL"
 	export FBUT_GUISET_BLOCKCAT="BLOCK CAT" FBUT_GUISET_SORTCAT="SORT CAT"
-	export FBUT_GUISET_OPURL="OPEN HELP URL" FBUT_GUISET_GASCO="GAMESCOPE"
+	export FBUT_GUISET_OPURL="GAME HELP" FBUT_GUISET_GASCO="GAMESCOPE"
 	export FBUT_GUISET_VORTEX="VORTEX" FBUT_GUISET_MO="MO2" FBUT_GUISET_GETSLR="GET SLR"
 	export GUI_GAFI="GAME FILES"
-	export TT_GETSLR="" TT_SHADERREPOS="" TT_UPSHADER="" TT_FAVSEL=""
-	export TT_SORTCAT="" TT_ADDNSGA="" TT_OTR="" TT_GASCO="" TT_VORTEX="" TT_MO=""
+	export PROTYADLIST="GE-Proton11-12!Proton Experimental"
+	export USEPROTON="Proton Experimental" GAMEARGS="none" NON="none" DXVK_FPSLIMIT="none"
+	export USEMANGOHUD=0 USEGAMEMODERUN=1 USERESHADE=0 USEGAMESCOPE=0
+	export STLGAMECFG="$BATS_TEST_TMPDIR/game.conf"
 	CfgFiles=()
 	MARK="$BATS_TEST_TMPDIR/markers"
 	mkdir -p "$MARK"
@@ -156,6 +171,8 @@ STUB
 	startSteamGame() { touch "$MARK/startSteamGame"; }
 	closeSTL() { touch "$MARK/closeSTL"; }
 	goBackToPrevFunction() { touch "$MARK/goBack"; }
+	updateConfigEntry() { printf '%s=%s\n' "$1" "$2" >>"$MARK/cfg"; }
+	notiShow() { printf '%s\n' "$1" >>"$MARK/noti"; }
 }
 
 teardown() {
@@ -167,27 +184,185 @@ form_fields() {
 	grep '^form:' "$STUB_YAD_LOG" | grep -o -- "--field=[^:]*:[A-Z]*" 
 }
 
-@test "mainmenu: one form with all 20 tool buttons in six titled sections" {
-	STUB_YAD_RC=6
+@test "mainmenu: one form with settings and tool buttons in four titled sections" {
 	run MainMenu "12345"
 	[ "$status" -eq 0 ]
-	[ -f "$MARK/openGameMenu" ]
 	# a single plain form, no notebook
 	[ "$(grep -c '^form:' "$STUB_YAD_LOG")" -eq 1 ]
 	[ "$(grep -c '^notebook:' "$STUB_YAD_LOG")" -eq 0 ]
-	[ "$(form_fields | grep -c ':FBTN$')" -eq 20 ]
-	# six section titles, markup escaped
-	[ "$(form_fields | grep ':LBL$' | grep -c "fgalpha='65%'")" -eq 6 ]
-	grep -qF -- 'Wine &amp; Proton</span>:LBL' "$STUB_YAD_LOG"
-	grep -qF -- 'Game Tools</span>:LBL' "$STUB_YAD_LOG"
+	[ "$(form_fields | grep -c ':FBTN$')" -eq 11 ]
+	# the settings of the game config
+	[ "$(form_fields | grep -c ':CHK$')" -eq 4 ]
+	[ "$(form_fields | grep -c ':CB$')" -eq 1 ]
+	[ "$(form_fields | grep -c ':CBE$')" -eq 1 ]
+	grep -qF -- '--field=ARGS!:' "$STUB_YAD_LOG"
+	grep -qF -- '--field=PROTON!Pick the Proton version.:CB' "$STUB_YAD_LOG"
+	# four section titles as help buttons, markup escaped
+	[ "$(form_fields | grep ':BTN$' | grep -c "fgalpha='65%'")" -eq 4 ]
+	grep -qF -- 'Look &amp; performance ⓘ</span>!What do these do?:BTN' "$STUB_YAD_LOG"
+	grep -qF -- 'game section-help 3' "$STUB_YAD_LOG"
 	# labels and AID-carrying commands intact
 	grep -qF -- 'DL CUSTOM PROTON' "$STUB_YAD_LOG"
-	grep -qF -- 'proton getslr-gui "12345"' "$STUB_YAD_LOG"
+	grep -qF -- 'RESET PFX!Start over with a fresh prefix.:FBTN' "$STUB_YAD_LOG"
 	grep -qF -- 'game compatdata "12345" "s"' "$STUB_YAD_LOG"
+	grep -qF -- 'wine components "12345"' "$STUB_YAD_LOG"
+	# the rarely used tools are in Extras
+	[ "$(grep -cF -- 'proton getslr-gui' "$STUB_YAD_LOG")" -eq 0 ]
+	[ "$(grep -cF -- 'ONE TIME RUN' "$STUB_YAD_LOG")" -eq 0 ]
 	# header text and game picture
 	grep -qF -- "--image $SHOWPIC" "$STUB_YAD_LOG"
-	# COLCOUNT=4 gives three columns of two section rows
-	grep -qF -- '--columns=3' "$STUB_YAD_LOG"
+	# COLCOUNT=4 puts all four sections side by side
+	grep -qF -- '--columns=4' "$STUB_YAD_LOG"
+	grep -qF -- '--separator=\n' "$STUB_YAD_LOG"
+}
+
+@test "mainmenu: the bottom bar is Exit, Search, Settings, Extras and Play" {
+	run MainMenu "12345"
+	[ "$(grep '^form:' "$STUB_YAD_LOG" | grep -o -- '--button=[^:]*:[0-9]*' | tr '\n' '|')" = "--button=EXIT:0|--button=SEARCH:18|--button=GLOBAL MENU:10|--button=EXTRAS:20|--button=PLAY:16|" ]
+}
+
+@test "mainmenu: rc=10 opens the settings" {
+	STUB_YAD_RC=10
+	run MainMenu "12345"
+	[ "$status" -eq 0 ]
+	[ -f "$MARK/openGlobalMenu" ]
+}
+
+@test "mainmenu: rc=20 opens Extras with the other tools and menus" {
+	STUB_YAD_RC=20
+	run MainMenu "12345"
+	[ "$status" -eq 0 ]
+	[ "$(grep -c '^form:' "$STUB_YAD_LOG")" -eq 2 ]
+	local extras
+	extras="$(grep '^form:' "$STUB_YAD_LOG" | tail -n1)"
+	[[ "$extras" == *'proton getslr-gui "12345"'* ]]
+	[[ "$extras" == *'game first-install "12345"'* ]]
+	[[ "$extras" == *'ONE TIME RUN'* ]]
+	[[ "$extras" == *'config favorites "12345" set'* ]]
+	[[ "$extras" == *"Steam and menus</span>:LBL"* ]]
+	[[ "$extras" != *'section-help'* ]]
+	[ "$(grep -o -- '--button=[^:]*:[0-9]*' <<< "$extras" | tr '\n' '|')" = "--button=BACK:0|--button=GAME MENU:6|--button=DEFAULT GAME MENU:8|--button=CATEGORIES:4|--button=FAVORITES:12|--button=EDITOR:14|" ]
+}
+
+@test "extras: the buttons open the full settings menus" {
+	local pair
+	for pair in 6:openGameMenu 8:openGameDefaultMenu 4:catsel 12:favoritesMenu 14:EditorDialog; do
+		rm -f "$MARK"/*
+		STUB_YAD_RC="${pair%%:*}"
+		run ExtrasMenu "12345" MainMenu
+		[ "$status" -eq 0 ]
+		[ -f "$MARK/${pair#*:}" ]
+		[ -f "$MARK/goBack" ]
+	done
+}
+
+# Main Menu form output with VAR=VALUE at the line of the field of VAR
+mm_output() {
+	local -A want=()
+	local kv i
+	for kv in "$@"; do
+		want["${kv%%=*}"]="${kv#*=}"
+	done
+	for (( i = 0; i < ${#MMFORM[@]} / 2; i++ )); do
+		if [ -n "${MM_FIELDVARS[$i]}" ]; then
+			printf '%s\n' "${want[${MM_FIELDVARS[$i]}]}"
+		else
+			printf '\n'
+		fi
+	done
+}
+
+mm_build() {
+	setMainMenuSections
+	MM_ORDER=( 1 3 2 4 )
+	buildMainMenuForm
+}
+
+@test "mainmenu: every setting field maps to its config variable" {
+	mm_build
+	[ "$(printf '%s\n' "${MM_FIELDVARS[@]}" | sort | tr '\n' ' ')" = "DXVK_FPSLIMIT GAMEARGS USEGAMEMODERUN USEGAMESCOPE USEMANGOHUD USEPROTON USERESHADE " ]
+	local i
+	for i in "${!MM_FIELDVARS[@]}"; do
+		[[ "${MMFORM[$(( i * 2 ))]}" == *":CB" || "${MMFORM[$(( i * 2 ))]}" == *":CBE" || "${MMFORM[$(( i * 2 ))]}" == *":CHK" || "${MMFORM[$(( i * 2 ))]}" == *"!:" ]]
+	done
+}
+
+@test "mainmenu: leaving with a button saves the settings to the game config" {
+	mm_build
+	mm_output USEPROTON=GE-Proton11-12 "GAMEARGS= -fullscreen" DXVK_FPSLIMIT=60 USEMANGOHUD=TRUE USEGAMEMODERUN=FALSE USERESHADE=FALSE USEGAMESCOPE=TRUE >"$BATS_TEST_TMPDIR/out"
+	saveMainMenuFields "$(cat "$BATS_TEST_TMPDIR/out")"
+	grep -qx 'USEPROTON=GE-Proton11-12' "$MARK/cfg"
+	grep -qx 'GAMEARGS=-fullscreen' "$MARK/cfg"
+	grep -qx 'DXVK_FPSLIMIT=60' "$MARK/cfg"
+	grep -qx 'USEMANGOHUD=TRUE' "$MARK/cfg"
+	grep -qx 'USEGAMEMODERUN=FALSE' "$MARK/cfg"
+	grep -qx 'USEGAMESCOPE=TRUE' "$MARK/cfg"
+	# the running launch uses the new values
+	[ "$USEPROTON" = "GE-Proton11-12" ]
+	[ "$GAMEARGS" = "-fullscreen" ]
+	[ "$USEMANGOHUD" = "1" ]
+	[ "$USEGAMEMODERUN" = "0" ]
+	[ ! -f "$MARK/noti" ]
+}
+
+@test "mainmenu: empty launch options are saved as none, an empty dropdown is skipped" {
+	mm_build
+	saveMainMenuFields "$(mm_output USEPROTON= GAMEARGS= USEMANGOHUD=FALSE)"
+	grep -qx 'GAMEARGS=none' "$MARK/cfg"
+	[ "$(grep -c '^USEPROTON=' "$MARK/cfg")" -eq 0 ]
+	[ "$USEPROTON" = "Proton Experimental" ]
+}
+
+@test "mainmenu: closing the window saves nothing" {
+	mm_build
+	saveMainMenuFields ""
+	[ ! -f "$MARK/cfg" ]
+}
+
+@test "mainmenu: the form output of MainMenu is saved" {
+	STUB_YAD_RC=16
+	mm_build
+	mm_output USEPROTON=GE-Proton11-12 USEGAMEMODERUN=TRUE >"$BATS_TEST_TMPDIR/out"
+	export STUB_YAD_OUT="$BATS_TEST_TMPDIR/out"
+	run MainMenu "12345"
+	[ "$status" -eq 0 ]
+	[ -f "$MARK/startSteamGame" ]
+	grep -qx 'USEPROTON=GE-Proton11-12' "$MARK/cfg"
+	grep -qx 'USEGAMEMODERUN=TRUE' "$MARK/cfg"
+}
+
+@test "mainmenu: turning ReShade on shows the hotkey note once" {
+	mm_build
+	saveMainMenuFields "$(mm_output USERESHADE=TRUE)"
+	[ "$(cat "$MARK/noti")" = "RESHADE NOTE" ]
+	[ "$USERESHADE" = "1" ]
+	# already on: no note
+	saveMainMenuFields "$(mm_output USERESHADE=TRUE)"
+	[ "$(wc -l < "$MARK/noti")" -eq 1 ]
+}
+
+@test "mainMenuSectionHelp: explains every entry of the section" {
+	run mainMenuSectionHelp 2
+	[ "$status" -eq 0 ]
+	local help
+	help="$(grep '^form:' "$STUB_YAD_LOG")"
+	[[ "$help" == *"--title=Fix problems"* ]]
+	[[ "$help" == *'<b>RESET PFX</b>\nStart over with a fresh prefix.'* ]]
+	[[ "$help" == *'<b>GAME FILES</b>'* ]]
+	[[ "$help" == *"--button=DONE:0"* ]]
+
+	: >"$STUB_YAD_LOG"
+	run mainMenuSectionHelp 3
+	[[ "$(grep '^form:' "$STUB_YAD_LOG")" == *"Look &amp; performance</span>"* ]]
+}
+
+@test "mainMenuSectionHelp: invalid sections open nothing" {
+	local sec
+	for sec in 0 9 abc ""; do
+		run mainMenuSectionHelp "$sec"
+		[ "$status" -eq 0 ]
+	done
+	[ "$(grep -c '^form:' "$STUB_YAD_LOG")" -eq 0 ]
 }
 
 # test sections: sizes with title 4, 4, 4, 3, 5, 6 (sections 1..6)
@@ -302,12 +477,6 @@ mm_title_rows() {
 	TGMAINCSS=""
 	run MainMenu "12345"
 	[ "$(grep -cF -- '--css=' "$STUB_YAD_LOG")" -eq 0 ]
-}
-
-@test "mainmenu: Exit is the first and Play the last dialog button" {
-	run MainMenu "12345"
-	[ "$(grep '^form:' "$STUB_YAD_LOG" | grep -o -- '--button=[^:]*:[0-9]*' | head -n1)" = "--button=EXIT:0" ]
-	[ "$(grep '^form:' "$STUB_YAD_LOG" | grep -o -- '--button=[^:]*:[0-9]*' | tail -n1)" = "--button=PLAY:16" ]
 }
 
 @test "mainmenu: rc=16 dispatches to the game" {

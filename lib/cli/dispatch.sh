@@ -312,6 +312,9 @@ function tgCmdGame {
 	"launcher")
 		openGameLauncher "$1" "$2"
 	;;
+	"section-help")
+		mainMenuSectionHelp "$1"
+	;;
 	*)
 		writelog "INFO" "${FUNCNAME[0]} - sub-command '$TG_SUB' is no valid command"
 		howto

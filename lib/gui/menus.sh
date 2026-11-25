@@ -389,10 +389,14 @@ function buildMainMenuForm {
 	# Yad fills form columns top to bottom, so the fields are emitted column by
 	# column. MMCOLUMNS is the largest divisor of the section count that is not
 	# above COLCOUNT, which keeps every band full.
-	# Requires MM_G1..MM_G6 (yad argument word arrays, two words per button),
+	# Requires MM_G1..MM_Gn (yad argument word arrays, two words per field),
 	# MM_TITLES (section titles) and MM_ORDER (section numbers in display order,
 	# left to right, then top to bottom). Fills MMFORM and MMCOLUMNS.
-	local MMWANT MMSECS MMBANDS MMBAND MMCOL MMIDX MMSEC MMSIZE MMH MMPAD
+	local MMWANT MMSECS MMBANDS MMBAND MMCOL MMIDX MMSEC MMSIZE MMH MMPAD MMTITLE
+	# optional: MM_HELPCMDS (per section: turns its title into a help button)
+	# and MM_DATAVARS (field spec -> config variable of the setting fields),
+	# which fills MM_FIELDVARS (output line index -> config variable)
+	declare -gA MM_DATAVARS
 	local -a MMBANDH=()
 
 	MMWANT="$COLCOUNT"
@@ -431,13 +435,28 @@ function buildMainMenuForm {
 			MMSEC="${MM_ORDER[$MMIDX]}"
 			local -n MMGRP="MM_G$MMSEC"
 			MMSIZE=$(( ${#MMGRP[@]} / 2 + 1 ))
-			MMFORM+=( "--field=<span weight='bold' fgalpha='65%'>$(tgMarkupEscape "${MM_TITLES[$(( MMSEC - 1 ))]}")</span>:LBL" "" )
+			MMTITLE="<span weight='bold' fgalpha='65%'>$(tgMarkupEscape "${MM_TITLES[$(( MMSEC - 1 ))]}")"
+			if [ -n "${MM_HELPCMDS[$(( MMSEC - 1 ))]}" ]; then
+				# a flat button styled as the title, opening the section help
+				MMFORM+=( "--field=${MMTITLE} ⓘ</span>!${TT_MMSECHELP}:BTN" "${MM_HELPCMDS[$(( MMSEC - 1 ))]}" )
+			else
+				MMFORM+=( "--field=${MMTITLE}</span>:LBL" "" )
+			fi
 			MMFORM+=( "${MMGRP[@]}" )
 			unset -n MMGRP
 			for (( MMPAD = MMSIZE; MMPAD < MMBANDH[MMBAND]; MMPAD++ )); do
 				MMFORM+=( "--field= :LBL" "" )
 			done
 		done
+	done
+
+	# output line of every setting field (yad prints one line per field)
+	MM_FIELDVARS=()
+	for (( MMIDX = 0; MMIDX < ${#MMFORM[@]} / 2; MMIDX++ )); do
+		MMSEC="${MMFORM[$(( MMIDX * 2 ))]}"
+		if [ -n "${MM_DATAVARS[$MMSEC]}" ]; then
+			MM_FIELDVARS[MMIDX]="${MM_DATAVARS[$MMSEC]}"
+		fi
 	done
 }
 
@@ -477,7 +496,9 @@ function MainMenu {
 	MMAIDHEAD="${MMAIDHEAD%)}"
 	SETHEAD="$(spanFont "$MMGNHEAD" "H")  <span fgalpha='55%'>${MMAIDHEAD}</span>"
 
-	TT_OPENURL="Help Url Gui"
+	# plain tooltips unless there is game specific info for them below
+	TT_OPENURL=""
+	TT_GAFI=""
 
 	# Last played date/time
 	if [ -n "$LAPL" ]; then
@@ -507,7 +528,7 @@ function MainMenu {
 		prepareProtonDBRating
 		getGameFiles "$AID"
 		setGameFilesArray
-		TT_GAFI="$( printf "<u>%s</u>" "${GUI_GAFI}" )"
+		TT_GAFI="$TT_BROWSEFILES"
 		TT_GAFI="${TT_GAFI}$(for i in "${!GamFiles[@]}"; do printf "\n<b>%s</b>: %s" "${GamDesc[$i]}" "${GamFiles[$i]}"; done)"
 
 		# Only shown on the Game Files tooltip
@@ -564,45 +585,11 @@ function MainMenu {
 
 	createProtonList X
 
-	# The 20 Main Menu tool buttons, grouped by topic. Each group is one
-	# titled section of the form (buildMainMenuForm).
-	MM_G1=(	# Downloads
-		"--field=${FBUT_GUISET_DCP}:FBTN" "$(realpath "$0") proton download"
-		"--field=${FBUT_GUISET_DW}:FBTN" "$(realpath "$0") wine download"
-		"--field=${FBUT_GUISET_GETSLR}!${TT_GETSLR}:FBTN" "$(realpath "$0") proton getslr-gui \"$AID\""
-	)
-	MM_G2=(	# Wine and Proton
-		"--field=${FBUT_GUISET_RECREATEPFX}:FBTN" "$(realpath "$0") game compatdata \"$AID\" \"s\""
-		"--field=${FBUT_GUISET_WDC}:FBTN" "$(realpath "$0") wine debug-channels \"$AID\""
-		"--field=${FBUT_GUISET_WTSEL}:FBTN" "$(realpath "$0") wine winetricks \"$AID\""
-	)
-	MM_G3=(	# Shaders and HUD
-		"--field=${FBUT_GUISET_DXHSEL}:FBTN" "$(realpath "$0") game dxvk-hud \"$AID\""
-		"--field=${FBUT_GUISET_SHADERREPOS}!${TT_SHADERREPOS}:FBTN" "$(realpath "$0") update shaders repos"
-		"--field=${FBUT_GUISET_UPSHADER}!${TT_UPSHADER}:FBTN" "$(realpath "$0") update gameshaders \"$SHADDESTDIR\""
-	)
-	MM_G4=(	# Mod managers
-		"--field=${FBUT_GUISET_VORTEX}!${TT_VORTEX}:FBTN" "$(realpath "$0") mods vortex start"
-		"--field=${FBUT_GUISET_MO}!${TT_MO}:FBTN" "$(realpath "$0") mods mo2 start"
-	)
-	MM_G5=(	# Steam integration
-		"--field=${FBUT_GUISET_ADDNSGA}!${TT_ADDNSGA}:FBTN" "$(realpath "$0") steam add-game"
-		"--field=${FBUT_GUISET_FAVSEL}!${TT_FAVSEL}:FBTN" "$(realpath "$0") config favorites \"$AID\" set"
-		"--field=${FBUT_GUISET_BLOCKCAT}:FBTN" "$(realpath "$0") config block"
-		"--field=${FBUT_GUISET_SORTCAT}!${TT_SORTCAT}:FBTN" "$(realpath "$0") config sort"
-	)
-	MM_G6=(	# Game tools
-		"--field=${FBUT_GUISET_CREATEEVALSC}:FBTN" "$(realpath "$0") game first-install \"$AID\""
-		"--field=${FBUT_GUISET_OTR}!${TT_OTR}:FBTN" "$(realpath "$0") game onetimerun \"$AID\""
-		"--field=${FBUT_GUISET_OPURL}!${TT_OPENURL}:FBTN" "$(realpath "$0") game helpurl \"$AID\" X"
-		"--field=${FBUT_GUISET_GASCO}!${TT_GASCO}:FBTN" "$(realpath "$0") game gamescope \"$AID\" \"$GN\""
-		"--field=${GUI_GAFI}!${TT_GAFI}:FBTN" "$(realpath "$0") game files \"$AID\""
-	)
-	MM_TITLES=( "$GUI_MMTAB_DL" "$GUI_MMTAB_WP" "$GUI_MMTAB_SH" "$GUI_MMTAB_MODS" "$GUI_MMTAB_STEAM" "$GUI_MMTAB_GT" )
+	setMainMenuSections
 
-	# section display order, left to right and then top to bottom: the taller
-	# sections share the first row so the rows below stay short
-	MM_ORDER=( 6 5 2 3 1 4 )
+	# section display order, left to right and then top to bottom: the two
+	# taller sections share the first row so the second row stays short
+	MM_ORDER=( 1 3 2 4 )
 	buildMainMenuForm
 
 	# Sized to its content. On the Steam Deck the fixed screen sized geometry
@@ -618,21 +605,22 @@ function MainMenu {
 		MMCSS=( --css="$TGMAINCSS" )
 	fi
 
+	# one value per line, in field order (buttons and labels print empty lines)
 	MMRC=0
-	"$YAD" "${MMCSS[@]}" --image "$SHOWPIC" "${YADIMGTOP[@]}" --center --window-icon="$STLICON" --form "${WINDECO[@]}" --title="$TITLE" \
+	MMOUT="$("$YAD" "${MMCSS[@]}" --image "$SHOWPIC" "${YADIMGTOP[@]}" --center --window-icon="$STLICON" --form "${WINDECO[@]}" --title="$TITLE" \
 	--text="$SETHEAD" \
-	--columns="$MMCOLUMNS" --f1-action="$F1ACTIONCG" --separator="" \
+	--columns="$MMCOLUMNS" --f1-action="$F1ACTIONCG" --separator="\n" \
 	"${MMFORM[@]}" \
 	--button="$BUT_EXIT":0 \
-	--button="$BUT_GUISET_CATMENUSHORT":4 \
-	--button="$BUT_GM":6 \
-	--button="$BUT_DGM":8 \
-	--button="$BUT_GLM":10 \
-	--button="$BUT_FAV":12 \
-	--button="$BUT_EDITORMENU":14 \
 	--button="$BUT_SEARCH":18 \
+	--button="$BUT_GLM":10 \
+	--button="$BUT_EXTRAS":20 \
 	--button="$BUT_PLAY":16 \
-	"${MMGEOM[@]}" || MMRC=$?
+	"${MMGEOM[@]}")" || MMRC=$?
+
+	# the settings shown in the menu are saved whenever it is left with a
+	# button (yad prints nothing when the window is closed or on ESC)
+	saveMainMenuFields "$MMOUT"
 
 	case "$MMRC" in
 	0)  {
@@ -642,6 +630,216 @@ function MainMenu {
 			exit
 		}
 	;;
+	10) 	{
+			clickInfo "${FUNCNAME[0]}" "$MMRC" "$BUT_GLM" "$SETMENU" "Global Menu"
+			refreshProtList
+			openGlobalMenu "$AID" "${FUNCNAME[0]}" "1"
+		}
+	;;
+	18)	{
+			clickInfo "${FUNCNAME[0]}" "$MMRC" "$BUT_SEARCH" "$SETMENU" "SearchSettings"
+			refreshProtList
+			openSearchMenu "$AID" "${FUNCNAME[0]}"
+		}
+	;;
+	20)	{
+			clickInfo "${FUNCNAME[0]}" "$MMRC" "$BUT_EXTRAS" "$SETMENU" "Extras"
+			ExtrasMenu "$AID" "${FUNCNAME[0]}"
+		}
+	;;
+	16)	{
+			clickInfo "${FUNCNAME[0]}" "$MMRC" "$BUT_PLAY" "$SETMENU" "Game"
+			GOBACK=0
+			startSteamGame
+		}
+	;;
+	esac
+
+	goBackToPrevFunction "${FUNCNAME[0]}" "$2" "$GOBACK"
+}
+
+function mmAddBtn {
+	# LABEL TOOLTIP COMMAND [FORMTOOLTIP]: appends one tool button to the
+	# section being built (MMCURG) and its explanation to the section help
+	# (MMCURH). FORMTOOLTIP replaces the tooltip on the button only.
+	MMCURG+=( "--field=${1}!${4:-$2}:FBTN" "$(realpath "$0") $3" )
+	MMCURH+=( "$1" "$2" )
+}
+
+function mmAddData {
+	# VAR TYPE LABEL TOOLTIP VALUE: appends one setting of the game config to
+	# the section being built; saveMainMenuFields writes it back to VAR
+	local MMSPEC="--field=${3}!${4}:${2}"
+	MMCURG+=( "$MMSPEC" "$5" )
+	MMCURH+=( "$3" "$4" )
+	MM_DATAVARS["$MMSPEC"]="$1"
+}
+
+function mmEndSection {
+	# NUMBER TITLE: stores the section built so far as MM_G<NUMBER> with its
+	# title and help text and starts the next one
+	local MMI
+	local -n MMDEST="MM_G$1"
+	MMDEST=( "${MMCURG[@]}" )
+	unset -n MMDEST
+	MM_TITLES[$(( $1 - 1 ))]="$2"
+	MM_HELPTXT[$(( $1 - 1 ))]=""
+	for (( MMI = 0; MMI < ${#MMCURH[@]}; MMI += 2 )); do
+		MM_HELPTXT[$(( $1 - 1 ))]+="<b>$(tgMarkupEscape "${MMCURH[$MMI]}")</b>\n$(tgMarkupEscape "${MMCURH[$(( MMI + 1 ))]}")\n\n"
+	done
+	MM_HELPTXT[$(( $1 - 1 ))]="${MM_HELPTXT[$(( $1 - 1 ))]%\\n\\n}"
+	MM_HELPCMDS[$(( $1 - 1 ))]="$(realpath "$0") game section-help $1"
+	MMCURG=()
+	MMCURH=()
+}
+
+function setMainMenuSections {
+	# The Main Menu content: the most used game settings and tools, grouped by
+	# goal into four sections (MM_G1..MM_G4, MM_TITLES, MM_HELPTXT, MM_HELPCMDS).
+	# The settings are mapped to their config variables in MM_DATAVARS.
+	local MMARGS="${GAMEARGS/#-/ -}"
+	if [ "$MMARGS" == "$NON" ]; then
+		MMARGS=""
+	fi
+
+	declare -gA MM_DATAVARS=()
+	MM_TITLES=()
+	MM_HELPTXT=()
+	MM_HELPCMDS=()
+	MMCURG=()
+	MMCURH=()
+
+	mmAddData USEPROTON CB "$GUI_MM_PROTON" "$TT_MM_PROTON" "$(cleanDropDown "${USEPROTON/#-/ -}" "$PROTYADLIST")"
+	mmAddBtn "$FBUT_GUISET_DCP" "$TT_DCP" "proton download"
+	mmAddData GAMEARGS "" "$GUI_MM_ARGS" "$TT_MM_ARGS" "$MMARGS"
+	mmAddData DXVK_FPSLIMIT CBE "$GUI_MM_FPSLIMIT" "$TT_MM_FPSLIMIT" "$(cleanDropDown "${DXVK_FPSLIMIT/#-/ -}" "none!30!60!75!90!120!144!165!240")"
+	mmAddData USEMANGOHUD CHK "$GUI_MM_FPSCOUNTER" "$TT_MM_FPSCOUNTER" "${USEMANGOHUD:-0}"
+	mmAddData USEGAMEMODERUN CHK "$GUI_MM_GAMEMODE" "$TT_MM_GAMEMODE" "${USEGAMEMODERUN:-0}"
+	mmEndSection 1 "$GUI_MMSEC_PLAY"
+
+	mmAddBtn "$FBUT_GUISET_RECREATEPFX" "$TT_RECREATEPFX" "game compatdata \"$AID\" \"s\""
+	mmAddBtn "$FBUT_GUISET_WTSEL" "$TT_WTSEL" "wine components \"$AID\""
+	mmAddBtn "$FBUT_GUISET_OPURL" "$TT_GAMEHELP" "game helpurl \"$AID\" X" "${TT_OPENURL:-$TT_GAMEHELP}"
+	mmAddBtn "$GUI_GAFI" "$TT_BROWSEFILES" "game files \"$AID\"" "${TT_GAFI:-$TT_BROWSEFILES}"
+	mmEndSection 2 "$GUI_MMSEC_FIX"
+
+	mmAddBtn "$FBUT_GUISET_DXHSEL" "$TT_DXHSEL" "game dxvk-hud \"$AID\""
+	mmAddData USERESHADE CHK "$GUI_MM_RESHADE" "$TT_MM_RESHADE" "${USERESHADE:-0}"
+	mmAddBtn "$FBUT_GUISET_SHADERREPOS" "$TT_SHADERREPOS" "update shaders repos"
+	mmAddBtn "$FBUT_GUISET_UPSHADER" "$TT_UPSHADER" "update gameshaders \"$SHADDESTDIR\""
+	mmAddData USEGAMESCOPE CHK "$GUI_MM_GAMESCOPE" "$TT_MM_GAMESCOPE" "${USEGAMESCOPE:-0}"
+	mmAddBtn "$FBUT_GUISET_GASCO" "$TT_GASCO" "game gamescope \"$AID\" \"$GN\""
+	mmEndSection 3 "$GUI_MMSEC_LOOK"
+
+	mmAddBtn "$FBUT_GUISET_VORTEX" "$TT_VORTEX" "mods vortex start"
+	mmAddBtn "$FBUT_GUISET_MO" "$TT_MO" "mods mo2 start"
+	mmEndSection 4 "$GUI_MMSEC_MODS"
+}
+
+function saveMainMenuFields {
+	# saves the settings of the Main Menu form output (one value per line, in
+	# the field order of MMFORM, see MM_FIELDVARS) to the game config.
+	# updateConfigEntry only writes values that differ from the loaded ones.
+	local MMI MMVAR MMVAL
+	local -a MMLINES=()
+
+	if [ -z "$1" ]; then
+		return
+	fi
+
+	mapfile -t MMLINES <<< "$1"
+	for MMI in "${!MM_FIELDVARS[@]}"; do
+		MMVAR="${MM_FIELDVARS[$MMI]}"
+		MMVAL="${MMLINES[$MMI]}"
+		MMVAL="${MMVAL/# -/-}"
+		if [ -z "$MMVAL" ]; then
+			# an empty dropdown means there was nothing to pick
+			if [ "$MMVAR" != "GAMEARGS" ]; then
+				continue
+			fi
+			MMVAL="$NON"
+		fi
+
+		if [ "$MMVAR" == "USERESHADE" ] && [ "$MMVAL" == "TRUE" ] && [ "$USERESHADE" != "1" ]; then
+			notiShow "$NOTY_RESHADEHOTKEY"
+		fi
+
+		writelog "INFO" "${FUNCNAME[0]} - Main Menu setting '$MMVAR' is '$MMVAL'"
+		updateConfigEntry "$MMVAR" "$MMVAL" "$STLGAMECFG"
+		# the running launch continues with the loaded values, so update them too
+		case "$MMVAL" in
+			TRUE) MMVAL=1 ;;
+			FALSE) MMVAL=0 ;;
+		esac
+		printf -v "$MMVAR" '%s' "$MMVAL"
+	done
+}
+
+function mainMenuSectionHelp {
+	# small dialog explaining every entry of Main Menu section NUMBER
+	local MMSEC="$1"
+	if ! [ "$MMSEC" -ge 1 ] 2>/dev/null; then
+		writelog "SKIP" "${FUNCNAME[0]} - Invalid section '$MMSEC'"
+		return
+	fi
+
+	setMainMenuSections
+	if [ -z "${MM_TITLES[$(( MMSEC - 1 ))]}" ]; then
+		writelog "SKIP" "${FUNCNAME[0]} - Unknown section '$MMSEC'"
+		return
+	fi
+
+	"$YAD" --center --window-icon="$STLICON" --form "${WINDECO[@]}" --title="${MM_TITLES[$(( MMSEC - 1 ))]}" \
+	--text="<span weight='bold'>$(tgMarkupEscape "${MM_TITLES[$(( MMSEC - 1 ))]}")</span>\n\n${MM_HELPTXT[$(( MMSEC - 1 ))]}" \
+	--button="$BUT_DONE":0 >/dev/null 2>&1
+}
+
+function ExtrasMenu {
+	# The less used tools and the full settings menus, out of the Main Menu
+	writelog "INFO" "${FUNCNAME[0]} - Opening Extras"
+	setShowPic
+
+	TITLE="${PROGNAME}-Extras"
+	pollWinRes "$TITLE"
+
+	MMCURG=()
+	MMCURH=()
+	MM_TITLES=()
+	MM_HELPTXT=()
+	MM_HELPCMDS=()
+	declare -gA MM_DATAVARS=()
+
+	mmAddBtn "$FBUT_GUISET_CREATEEVALSC" "$TT_CREATEEVALSC" "game first-install \"$AID\""
+	mmAddBtn "$FBUT_GUISET_OTR" "$TT_OTR" "game onetimerun \"$AID\""
+	mmAddBtn "$FBUT_GUISET_WDC" "$TT_WDC" "wine debug-channels \"$AID\""
+	mmAddBtn "$FBUT_GUISET_DW" "$TT_DW" "wine download"
+	mmAddBtn "$FBUT_GUISET_GETSLR" "$TT_GETSLR" "proton getslr-gui \"$AID\""
+	mmEndSection 1 "$GUI_MMSEC_TOOLS"
+
+	mmAddBtn "$FBUT_GUISET_ADDNSGA" "$TT_ADDNSGA" "steam add-game"
+	mmAddBtn "$FBUT_GUISET_FAVSEL" "$TT_FAVSEL" "config favorites \"$AID\" set"
+	mmAddBtn "$FBUT_GUISET_BLOCKCAT" "$TT_BLOCKCAT" "config block"
+	mmAddBtn "$FBUT_GUISET_SORTCAT" "$TT_SORTCAT" "config sort"
+	mmEndSection 2 "$GUI_MMSEC_MENUS"
+	# plain titles, the buttons explain themselves through their tooltips
+	MM_HELPCMDS=()
+
+	MM_ORDER=( 1 2 )
+	buildMainMenuForm
+
+	MMRC=0
+	"$YAD" --image "$SHOWPIC" "${YADIMGTOP[@]}" --center --window-icon="$STLICON" --form "${WINDECO[@]}" --title="$TITLE" \
+	--text="$(spanFont "$BUT_EXTRAS" "H")" \
+	--columns="$MMCOLUMNS" --separator="" \
+	"${MMFORM[@]}" \
+	--button="$BUT_BACK":0 \
+	--button="$BUT_GM":6 \
+	--button="$BUT_DGM":8 \
+	--button="$BUT_GUISET_CATMENUSHORT":4 \
+	--button="$BUT_FAV":12 \
+	--button="$BUT_EDITORMENU":14 >/dev/null || MMRC=$?
+
+	case "$MMRC" in
 	4) 	{
 			clickInfo "${FUNCNAME[0]}" "$MMRC" "$BUT_GUISET_CATMENUSHORT" "$SETMENU" "Category Menu Selection"
 			refreshProtList
@@ -660,12 +858,6 @@ function MainMenu {
 			openGameDefaultMenu "$AID" "${FUNCNAME[0]}"
 		}
 	;;
-	10) 	{
-			clickInfo "${FUNCNAME[0]}" "$MMRC" "$BUT_GLM" "$SETMENU" "Global Menu"
-			refreshProtList
-			openGlobalMenu "$AID" "${FUNCNAME[0]}" "1"
-		}
-	;;
 	12) 	{
 			clickInfo "${FUNCNAME[0]}" "$MMRC" "$BUT_FAV" "$SETMENU" "Favorites"
 			refreshProtList
@@ -675,18 +867,6 @@ function MainMenu {
 	14)	{
 			clickInfo "${FUNCNAME[0]}" "$MMRC" "$BUT_EDITORMENU" "$SETMENU" "EditorDialog"
 			EditorDialog "$AID" "${FUNCNAME[0]}"
-		}
-	;;
-	18)	{
-			clickInfo "${FUNCNAME[0]}" "$MMRC" "$BUT_SEARCH" "$SETMENU" "SearchSettings"
-			refreshProtList
-			openSearchMenu "$AID" "${FUNCNAME[0]}"
-		}
-	;;
-	16)	{
-			clickInfo "${FUNCNAME[0]}" "$MMRC" "$BUT_PLAY" "$SETMENU" "Game"
-			GOBACK=0
-			startSteamGame
 		}
 	;;
 	esac

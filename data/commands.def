@@ -50,6 +50,7 @@ game	waitrequester	<e|s|u>	Enable, skip or unskip the wait requester
 game	compatdata	<gameid> [gui]	(Re-)create compatdata for game
 game	first-install	<gameid>	Open gui to create a Steam First Time Setup file for game
 game	launcher	[args]	Start the Game Launcher
+game	section-help	<number>	Explain the entries of a Main Menu section
 config	dir		Open the TinkerGame config directory with xdg-open
 config	favorites	<value> [set]	Open the favorite menu (or set the favorite selection)
 config	block		Open the category Block selection menu
