@@ -381,85 +381,6 @@ function refreshProtList {
 	fi
 }
 
-function buildMainMenuForm {
-	# Main Menu tool buttons as titled sections in one form, laid out as a
-	# grid: the sections fill rows ("bands") of MMCOLUMNS sections each, and
-	# every section in a band is padded with blank labels to the height of the
-	# tallest one, so all section titles of a band line up across the columns.
-	# Yad fills form columns top to bottom, so the fields are emitted column by
-	# column. MMCOLUMNS is the largest divisor of the section count that is not
-	# above COLCOUNT, which keeps every band full.
-	# Requires MM_G1..MM_Gn (yad argument word arrays, two words per field),
-	# MM_TITLES (section titles) and MM_ORDER (section numbers in display order,
-	# left to right, then top to bottom). Fills MMFORM and MMCOLUMNS.
-	local MMWANT MMSECS MMBANDS MMBAND MMCOL MMIDX MMSEC MMSIZE MMH MMPAD MMTITLE
-	# optional: MM_HELPCMDS (per section: turns its title into a help button)
-	# and MM_DATAVARS (field spec -> config variable of the setting fields),
-	# which fills MM_FIELDVARS (output line index -> config variable)
-	declare -gA MM_DATAVARS
-	local -a MMBANDH=()
-
-	MMWANT="$COLCOUNT"
-	if ! [ "$MMWANT" -ge 1 ] 2>/dev/null; then
-		MMWANT=1
-	fi
-	MMSECS="${#MM_ORDER[@]}"
-
-	MMCOLUMNS=1
-	for (( MMCOL = 1; MMCOL <= MMSECS && MMCOL <= MMWANT; MMCOL++ )); do
-		if [ $(( MMSECS % MMCOL )) -eq 0 ]; then
-			MMCOLUMNS="$MMCOL"
-		fi
-	done
-	MMBANDS=$(( MMSECS / MMCOLUMNS ))
-
-	# height of every band: its tallest section (the buttons plus the title)
-	for (( MMBAND = 0; MMBAND < MMBANDS; MMBAND++ )); do
-		MMH=0
-		for (( MMCOL = 0; MMCOL < MMCOLUMNS; MMCOL++ )); do
-			MMSEC="${MM_ORDER[$(( MMBAND * MMCOLUMNS + MMCOL ))]}"
-			local -n MMGRP="MM_G$MMSEC"
-			MMSIZE=$(( ${#MMGRP[@]} / 2 + 1 ))
-			unset -n MMGRP
-			if [ "$MMSIZE" -gt "$MMH" ]; then
-				MMH="$MMSIZE"
-			fi
-		done
-		MMBANDH+=( "$MMH" )
-	done
-
-	MMFORM=()
-	for (( MMCOL = 0; MMCOL < MMCOLUMNS; MMCOL++ )); do
-		for (( MMBAND = 0; MMBAND < MMBANDS; MMBAND++ )); do
-			MMIDX=$(( MMBAND * MMCOLUMNS + MMCOL ))
-			MMSEC="${MM_ORDER[$MMIDX]}"
-			local -n MMGRP="MM_G$MMSEC"
-			MMSIZE=$(( ${#MMGRP[@]} / 2 + 1 ))
-			MMTITLE="<span weight='bold' fgalpha='65%'>$(tgMarkupEscape "${MM_TITLES[$(( MMSEC - 1 ))]}")"
-			if [ -n "${MM_HELPCMDS[$(( MMSEC - 1 ))]}" ]; then
-				# a flat button styled as the title, opening the section help
-				MMFORM+=( "--field=${MMTITLE} ⓘ</span>!${TT_MMSECHELP}:BTN" "${MM_HELPCMDS[$(( MMSEC - 1 ))]}" )
-			else
-				MMFORM+=( "--field=${MMTITLE}</span>:LBL" "" )
-			fi
-			MMFORM+=( "${MMGRP[@]}" )
-			unset -n MMGRP
-			for (( MMPAD = MMSIZE; MMPAD < MMBANDH[MMBAND]; MMPAD++ )); do
-				MMFORM+=( "--field= :LBL" "" )
-			done
-		done
-	done
-
-	# output line of every setting field (yad prints one line per field)
-	MM_FIELDVARS=()
-	for (( MMIDX = 0; MMIDX < ${#MMFORM[@]} / 2; MMIDX++ )); do
-		MMSEC="${MMFORM[$(( MMIDX * 2 ))]}"
-		if [ -n "${MM_DATAVARS[$MMSEC]}" ]; then
-			MM_FIELDVARS[MMIDX]="${MM_DATAVARS[$MMSEC]}"
-		fi
-	done
-}
-
 function MainMenu {
 	writelog "INFO" "${FUNCNAME[0]} - Preparing to load Main Menu"
 
@@ -585,12 +506,7 @@ function MainMenu {
 
 	createProtonList X
 
-	setMainMenuSections
-
-	# section display order, left to right and then top to bottom: the two
-	# taller sections share the first row so the second row stays short
-	MM_ORDER=( 1 3 2 4 )
-	buildMainMenuForm
+	setMainMenuContent
 
 	# Sized to its content. On the Steam Deck the fixed screen sized geometry
 	# stays, with scrolling as a safety net for the small screen.
@@ -605,25 +521,36 @@ function MainMenu {
 		MMCSS=( --css="$TGMAINCSS" )
 	fi
 
-	# one value per line, in field order (buttons and labels print empty lines)
-	MMRC=0
-	MMOUT="$("$YAD" "${MMCSS[@]}" --image "$SHOWPIC" "${YADIMGTOP[@]}" --center --window-icon="$STLICON" --form "${WINDECO[@]}" --title="$TITLE" \
-	--text="$SETHEAD" \
-	--columns="$MMCOLUMNS" --f1-action="$F1ACTIONCG" --separator="\n" \
-	"${MMFORM[@]}" \
-	--button="$BUT_EXIT":0 \
-	--button="$BUT_SEARCH":18 \
-	--button="$BUT_GLM":10 \
-	--button="$BUT_EXTRAS":20 \
-	--button="$BUT_PLAY":16 \
-	"${MMGEOM[@]}")" || MMRC=$?
+	# a row picked in one of the tool tabs (see mainMenuPick)
+	MMPICKFILE="$MTEMP/mainmenu-pick"
+	MMOUTFILE="$MTEMP/mainmenu-tab-out-1"
+	rm -f "$MMPICKFILE" "$MMOUTFILE" 2>/dev/null
 
-	# the settings shown in the menu are saved whenever it is left with a
-	# button (yad prints nothing when the window is closed or on ESC)
-	saveMainMenuFields "$MMOUT"
+	MMRC=0
+	mainMenuNotebook || MMRC=$?
+	if [ "$MMRC" -eq 3 ]; then
+		writelog "INFO" "${FUNCNAME[0]} - No notebook support - using the single form Main Menu"
+		MMRC=0
+		mainMenuSingleForm || MMRC=$?
+	fi
+
+	# the Play settings are saved whenever the menu is left with a button or
+	# a picked row (yad prints nothing when the window is closed or on ESC)
+	saveMainMenuFields "$(cat "$MMOUTFILE" 2>/dev/null)"
+
+	MMPICK=""
+	if [ -f "$MMPICKFILE" ]; then
+		MMPICK="$(cat "$MMPICKFILE")"
+		rm -f "$MMPICKFILE"
+	fi
 
 	case "$MMRC" in
 	0)  {
+			if [ -n "$MMPICK" ]; then
+				clickInfo "${FUNCNAME[0]}" "$MMRC" "$MMPICK" "$SETMENU" "Row"
+				mainMenuPicked "$MMPICK" "$2"
+				return
+			fi
 			clickInfo "${FUNCNAME[0]}" "$MMRC" "$BUT_EXIT" "$SETMENU" "Exit"
 			GOBACK=0
 			closeSTL " ######### STOP EARLY $PROGNAME $PROGVERS #########"
@@ -634,17 +561,6 @@ function MainMenu {
 			clickInfo "${FUNCNAME[0]}" "$MMRC" "$BUT_GLM" "$SETMENU" "Global Menu"
 			refreshProtList
 			openGlobalMenu "$AID" "${FUNCNAME[0]}" "1"
-		}
-	;;
-	18)	{
-			clickInfo "${FUNCNAME[0]}" "$MMRC" "$BUT_SEARCH" "$SETMENU" "SearchSettings"
-			refreshProtList
-			openSearchMenu "$AID" "${FUNCNAME[0]}"
-		}
-	;;
-	20)	{
-			clickInfo "${FUNCNAME[0]}" "$MMRC" "$BUT_EXTRAS" "$SETMENU" "Extras"
-			ExtrasMenu "$AID" "${FUNCNAME[0]}"
 		}
 	;;
 	16)	{
@@ -658,87 +574,188 @@ function MainMenu {
 	goBackToPrevFunction "${FUNCNAME[0]}" "$2" "$GOBACK"
 }
 
-function mmAddBtn {
-	# LABEL TOOLTIP COMMAND [FORMTOOLTIP]: appends one tool button to the
-	# section being built (MMCURG) and its explanation to the section help
-	# (MMCURH). FORMTOOLTIP replaces the tooltip on the button only.
-	MMCURG+=( "--field=${1}!${4:-$2}:FBTN" "$(realpath "$0") $3" )
-	MMCURH+=( "$1" "$2" )
-}
-
 function mmAddData {
 	# VAR TYPE LABEL TOOLTIP VALUE: appends one setting of the game config to
-	# the section being built; saveMainMenuFields writes it back to VAR
-	local MMSPEC="--field=${3}!${4}:${2}"
-	MMCURG+=( "$MMSPEC" "$5" )
-	MMCURH+=( "$3" "$4" )
-	MM_DATAVARS["$MMSPEC"]="$1"
+	# the Play tab; saveMainMenuFields writes it back to VAR
+	MM_FIELDVARS[$(( ${#MM_PLAYFORM[@]} / 2 ))]="$1"
+	MM_PLAYFORM+=( "--field=${3}!${4}:${2}" "$5" )
 }
 
-function mmEndSection {
-	# NUMBER TITLE: stores the section built so far as MM_G<NUMBER> with its
-	# title and help text and starts the next one
-	local MMI
-	local -n MMDEST="MM_G$1"
-	MMDEST=( "${MMCURG[@]}" )
-	unset -n MMDEST
-	MM_TITLES[$(( $1 - 1 ))]="$2"
-	MM_HELPTXT[$(( $1 - 1 ))]=""
-	for (( MMI = 0; MMI < ${#MMCURH[@]}; MMI += 2 )); do
-		MM_HELPTXT[$(( $1 - 1 ))]+="<b>$(tgMarkupEscape "${MMCURH[$MMI]}")</b>\n$(tgMarkupEscape "${MMCURH[$(( MMI + 1 ))]}")\n\n"
-	done
-	MM_HELPTXT[$(( $1 - 1 ))]="${MM_HELPTXT[$(( $1 - 1 ))]%\\n\\n}"
-	MM_HELPCMDS[$(( $1 - 1 ))]="$(realpath "$0") game section-help $1"
-	MMCURG=()
-	MMCURH=()
+function mmAddRow {
+	# TAB KEY NAME DESCRIPTION [TOOLTIP]: appends one tool to tool tab TAB
+	# (2..5): a bold name over a one line description. KEY is what
+	# mainMenuRunRow runs when the row is picked.
+	local -n MMKEYS="MM_ROWKEYS_$1"
+	local -n MMTEXT="MM_ROWTEXT_$1"
+	local -n MMTIPS="MM_ROWTIP_$1"
+	MMKEYS+=( "$2" )
+	MMTEXT+=( "<b>$(tgMarkupEscape "$3")</b>
+<span fgalpha='60%'>$(tgMarkupEscape "$4")</span>" )
+	MMTIPS+=( "$(tgMarkupEscape "${5:-$4}")" )
 }
 
-function setMainMenuSections {
-	# The Main Menu content: the most used game settings and tools, grouped by
-	# goal into four sections (MM_G1..MM_G4, MM_TITLES, MM_HELPTXT, MM_HELPCMDS).
-	# The settings are mapped to their config variables in MM_DATAVARS.
-	local MMARGS="${GAMEARGS/#-/ -}"
+function mmBoolType {
+	# switches look like settings, but yad only has them since version 13
+	if [ -n "$YADVER" ] && [ "$(printf '%s\n' "13" "$YADVER" | sort -V | head -n1)" == "13" ]; then
+		echo "SW"
+	else
+		echo "CHK"
+	fi
+}
+
+function setMainMenuContent {
+	# The Main Menu content: the Play tab with the most used game settings
+	# (MM_PLAYFORM, mapped to their config variables in MM_FIELDVARS) and the
+	# tools grouped by goal into the other tabs (MM_TABS, MM_ROWKEYS_<n>,
+	# MM_ROWTEXT_<n>, MM_ROWTIP_<n> for n = 2..5).
+	local MMARGS="${GAMEARGS/#-/ -}" MMBOOL MMT
 	if [ "$MMARGS" == "$NON" ]; then
 		MMARGS=""
 	fi
+	MMBOOL="$(mmBoolType)"
 
-	declare -gA MM_DATAVARS=()
-	MM_TITLES=()
-	MM_HELPTXT=()
-	MM_HELPCMDS=()
-	MMCURG=()
-	MMCURH=()
+	MM_TABS=( "$GUI_MMSEC_PLAY" "$GUI_MMSEC_FIX" "$GUI_MMSEC_LOOK" "$GUI_MMSEC_MODS" "$BUT_EXTRAS" )
+	MM_PLAYFORM=()
+	MM_FIELDVARS=()
+	for MMT in 2 3 4 5; do
+		declare -ga "MM_ROWKEYS_$MMT=()" "MM_ROWTEXT_$MMT=()" "MM_ROWTIP_$MMT=()"
+	done
 
 	mmAddData USEPROTON CB "$GUI_MM_PROTON" "$TT_MM_PROTON" "$(cleanDropDown "${USEPROTON/#-/ -}" "$PROTYADLIST")"
-	mmAddBtn "$FBUT_GUISET_DCP" "$TT_DCP" "proton download"
 	mmAddData GAMEARGS "" "$GUI_MM_ARGS" "$TT_MM_ARGS" "$MMARGS"
 	mmAddData DXVK_FPSLIMIT CBE "$GUI_MM_FPSLIMIT" "$TT_MM_FPSLIMIT" "$(cleanDropDown "${DXVK_FPSLIMIT/#-/ -}" "none!30!60!75!90!120!144!165!240")"
-	mmAddData USEMANGOHUD CHK "$GUI_MM_FPSCOUNTER" "$TT_MM_FPSCOUNTER" "${USEMANGOHUD:-0}"
-	mmAddData USEGAMEMODERUN CHK "$GUI_MM_GAMEMODE" "$TT_MM_GAMEMODE" "${USEGAMEMODERUN:-0}"
-	mmEndSection 1 "$GUI_MMSEC_PLAY"
+	mmAddData USEMANGOHUD "$MMBOOL" "$GUI_MM_FPSCOUNTER" "$TT_MM_FPSCOUNTER" "${USEMANGOHUD:-0}"
+	mmAddData USEGAMEMODERUN "$MMBOOL" "$GUI_MM_GAMEMODE" "$TT_MM_GAMEMODE" "${USEGAMEMODERUN:-0}"
+	mmAddData USERESHADE "$MMBOOL" "$GUI_MM_RESHADE" "$TT_MM_RESHADE" "${USERESHADE:-0}"
+	mmAddData USEGAMESCOPE "$MMBOOL" "$GUI_MM_GAMESCOPE" "$TT_MM_GAMESCOPE" "${USEGAMESCOPE:-0}"
 
-	mmAddBtn "$FBUT_GUISET_RECREATEPFX" "$TT_RECREATEPFX" "game compatdata \"$AID\" \"s\""
-	mmAddBtn "$FBUT_GUISET_WTSEL" "$TT_WTSEL" "wine components \"$AID\""
-	mmAddBtn "$FBUT_GUISET_OPURL" "$TT_GAMEHELP" "game helpurl \"$AID\" X" "${TT_OPENURL:-$TT_GAMEHELP}"
-	mmAddBtn "$GUI_GAFI" "$TT_BROWSEFILES" "game files \"$AID\"" "${TT_GAFI:-$TT_BROWSEFILES}"
-	mmEndSection 2 "$GUI_MMSEC_FIX"
+	mmAddRow 2 fix-prefix "$FBUT_GUISET_RECREATEPFX" "$TT_RECREATEPFX"
+	mmAddRow 2 fix-components "$FBUT_GUISET_WTSEL" "$TT_WTSEL"
+	mmAddRow 2 fix-help "$FBUT_GUISET_OPURL" "$TT_GAMEHELP" "${TT_OPENURL:-$TT_GAMEHELP}"
+	mmAddRow 2 fix-files "$GUI_GAFI" "$TT_BROWSEFILES" "${TT_GAFI:-$TT_BROWSEFILES}"
 
-	mmAddBtn "$FBUT_GUISET_DXHSEL" "$TT_DXHSEL" "game dxvk-hud \"$AID\""
-	mmAddData USERESHADE CHK "$GUI_MM_RESHADE" "$TT_MM_RESHADE" "${USERESHADE:-0}"
-	mmAddBtn "$FBUT_GUISET_SHADERREPOS" "$TT_SHADERREPOS" "update shaders repos"
-	mmAddBtn "$FBUT_GUISET_UPSHADER" "$TT_UPSHADER" "update gameshaders \"$SHADDESTDIR\""
-	mmAddData USEGAMESCOPE CHK "$GUI_MM_GAMESCOPE" "$TT_MM_GAMESCOPE" "${USEGAMESCOPE:-0}"
-	mmAddBtn "$FBUT_GUISET_GASCO" "$TT_GASCO" "game gamescope \"$AID\" \"$GN\""
-	mmEndSection 3 "$GUI_MMSEC_LOOK"
+	mmAddRow 3 look-overlay "$FBUT_GUISET_DXHSEL" "$TT_DXHSEL"
+	mmAddRow 3 look-shadersgame "$FBUT_GUISET_UPSHADER" "$TT_UPSHADER"
+	mmAddRow 3 look-shadersrc "$FBUT_GUISET_SHADERREPOS" "$TT_SHADERREPOS"
+	mmAddRow 3 look-gamescope "$FBUT_GUISET_GASCO" "$TT_GASCO"
 
-	mmAddBtn "$FBUT_GUISET_VORTEX" "$TT_VORTEX" "mods vortex start"
-	mmAddBtn "$FBUT_GUISET_MO" "$TT_MO" "mods mo2 start"
-	mmEndSection 4 "$GUI_MMSEC_MODS"
+	mmAddRow 4 mods-vortex "$FBUT_GUISET_VORTEX" "$TT_VORTEX"
+	mmAddRow 4 mods-mo2 "$FBUT_GUISET_MO" "$TT_MO"
+
+	mmAddRow 5 x-protondl "$FBUT_GUISET_DCP" "$TT_DCP"
+	mmAddRow 5 x-firstrun "$FBUT_GUISET_CREATEEVALSC" "$TT_CREATEEVALSC"
+	mmAddRow 5 x-onetime "$FBUT_GUISET_OTR" "$TT_OTR"
+	mmAddRow 5 x-slr "$FBUT_GUISET_GETSLR" "$TT_GETSLR"
+	mmAddRow 5 x-wdc "$FBUT_GUISET_WDC" "$TT_WDC"
+	mmAddRow 5 x-winedl "$FBUT_GUISET_DW" "$TT_DW"
+	mmAddRow 5 x-addns "$FBUT_GUISET_ADDNSGA" "$TT_ADDNSGA"
+	mmAddRow 5 x-favsel "$FBUT_GUISET_FAVSEL" "$TT_FAVSEL"
+	mmAddRow 5 x-block "$FBUT_GUISET_BLOCKCAT" "$TT_BLOCKCAT"
+	mmAddRow 5 x-sort "$FBUT_GUISET_SORTCAT" "$TT_SORTCAT"
+	mmAddRow 5 x-search "$BUT_SEARCH" "$TT_MM_SEARCH"
+	mmAddRow 5 x-gamemenu "$BUT_GM" "$TT_MM_GAMEMENU"
+	mmAddRow 5 x-default "$GUI_MM_DEFAULTMENU" "$TT_MM_DEFAULTMENU"
+	mmAddRow 5 x-catmenu "$BUT_GUISET_CATMENUSHORT" "$TT_MM_CATMENU"
+	mmAddRow 5 x-favmenu "$BUT_FAV" "$TT_MM_FAVMENU"
+	mmAddRow 5 x-editor "$BUT_EDITORMENU" "$TT_MM_EDITOR"
+}
+
+function mmPickCmd {
+	# the command a tool row runs on double click or Enter. Yad appends the
+	# values of the row, the first one being its key.
+	local MMSELF
+	MMSELF="$(realpath "$0")"
+	printf "'%s' game menu-pick" "${MMSELF//\'/\'\\\'\'}"
+}
+
+function mmListArgs {
+	# yad --list arguments showing the rows of tool tab $1
+	local -n MMKEYS="MM_ROWKEYS_$1"
+	local -n MMTEXT="MM_ROWTEXT_$1"
+	local -n MMTIPS="MM_ROWTIP_$1"
+	local MMI
+	MMLISTARGS=( --list --no-headers --column=key:HD --column=text --column=tip:HD \
+		--hide-column=1 --tooltip-column=3 )
+	for MMI in "${!MMKEYS[@]}"; do
+		MMLISTARGS+=( "${MMKEYS[$MMI]}" "${MMTEXT[$MMI]}" "${MMTIPS[$MMI]}" )
+	done
+}
+
+function mmPlugTab {
+	# notebook plug of tab $1: the Play settings form or a tool list
+	if [ "$1" -eq 1 ]; then
+		GDK_BACKEND=x11 "${YAD:-yad}" --plug="$TGKEY" --tabnum=1 --form --separator="\n" "${MM_PLAYFORM[@]}"
+	else
+		mmListArgs "$1"
+		GDK_BACKEND=x11 "${YAD:-yad}" --plug="$TGKEY" --tabnum="$1" "${MMLISTARGS[@]}" \
+			--dclick-action="$(mmPickCmd)" >/dev/null
+	fi
+}
+
+function mainMenuNotebook {
+	# the Main Menu as one window with a tab per goal. Returns the notebook
+	# exit code, or 3 when there is no notebook support.
+	if [ -n "$USETABBEDMENU" ] && [ "$USETABBEDMENU" -eq 0 ]; then
+		return 3
+	fi
+
+	TGNB_TABS=( "${MM_TABS[@]}" )
+	TGNB_FUNCS=( mmPlugTab mmPlugTab mmPlugTab mmPlugTab mmPlugTab )
+	TGNB_TITLE="$TITLE"
+	TGNB_TEXT="$SETHEAD"
+	TGNB_IMAGE="$SHOWPIC"
+	TGNB_F1ACTION="$F1ACTIONCG"
+	TGNB_OUTPREFIX="$MTEMP/mainmenu"
+	TGNB_CSS=( "${MMCSS[@]}" )
+	# the tool lists scroll, so the window needs a size of its own
+	TGNB_GEOM=( "${MMGEOM[@]}" )
+	if [ "${#TGNB_GEOM[@]}" -eq 0 ]; then
+		TGNB_GEOM=( --width=640 --height=560 )
+	fi
+	TGNB_BUTTONS=( --button="$BUT_EXIT":0 --button="$BUT_GLM":10 --button="$BUT_PLAY":16 )
+
+	local MMNBRC=0
+	tgNotebookLaunch || MMNBRC=$?
+	unset TGNB_CSS TGNB_GEOM
+	return "$MMNBRC"
+}
+
+function mainMenuSingleForm {
+	# Main Menu without notebook support: the Play settings plus one button per
+	# tool tab, which opens the tools of that tab in their own window
+	local MMT
+	local -a MMTABBTNS=()
+	for MMT in 2 3 4 5; do
+		MMTABBTNS+=( "--field=$(tgMarkupEscape "${MM_TABS[$(( MMT - 1 ))]}")  ›:FBTN" "$(mmPickCmd) tab:$MMT" )
+	done
+
+	"$YAD" "${MMCSS[@]}" --image "$SHOWPIC" "${YADIMGTOP[@]}" --center --window-icon="$STLICON" --form "${WINDECO[@]}" --title="$TITLE" \
+	--text="$SETHEAD" --f1-action="$F1ACTIONCG" --separator="\n" \
+	"${MM_PLAYFORM[@]}" "${MMTABBTNS[@]}" \
+	--button="$BUT_EXIT":0 \
+	--button="$BUT_GLM":10 \
+	--button="$BUT_PLAY":16 \
+	"${MMGEOM[@]}" > "$MMOUTFILE" &
+	echo "$!" > "$MTEMP/mainmenu-nbpid"
+
+	local MMSFRC=0
+	wait "$!" || MMSFRC=$?
+	return "$MMSFRC"
+}
+
+function mainMenuTabList {
+	# the tools of tab $1 in their own window (single form Main Menu).
+	# Prints the key of the picked row.
+	mmListArgs "$1"
+	"$YAD" "${MMCSS[@]}" --center --window-icon="$STLICON" "${WINDECO[@]}" --title="$TITLE" \
+	--text="$(spanFont "${MM_TABS[$(( $1 - 1 ))]}" "H")" \
+	"${MMLISTARGS[@]}" --print-column=1 --separator="" \
+	--button="$BUT_BACK":1 --button="$BUT_RUN":0 "${MMGEOM[@]}" 2>/dev/null
 }
 
 function saveMainMenuFields {
 	# saves the settings of the Main Menu form output (one value per line, in
-	# the field order of MMFORM, see MM_FIELDVARS) to the game config.
+	# the field order of MM_PLAYFORM, see MM_FIELDVARS) to the game config.
 	# updateConfigEntry only writes values that differ from the loaded ones.
 	local MMI MMVAR MMVAL
 	local -a MMLINES=()
@@ -775,103 +792,84 @@ function saveMainMenuFields {
 	done
 }
 
-function mainMenuSectionHelp {
-	# small dialog explaining every entry of Main Menu section NUMBER
-	local MMSEC="$1"
-	if ! [ "$MMSEC" -ge 1 ] 2>/dev/null; then
-		writelog "SKIP" "${FUNCNAME[0]} - Invalid section '$MMSEC'"
+function mainMenuPick {
+	# called by a tool row of the open Main Menu: remembers the row and closes
+	# the menu with code 0, MainMenu then runs it. A second quick pick before
+	# the menu is gone is ignored.
+	local MMPICKFILE="$MTEMP/mainmenu-pick" MMNBPID
+	if [ -z "$1" ] || [ -f "$MMPICKFILE" ]; then
 		return
 	fi
-
-	setMainMenuSections
-	if [ -z "${MM_TITLES[$(( MMSEC - 1 ))]}" ]; then
-		writelog "SKIP" "${FUNCNAME[0]} - Unknown section '$MMSEC'"
-		return
+	mkdir -p "$MTEMP"
+	echo "$1" > "$MMPICKFILE"
+	MMNBPID="$(cat "$MTEMP/mainmenu-nbpid" 2>/dev/null)"
+	if [ -n "$MMNBPID" ]; then
+		kill -USR1 "$MMNBPID" 2>/dev/null || true
 	fi
-
-	"$YAD" --center --window-icon="$STLICON" --form "${WINDECO[@]}" --title="${MM_TITLES[$(( MMSEC - 1 ))]}" \
-	--text="<span weight='bold'>$(tgMarkupEscape "${MM_TITLES[$(( MMSEC - 1 ))]}")</span>\n\n${MM_HELPTXT[$(( MMSEC - 1 ))]}" \
-	--button="$BUT_DONE":0 >/dev/null 2>&1
 }
 
-function ExtrasMenu {
-	# The less used tools and the full settings menus, out of the Main Menu
-	writelog "INFO" "${FUNCNAME[0]} - Opening Extras"
-	setShowPic
+function mainMenuPicked {
+	# runs the row KEY picked in the Main Menu, then reopens it (PREV is the
+	# function the Main Menu goes back to)
+	local MMKEY="$1"
+	if [[ "$MMKEY" == tab:* ]]; then
+		MMKEY="$(mainMenuTabList "${MMKEY#tab:}")"
+		if [ -z "$MMKEY" ]; then
+			MainMenu "$AID" "$2"
+			return
+		fi
+	fi
 
-	TITLE="${PROGNAME}-Extras"
-	pollWinRes "$TITLE"
+	if mainMenuRunRow "$MMKEY"; then
+		return
+	fi
+	MainMenu "$AID" "$2"
+}
 
-	MMCURG=()
-	MMCURH=()
-	MM_TITLES=()
-	MM_HELPTXT=()
-	MM_HELPCMDS=()
-	declare -gA MM_DATAVARS=()
+function mainMenuRunRow {
+	# runs the Main Menu tool KEY. The tools started as separate commands
+	# return 1 so the Main Menu reopens afterwards, the menus that come back
+	# to the Main Menu on their own return 0. An unknown key returns 1.
+	local MMSELF
+	local -a MMCMD=()
+	MMSELF="$(realpath "$0")"
 
-	mmAddBtn "$FBUT_GUISET_CREATEEVALSC" "$TT_CREATEEVALSC" "game first-install \"$AID\""
-	mmAddBtn "$FBUT_GUISET_OTR" "$TT_OTR" "game onetimerun \"$AID\""
-	mmAddBtn "$FBUT_GUISET_WDC" "$TT_WDC" "wine debug-channels \"$AID\""
-	mmAddBtn "$FBUT_GUISET_DW" "$TT_DW" "wine download"
-	mmAddBtn "$FBUT_GUISET_GETSLR" "$TT_GETSLR" "proton getslr-gui \"$AID\""
-	mmEndSection 1 "$GUI_MMSEC_TOOLS"
-
-	mmAddBtn "$FBUT_GUISET_ADDNSGA" "$TT_ADDNSGA" "steam add-game"
-	mmAddBtn "$FBUT_GUISET_FAVSEL" "$TT_FAVSEL" "config favorites \"$AID\" set"
-	mmAddBtn "$FBUT_GUISET_BLOCKCAT" "$TT_BLOCKCAT" "config block"
-	mmAddBtn "$FBUT_GUISET_SORTCAT" "$TT_SORTCAT" "config sort"
-	mmEndSection 2 "$GUI_MMSEC_MENUS"
-	# plain titles, the buttons explain themselves through their tooltips
-	MM_HELPCMDS=()
-
-	MM_ORDER=( 1 2 )
-	buildMainMenuForm
-
-	MMRC=0
-	"$YAD" --image "$SHOWPIC" "${YADIMGTOP[@]}" --center --window-icon="$STLICON" --form "${WINDECO[@]}" --title="$TITLE" \
-	--text="$(spanFont "$BUT_EXTRAS" "H")" \
-	--columns="$MMCOLUMNS" --separator="" \
-	"${MMFORM[@]}" \
-	--button="$BUT_BACK":0 \
-	--button="$BUT_GM":6 \
-	--button="$BUT_DGM":8 \
-	--button="$BUT_GUISET_CATMENUSHORT":4 \
-	--button="$BUT_FAV":12 \
-	--button="$BUT_EDITORMENU":14 >/dev/null || MMRC=$?
-
-	case "$MMRC" in
-	4) 	{
-			clickInfo "${FUNCNAME[0]}" "$MMRC" "$BUT_GUISET_CATMENUSHORT" "$SETMENU" "Category Menu Selection"
-			refreshProtList
-			setGuiCategoryMenuSel "$AID" "${FUNCNAME[0]}"
-		}
-	;;
-	6) 	{
-			clickInfo "${FUNCNAME[0]}" "$MMRC" "$BUT_GM" "$SETMENU" "$GAMMENU"
-			refreshProtList
-			openGameMenu "$AID" "${FUNCNAME[0]}"
-		}
-	;;
-	8) 	{
-			clickInfo "${FUNCNAME[0]}" "$MMRC" "$BUT_DGM" "$SETMENU" "Game Default Menu"
-			refreshProtList
-			openGameDefaultMenu "$AID" "${FUNCNAME[0]}"
-		}
-	;;
-	12) 	{
-			clickInfo "${FUNCNAME[0]}" "$MMRC" "$BUT_FAV" "$SETMENU" "Favorites"
-			refreshProtList
-			favoritesMenu "$AID" "${FUNCNAME[0]}"
-		}
-	;;
-	14)	{
-			clickInfo "${FUNCNAME[0]}" "$MMRC" "$BUT_EDITORMENU" "$SETMENU" "EditorDialog"
-			EditorDialog "$AID" "${FUNCNAME[0]}"
-		}
-	;;
+	case "$1" in
+		fix-prefix)       MMCMD=( game compatdata "$AID" s ) ;;
+		fix-components)   MMCMD=( wine components "$AID" ) ;;
+		fix-help)         MMCMD=( game helpurl "$AID" X ) ;;
+		fix-files)        MMCMD=( game files "$AID" ) ;;
+		look-overlay)     MMCMD=( game dxvk-hud "$AID" ) ;;
+		look-shadersrc)   MMCMD=( update shaders repos ) ;;
+		look-shadersgame) MMCMD=( update gameshaders "$SHADDESTDIR" ) ;;
+		look-gamescope)   MMCMD=( game gamescope "$AID" "$GN" ) ;;
+		mods-vortex)      MMCMD=( mods vortex start ) ;;
+		mods-mo2)         MMCMD=( mods mo2 start ) ;;
+		x-protondl)       MMCMD=( proton download ) ;;
+		x-firstrun)       MMCMD=( game first-install "$AID" ) ;;
+		x-onetime)        MMCMD=( game onetimerun "$AID" ) ;;
+		x-slr)            MMCMD=( proton getslr-gui "$AID" ) ;;
+		x-wdc)            MMCMD=( wine debug-channels "$AID" ) ;;
+		x-winedl)         MMCMD=( wine download ) ;;
+		x-addns)          MMCMD=( steam add-game ) ;;
+		x-favsel)         MMCMD=( config favorites "$AID" set ) ;;
+		x-block)          MMCMD=( config block ) ;;
+		x-sort)           MMCMD=( config sort ) ;;
+		x-search)         refreshProtList; openSearchMenu "$AID" MainMenu; return 0 ;;
+		x-gamemenu)       refreshProtList; openGameMenu "$AID" MainMenu; return 0 ;;
+		x-default)        refreshProtList; openGameDefaultMenu "$AID" MainMenu; return 0 ;;
+		x-catmenu)        refreshProtList; setGuiCategoryMenuSel "$AID" MainMenu; return 0 ;;
+		x-favmenu)        refreshProtList; favoritesMenu "$AID" MainMenu; return 0 ;;
+		x-editor)         EditorDialog "$AID" MainMenu; return 0 ;;
+		*)
+			writelog "SKIP" "${FUNCNAME[0]} - Unknown Main Menu row '$1'"
+			return 1
+		;;
 	esac
 
-	goBackToPrevFunction "${FUNCNAME[0]}" "$2" "$GOBACK"
+	writelog "INFO" "${FUNCNAME[0]} - Running '${MMCMD[*]}' for Main Menu row '$1'"
+	"$MMSELF" "${MMCMD[@]}" || true
+	return 1
 }
 
 function createBlockYadList {

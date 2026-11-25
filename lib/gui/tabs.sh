@@ -78,9 +78,10 @@ function tgSplitTemplateByCat {
 # EMPTY, which is how "Wine & Proton" showed up as a nameless tab.
 function tgMarkupEscape {
 	local s="$1"
-	s="${s//&/&amp;}"
-	s="${s//</&lt;}"
-	s="${s//>/&gt;}"
+	# quoted replacements: bash 5.2 patsub_replacement turns a bare '&' into the match
+	s="${s//&/"&amp;"}"
+	s="${s//</"&lt;"}"
+	s="${s//>/"&gt;"}"
 	printf '%s' "$s"
 }
 
@@ -97,7 +98,10 @@ function tgNotebookLaunch {
 	#   TGNB_IMAGE     - image path
 	#   TGNB_BUTTONS   - array of complete --button=... arguments
 	#   TGNB_F1ACTION  - f1 action (omitted when empty)
-	#   TGNB_OUTPREFIX - plug stdout file prefix
+	#   TGNB_OUTPREFIX - plug stdout file prefix, the notebook PID is written
+	#                    to "${TGNB_OUTPREFIX}-nbpid"
+	#   TGNB_CSS       - optional array of --css=... arguments
+	#   TGNB_GEOM      - optional array of geometry arguments (default: $GEOM)
 	# Returns the notebook exit code, or 3 when the setup failed and the
 	# caller should fall back to a single form.
 
@@ -123,11 +127,17 @@ function tgNotebookLaunch {
 		TGNBF1=(--f1-action="$TGNB_F1ACTION")
 	fi
 
-	GDK_BACKEND=x11 "${YAD:-yad}" --notebook --key="$TGKEY" "${TGNBARGS[@]}" \
+	TGNBGEOM=( "$GEOM" )
+	if declare -p TGNB_GEOM >/dev/null 2>&1; then
+		TGNBGEOM=( "${TGNB_GEOM[@]}" )
+	fi
+
+	GDK_BACKEND=x11 "${YAD:-yad}" "${TGNB_CSS[@]}" --notebook --key="$TGKEY" "${TGNBARGS[@]}" \
 		--title="$TGNB_TITLE" --text="$TGNB_TEXT" --image="$TGNB_IMAGE" "${YADIMGTOP[@]}" --window-icon="$STLICON" --center "${WINDECO[@]}" \
 		"${TGNBF1[@]}" \
-		"${TGNB_BUTTONS[@]}" "$GEOM" >/dev/null &
+		"${TGNB_BUTTONS[@]}" "${TGNBGEOM[@]}" >/dev/null &
 	TGNBPID=$!
+	echo "$TGNBPID" > "${TGNB_OUTPREFIX}-nbpid" 2>/dev/null || true
 
 	# the notebook creates the shared memory segment during startup -
 	# plugs can only attach afterwards
@@ -142,10 +152,11 @@ function tgNotebookLaunch {
 	done
 
 	# every plug should be up by now - a dead one means the notebook would wait
-	# for its tab forever, so bail out and let the caller fall back
+	# for its tab forever, so bail out and let the caller fall back (plugs of
+	# a notebook that already closed have simply finished)
 	sleep 1
 	TGNBDEAD=0
-	for TGNBPIDV in "${TGNBPIDS[@]}"; do
+	kill -0 "$TGNBPID" 2>/dev/null && for TGNBPIDV in "${TGNBPIDS[@]}"; do
 		if ! kill -0 "$TGNBPIDV" 2>/dev/null; then
 			TGNBDEAD=1
 		fi

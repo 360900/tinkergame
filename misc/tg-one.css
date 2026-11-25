@@ -61,20 +61,6 @@
 	border-bottom: 1px solid @tg_stroke;
 }
 
-/* Flat form buttons (Main Menu section titles opening the section help)
- * look like labels and only show a light tint on hover */
-
-#yad-dialog-window button#yad-form-button.flat {
-	min-height: 0;
-	padding: 2px 6px;
-	border-color: transparent;
-	background-color: transparent;
-}
-
-#yad-dialog-window button#yad-form-button.flat:hover {
-	background-color: @tg_fill;
-}
-
 /* Dialog buttons: one row with a little air above it */
 
 #yad-dialog-window buttonbox {

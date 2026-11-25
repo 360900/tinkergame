@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
-# Main Menu tests (lib/gui/menus.sh): the single form Main Menu with its
-# settings and tool buttons grouped into titled sections, the header, the rc
-# dispatch, the autosave of its settings, the section help and Extras.
+# Main Menu tests (lib/gui/menus.sh): one notebook window with the Play
+# settings and a tab per goal listing the tools, the single form fallback,
+# the header, the rc dispatch, picking and running tool rows and the autosave
+# of the Play settings.
 #
 # yad is replaced by a stub faithful to the notebook/plug semantics (see
-# tests/unit/tabs.bats) which additionally serves plain --form invocations.
+# tests/unit/tabs.bats) which additionally serves plain --form and --list
+# invocations.
 
 load helpers
 
@@ -27,6 +29,7 @@ for a in "$@"; do
 	case "$a" in
 		--notebook) mode=notebook ;;
 		--plug=*) mode=plug ;;
+		--list) [ -z "$mode" ] && mode=list ;;
 	esac
 done
 if [ "$1" = "--help-all" ]; then
@@ -39,6 +42,13 @@ for a in "$@"; do
 		--field=*) n=$((n + 1)) ;;
 	esac
 done
+# a tool row picked once while the menu is open (see mainMenuPick)
+stub_pick() {
+	if [ -n "$STUB_PICK" ] && [ ! -f "$STUB_YAD_LOGDIR/picked" ]; then
+		touch "$STUB_YAD_LOGDIR/picked"
+		printf '%s\n' "$STUB_PICK" >"$MTEMP/mainmenu-pick"
+	fi
+}
 case "$mode" in
 	notebook)
 		printf 'notebook:%s\n' "$*" >>"$LOG"
@@ -53,6 +63,8 @@ case "$mode" in
 			sleep 0.1
 			i=$((i + 1))
 		done
+		stub_pick
+		[ -f "$STUB_YAD_LOGDIR/picked" ] && rc=0
 		# even response codes (not ESC 252 / timeout 70) make the notebook
 		# tell every plug to print its field values before exiting
 		if [ "$rc" -ne 252 ] && [ "$rc" -ne 70 ] && [ $((rc % 2)) -eq 0 ]; then
@@ -78,18 +90,26 @@ case "$mode" in
 		wait $!
 		exit 0
 		;;
+	list)
+		printf 'list:%s\n' "$*" >>"$LOG"
+		printf '%s' "$STUB_LIST_OUT"
+		exit "${STUB_LIST_RC:-0}"
+		;;
 	*)
 		printf 'form:%s\n' "$*" >>"$LOG"
+		stub_pick
+		rc="${STUB_YAD_RC:-0}"
+		[ -f "$STUB_YAD_LOGDIR/picked" ] && rc=0
 		if [ -n "$STUB_YAD_OUT" ]; then
 			cat "$STUB_YAD_OUT"
-			exit "${STUB_YAD_RC:-0}"
+			exit "$rc"
 		fi
 		i=1
 		while [ "$i" -le "$n" ]; do
 			printf 'formval%d\n' "$i"
 			i=$((i + 1))
 		done
-		exit "${STUB_YAD_RC:-0}"
+		exit "$rc"
 		;;
 esac
 STUB
@@ -98,13 +118,26 @@ STUB
 	export STUB_YAD_LOG="$BATS_TEST_TMPDIR/yad.log"
 	export STUB_YAD_LOGDIR="$BATS_TEST_TMPDIR"
 	export STUB_YAD_RC=0
-	export STUB_NB_DELAY=1
+	export STUB_NB_DELAY=0.2
+	export STUB_PLUGS=5
+	export STUB_PICK="" STUB_LIST_OUT="" STUB_LIST_RC=0
 	: >"$STUB_YAD_LOG"
 
 	prepareGUI   # fills YADHELP/YADIMGTOP/WINDECO through the stub
 
+	# the program itself, as the tool rows run it: logs one argument per line
+	MARK="$BATS_TEST_TMPDIR/markers"
+	mkdir -p "$MARK"
+	export TGSELF="$BATS_TEST_TMPDIR/stubbin/tinkergame"
+	cat >"$TGSELF" <<STUB
+#!/bin/bash
+printf '%s\n' "\$@" >"$MARK/self"
+STUB
+	chmod +x "$TGSELF"
+	realpath() { echo "$TGSELF"; }
+
 	# ---- environment ----
-	export USETABBEDMENU=1 COLCOUNT=4 GEOM=""
+	export USETABBEDMENU=1 COLCOUNT=4 GEOM="" YADVER="15.0"
 	export STLICON="$BATS_TEST_TMPDIR/icon.png"
 	export SHOWPIC="$BATS_TEST_TMPDIR/showpic.png"
 	export F1ACTIONCG="bash -c setColGui"
@@ -112,17 +145,15 @@ STUB
 	export SMALLDESK=1 ONSTEAMDECK=0 STEAMDECKCOMPATRATING="Good"
 	export SHADDESTDIR="/tmp/shaders" VTX="vortex" HEADLINEFONT="larger"
 	export BUT_EXIT="EXIT" BUT_GUISET_CATMENUSHORT="CATEGORIES" BUT_GM="GAME MENU"
-	export BUT_DGM="DEFAULT GAME MENU" BUT_GLM="GLOBAL MENU" BUT_FAV="FAVORITES"
-	export BUT_EDITORMENU="EDITOR" BUT_SEARCH="SEARCH" BUT_PLAY="PLAY"
-	export BUT_EXTRAS="EXTRAS" BUT_BACK="BACK" BUT_DONE="DONE"
-	export GUI_MMSEC_PLAY="Play settings" GUI_MMSEC_FIX="Fix problems"
+	export BUT_GLM="GLOBAL MENU" BUT_FAV="FAVORITES" BUT_EDITORMENU="EDITOR"
+	export BUT_SEARCH="SEARCH" BUT_PLAY="PLAY" BUT_EXTRAS="EXTRAS" BUT_BACK="BACK" BUT_RUN="RUN"
+	export GUI_MMSEC_PLAY="Play" GUI_MMSEC_FIX="Fix problems"
 	export GUI_MMSEC_LOOK="Look & performance" GUI_MMSEC_MODS="Mods"
-	export GUI_MMSEC_TOOLS="Game tools" GUI_MMSEC_MENUS="Steam and menus"
 	export GUI_MM_PROTON="PROTON" GUI_MM_ARGS="ARGS" GUI_MM_FPSLIMIT="FPS LIMIT"
 	export GUI_MM_FPSCOUNTER="FPS COUNTER" GUI_MM_GAMEMODE="GAMEMODE"
-	export GUI_MM_RESHADE="RESHADE" GUI_MM_GAMESCOPE="GAMESCOPE ON"
-	export TT_MM_PROTON="Pick the Proton version." TT_MMSECHELP="What do these do?"
-	export TT_RECREATEPFX="Start over with a fresh prefix."
+	export GUI_MM_RESHADE="RESHADE" GUI_MM_GAMESCOPE="GAMESCOPE ON" GUI_MM_DEFAULTMENU="DEFAULTS"
+	export TT_MM_PROTON="Pick the Proton version."
+	export TT_RECREATEPFX="Start over with a <fresh> prefix."
 	export NOTY_RESHADEHOTKEY="RESHADE NOTE"
 	export FBUT_GUISET_DCP="DL CUSTOM PROTON" FBUT_GUISET_DW="DL WINE"
 	export FBUT_GUISET_RECREATEPFX="RESET PFX" FBUT_GUISET_WDC="WINE DEBUG"
@@ -139,8 +170,6 @@ STUB
 	export USEMANGOHUD=0 USEGAMEMODERUN=1 USERESHADE=0 USEGAMESCOPE=0
 	export STLGAMECFG="$BATS_TEST_TMPDIR/game.conf"
 	CfgFiles=()
-	MARK="$BATS_TEST_TMPDIR/markers"
-	mkdir -p "$MARK"
 
 	# ---- function overrides ----
 	createDLReShadeList() { :; }
@@ -179,46 +208,80 @@ teardown() {
 	pkill -f -- "$BATS_TEST_TMPDIR/stubbin/yad" 2>/dev/null || true
 }
 
-# fields of the logged form call, one per line, in order
-form_fields() {
-	grep '^form:' "$STUB_YAD_LOG" | grep -o -- "--field=[^:]*:[A-Z]*" 
+# the logged plug call of tab $1 (list rows span several lines)
+plug_of() {
+	awk -v t="--tabnum=$1 " '
+		/^(notebook|plug|list|form):/ { on = (index($0, "plug:") == 1 && index($0, t) > 0) }
+		on
+	' "$STUB_YAD_LOG"
 }
 
-@test "mainmenu: one form with settings and tool buttons in four titled sections" {
+# keys of the rows of tool tab $1, in order
+tab_keys() {
+	setMainMenuContent
+	local -n keys="MM_ROWKEYS_$1"
+	printf '%s ' "${keys[@]}"
+}
+
+@test "mainmenu: one notebook with the Play settings and four tool tabs" {
 	run MainMenu "12345"
 	[ "$status" -eq 0 ]
-	# a single plain form, no notebook
-	[ "$(grep -c '^form:' "$STUB_YAD_LOG")" -eq 1 ]
-	[ "$(grep -c '^notebook:' "$STUB_YAD_LOG")" -eq 0 ]
-	[ "$(form_fields | grep -c ':FBTN$')" -eq 11 ]
-	# the settings of the game config
-	[ "$(form_fields | grep -c ':CHK$')" -eq 4 ]
-	[ "$(form_fields | grep -c ':CB$')" -eq 1 ]
-	[ "$(form_fields | grep -c ':CBE$')" -eq 1 ]
-	grep -qF -- '--field=ARGS!:' "$STUB_YAD_LOG"
-	grep -qF -- '--field=PROTON!Pick the Proton version.:CB' "$STUB_YAD_LOG"
-	# four section titles as help buttons, markup escaped
-	[ "$(form_fields | grep ':BTN$' | grep -c "fgalpha='65%'")" -eq 4 ]
-	grep -qF -- 'Look &amp; performance ⓘ</span>!What do these do?:BTN' "$STUB_YAD_LOG"
-	grep -qF -- 'game section-help 3' "$STUB_YAD_LOG"
-	# labels and AID-carrying commands intact
-	grep -qF -- 'DL CUSTOM PROTON' "$STUB_YAD_LOG"
-	grep -qF -- 'RESET PFX!Start over with a fresh prefix.:FBTN' "$STUB_YAD_LOG"
-	grep -qF -- 'game compatdata "12345" "s"' "$STUB_YAD_LOG"
-	grep -qF -- 'wine components "12345"' "$STUB_YAD_LOG"
-	# the rarely used tools are in Extras
-	[ "$(grep -cF -- 'proton getslr-gui' "$STUB_YAD_LOG")" -eq 0 ]
-	[ "$(grep -cF -- 'ONE TIME RUN' "$STUB_YAD_LOG")" -eq 0 ]
-	# header text and game picture
-	grep -qF -- "--image $SHOWPIC" "$STUB_YAD_LOG"
-	# COLCOUNT=4 puts all four sections side by side
-	grep -qF -- '--columns=4' "$STUB_YAD_LOG"
-	grep -qF -- '--separator=\n' "$STUB_YAD_LOG"
+	[ "$(grep -c '^notebook:' "$STUB_YAD_LOG")" -eq 1 ]
+	[ "$(grep -c '^plug:' "$STUB_YAD_LOG")" -eq 5 ]
+	[ "$(grep -c '^form:' "$STUB_YAD_LOG")" -eq 0 ]
+	# tab labels, markup escaped
+	grep -qF -- '--tab=Play --tab=Fix problems --tab=Look &amp; performance --tab=Mods --tab=EXTRAS' "$STUB_YAD_LOG"
+	# the Play tab is a form of the game settings
+	local play
+	play="$(plug_of 1)"
+	[[ "$play" == *'--form --separator=\n'* ]]
+	[[ "$play" == *'--field=PROTON!Pick the Proton version.:CB Proton Experimental!GE-Proton11-12'* ]]
+	[[ "$play" == *'--field=ARGS!:  '* ]]
+	[[ "$play" == *'--field=FPS LIMIT!:CBE none!30!60'* ]]
+	[ "$(grep -o -- ':SW ' <<< "$play" | wc -l)" -eq 4 ]
+	# the tool tabs are lists that pick their row on double click
+	local t
+	for t in 2 3 4 5; do
+		[[ "$(plug_of "$t")" == *"--list --no-headers --column=key:HD --column=text --column=tip:HD --hide-column=1 --tooltip-column=3"* ]]
+		[[ "$(plug_of "$t")" == *"--dclick-action='$TGSELF' game menu-pick"* ]]
+	done
+	[[ "$(plug_of 2)" == *"fix-prefix <b>RESET PFX</b>"* ]]
+	[[ "$(plug_of 2)" == *"Start over with a &lt;fresh&gt; prefix."* ]]
+	[[ "$(plug_of 5)" == *"x-slr <b>GET SLR</b>"* ]]
+	# bottom bar
+	[ "$(grep '^notebook:' "$STUB_YAD_LOG" | grep -o -- '--button=[^:]*:[0-9]*' | tr '\n' '|')" = "--button=EXIT:0|--button=GLOBAL MENU:10|--button=PLAY:16|" ]
+	grep -qF -- "--image=$SHOWPIC" "$STUB_YAD_LOG"
 }
 
-@test "mainmenu: the bottom bar is Exit, Search, Settings, Extras and Play" {
-	run MainMenu "12345"
-	[ "$(grep '^form:' "$STUB_YAD_LOG" | grep -o -- '--button=[^:]*:[0-9]*' | tr '\n' '|')" = "--button=EXIT:0|--button=SEARCH:18|--button=GLOBAL MENU:10|--button=EXTRAS:20|--button=PLAY:16|" ]
+@test "mainmenu: the tools are grouped by goal" {
+	[ "$(tab_keys 2)" = "fix-prefix fix-components fix-help fix-files " ]
+	[ "$(tab_keys 3)" = "look-overlay look-shadersgame look-shadersrc look-gamescope " ]
+	[ "$(tab_keys 4)" = "mods-vortex mods-mo2 " ]
+	[ "$(tab_keys 5)" = "x-protondl x-firstrun x-onetime x-slr x-wdc x-winedl x-addns x-favsel x-block x-sort x-search x-gamemenu x-default x-catmenu x-favmenu x-editor " ]
+}
+
+@test "mainmenu: every tool row has a command" {
+	local t k
+	mainMenuRunRow() { :; }
+	eval "$(sed -n '/^function mainMenuRunRow {/,/^}/p' "$TG_ROOT/lib/gui/menus.sh")"
+	writelog() { [ "$1" != "SKIP" ]; }
+	for t in 2 3 4 5; do
+		for k in $(tab_keys "$t"); do
+			rm -f "$MARK/self" "$MARK"/open* "$MARK"/catsel "$MARK"/favoritesMenu "$MARK"/EditorDialog
+			mainMenuRunRow "$k" || true
+			[ -f "$MARK/self" ] || [ "$(ls "$MARK" | grep -cv '^cfg$\|^noti$')" -ge 1 ]
+		done
+	done
+}
+
+@test "mainmenu: old yad versions get check boxes instead of switches" {
+	YADVER="7.2"
+	setMainMenuContent
+	[ "$(printf '%s\n' "${MM_PLAYFORM[@]}" | grep -c ':CHK$')" -eq 4 ]
+	[ "$(printf '%s\n' "${MM_PLAYFORM[@]}" | grep -c ':SW$')" -eq 0 ]
+	YADVER="13.0"
+	setMainMenuContent
+	[ "$(printf '%s\n' "${MM_PLAYFORM[@]}" | grep -c ':SW$')" -eq 4 ]
 }
 
 @test "mainmenu: rc=10 opens the settings" {
@@ -228,67 +291,171 @@ form_fields() {
 	[ -f "$MARK/openGlobalMenu" ]
 }
 
-@test "mainmenu: rc=20 opens Extras with the other tools and menus" {
-	STUB_YAD_RC=20
+@test "mainmenu: rc=16 dispatches to the game" {
+	STUB_YAD_RC=16
 	run MainMenu "12345"
 	[ "$status" -eq 0 ]
-	[ "$(grep -c '^form:' "$STUB_YAD_LOG")" -eq 2 ]
-	local extras
-	extras="$(grep '^form:' "$STUB_YAD_LOG" | tail -n1)"
-	[[ "$extras" == *'proton getslr-gui "12345"'* ]]
-	[[ "$extras" == *'game first-install "12345"'* ]]
-	[[ "$extras" == *'ONE TIME RUN'* ]]
-	[[ "$extras" == *'config favorites "12345" set'* ]]
-	[[ "$extras" == *"Steam and menus</span>:LBL"* ]]
-	[[ "$extras" != *'section-help'* ]]
-	[ "$(grep -o -- '--button=[^:]*:[0-9]*' <<< "$extras" | tr '\n' '|')" = "--button=BACK:0|--button=GAME MENU:6|--button=DEFAULT GAME MENU:8|--button=CATEGORIES:4|--button=FAVORITES:12|--button=EDITOR:14|" ]
+	[ -f "$MARK/startSteamGame" ]
+	[ ! -f "$MARK/closeSTL" ]
 }
 
-@test "extras: the buttons open the full settings menus" {
+@test "mainmenu: rc=0 exits through closeSTL" {
+	run MainMenu "12345"
+	[ "$status" -eq 0 ]
+	[ -f "$MARK/closeSTL" ]
+	[ ! -f "$MARK/goBack" ]
+}
+
+@test "mainmenu: a pick left over from an earlier menu does not run on Exit" {
+	echo "fix-prefix" >"$MTEMP/mainmenu-pick"
+	run MainMenu "12345"
+	[ "$status" -eq 0 ]
+	[ -f "$MARK/closeSTL" ]
+	[ ! -f "$MARK/self" ]
+}
+
+@test "mainmenu: ESC (252) falls through without dispatching or saving" {
+	STUB_YAD_RC=252
+	run MainMenu "12345"
+	[ "$status" -eq 0 ]
+	[ -f "$MARK/goBack" ]
+	[ ! -f "$MARK/startSteamGame" ]
+	[ ! -f "$MARK/cfg" ]
+}
+
+@test "mainmenu: a picked tool runs with the game name intact, then the menu reopens" {
+	GN="It's \"Quoted\" \$HOME \`x\`"
+	STUB_PICK="look-gamescope"
+	run MainMenu "12345"
+	[ "$status" -eq 0 ]
+	[ "$(cat "$MARK/self")" = "game
+gamescope
+12345
+$GN" ]
+	# reopened and left with Exit
+	[ "$(grep -c '^notebook:' "$STUB_YAD_LOG")" -eq 2 ]
+	[ -f "$MARK/closeSTL" ]
+	# the Play settings were saved on the way
+	grep -q '^USEPROTON=plugval1$' "$MARK/cfg"
+}
+
+@test "mainmenu: a picked menu row opens that menu and comes back to the Main Menu" {
+	STUB_PICK="x-gamemenu"
+	run MainMenu "12345"
+	[ "$status" -eq 0 ]
+	[ -f "$MARK/openGameMenu" ]
+	[ "$(grep -c '^notebook:' "$STUB_YAD_LOG")" -eq 1 ]
+}
+
+@test "mainMenuRunRow: CLI rows get their arguments one by one" {
 	local pair
-	for pair in 6:openGameMenu 8:openGameDefaultMenu 4:catsel 12:favoritesMenu 14:EditorDialog; do
-		rm -f "$MARK"/*
-		STUB_YAD_RC="${pair%%:*}"
-		run ExtrasMenu "12345" MainMenu
-		[ "$status" -eq 0 ]
-		[ -f "$MARK/${pair#*:}" ]
-		[ -f "$MARK/goBack" ]
+	for pair in "fix-prefix:game compatdata 12345 s" "fix-components:wine components 12345" \
+		"look-shadersgame:update gameshaders /tmp/shaders" "x-slr:proton getslr-gui 12345" \
+		"x-favsel:config favorites 12345 set" "mods-mo2:mods mo2 start"; do
+		rm -f "$MARK/self"
+		run mainMenuRunRow "${pair%%:*}"
+		[ "$status" -eq 1 ]
+		[ "$(tr '\n' ' ' < "$MARK/self")" = "${pair#*:} " ]
 	done
 }
 
-# Main Menu form output with VAR=VALUE at the line of the field of VAR
+@test "mainMenuRunRow: unknown rows run nothing" {
+	run mainMenuRunRow "zz-nope"
+	[ "$status" -eq 1 ]
+	[ ! -f "$MARK/self" ]
+}
+
+@test "mainMenuPick: remembers the row and closes the menu, a second quick pick is ignored" {
+	sleep 30 &
+	local first=$!
+	echo "$first" >"$MTEMP/mainmenu-nbpid"
+	mainMenuPick "fix-help"
+	[ "$(cat "$MTEMP/mainmenu-pick")" = "fix-help" ]
+	wait "$first" || true
+	! kill -0 "$first" 2>/dev/null
+
+	sleep 30 &
+	local second=$!
+	echo "$second" >"$MTEMP/mainmenu-nbpid"
+	mainMenuPick "fix-files"
+	[ "$(cat "$MTEMP/mainmenu-pick")" = "fix-help" ]
+	kill -0 "$second"
+	kill "$second"
+}
+
+@test "mainMenuPick: an empty row is ignored" {
+	mainMenuPick ""
+	[ ! -f "$MTEMP/mainmenu-pick" ]
+}
+
+@test "mainmenu: without notebook support one form with a button per tool tab" {
+	USETABBEDMENU=0
+	STUB_YAD_RC=16
+	run MainMenu "12345"
+	[ "$status" -eq 0 ]
+	[ "$(grep -c '^notebook:' "$STUB_YAD_LOG")" -eq 0 ]
+	[ "$(grep -c '^form:' "$STUB_YAD_LOG")" -eq 1 ]
+	local form
+	form="$(grep '^form:' "$STUB_YAD_LOG")"
+	[ "$(grep -o -- ':FBTN ' <<< "$form" | wc -l)" -eq 4 ]
+	[[ "$form" == *"Look &amp; performance  ›:FBTN '$TGSELF' game menu-pick tab:3"* ]]
+	[ -f "$MARK/startSteamGame" ]
+	grep -q '^USEPROTON=formval1$' "$MARK/cfg"
+
+	: >"$STUB_YAD_LOG"
+	USETABBEDMENU=1
+	unset DISPLAY
+	run MainMenu "12345"
+	[ "$(grep -c '^form:' "$STUB_YAD_LOG")" -eq 1 ]
+}
+
+@test "mainmenu: the single form opens the tools of a tab in their own list" {
+	USETABBEDMENU=0
+	STUB_PICK="tab:4"
+	STUB_LIST_OUT="mods-mo2"
+	run MainMenu "12345"
+	[ "$status" -eq 0 ]
+	local list
+	list="$(awk '/^(notebook|plug|list|form):/ { on = (index($0, "list:") == 1) } on' "$STUB_YAD_LOG")"
+	[[ "$list" == *"mods-vortex <b>VORTEX</b>"* ]]
+	[[ "$list" == *"--print-column=1"* ]]
+	[[ "$list" == *"--button=BACK:1 --button=RUN:0"* ]]
+	[ "$(tr '\n' ' ' < "$MARK/self")" = "mods mo2 start " ]
+	# back in the Main Menu afterwards
+	[ "$(grep -c '^form:' "$STUB_YAD_LOG")" -eq 2 ]
+}
+
+@test "mainmenu: Back in a tab list returns to the Main Menu without running anything" {
+	USETABBEDMENU=0
+	STUB_PICK="tab:2"
+	STUB_LIST_OUT=""
+	STUB_LIST_RC=1
+	run MainMenu "12345"
+	[ "$status" -eq 0 ]
+	[ ! -f "$MARK/self" ]
+	[ "$(grep -c '^form:' "$STUB_YAD_LOG")" -eq 2 ]
+}
+
+# Play tab output with VAR=VALUE at the line of the field of VAR
 mm_output() {
 	local -A want=()
 	local kv i
 	for kv in "$@"; do
 		want["${kv%%=*}"]="${kv#*=}"
 	done
-	for (( i = 0; i < ${#MMFORM[@]} / 2; i++ )); do
-		if [ -n "${MM_FIELDVARS[$i]}" ]; then
-			printf '%s\n' "${want[${MM_FIELDVARS[$i]}]}"
-		else
-			printf '\n'
-		fi
+	for (( i = 0; i < ${#MM_PLAYFORM[@]} / 2; i++ )); do
+		printf '%s\n' "${want[${MM_FIELDVARS[$i]}]}"
 	done
 }
 
-mm_build() {
-	setMainMenuSections
-	MM_ORDER=( 1 3 2 4 )
-	buildMainMenuForm
-}
-
-@test "mainmenu: every setting field maps to its config variable" {
-	mm_build
-	[ "$(printf '%s\n' "${MM_FIELDVARS[@]}" | sort | tr '\n' ' ')" = "DXVK_FPSLIMIT GAMEARGS USEGAMEMODERUN USEGAMESCOPE USEMANGOHUD USEPROTON USERESHADE " ]
-	local i
-	for i in "${!MM_FIELDVARS[@]}"; do
-		[[ "${MMFORM[$(( i * 2 ))]}" == *":CB" || "${MMFORM[$(( i * 2 ))]}" == *":CBE" || "${MMFORM[$(( i * 2 ))]}" == *":CHK" || "${MMFORM[$(( i * 2 ))]}" == *"!:" ]]
-	done
+@test "mainmenu: every Play field maps to its config variable" {
+	setMainMenuContent
+	[ "${MM_FIELDVARS[*]}" = "USEPROTON GAMEARGS DXVK_FPSLIMIT USEMANGOHUD USEGAMEMODERUN USERESHADE USEGAMESCOPE" ]
+	[ "$(( ${#MM_PLAYFORM[@]} / 2 ))" -eq 7 ]
 }
 
 @test "mainmenu: leaving with a button saves the settings to the game config" {
-	mm_build
+	setMainMenuContent
 	mm_output USEPROTON=GE-Proton11-12 "GAMEARGS= -fullscreen" DXVK_FPSLIMIT=60 USEMANGOHUD=TRUE USEGAMEMODERUN=FALSE USERESHADE=FALSE USEGAMESCOPE=TRUE >"$BATS_TEST_TMPDIR/out"
 	saveMainMenuFields "$(cat "$BATS_TEST_TMPDIR/out")"
 	grep -qx 'USEPROTON=GE-Proton11-12' "$MARK/cfg"
@@ -305,34 +472,23 @@ mm_build() {
 	[ ! -f "$MARK/noti" ]
 }
 
-@test "mainmenu: empty launch options are saved as none, an empty dropdown is skipped" {
-	mm_build
+@test "mainmenu: empty launch options are saved as none, an empty Proton list is skipped" {
+	PROTYADLIST=""
+	USEPROTON=""
+	setMainMenuContent
 	saveMainMenuFields "$(mm_output USEPROTON= GAMEARGS= USEMANGOHUD=FALSE)"
 	grep -qx 'GAMEARGS=none' "$MARK/cfg"
 	[ "$(grep -c '^USEPROTON=' "$MARK/cfg")" -eq 0 ]
-	[ "$USEPROTON" = "Proton Experimental" ]
 }
 
 @test "mainmenu: closing the window saves nothing" {
-	mm_build
+	setMainMenuContent
 	saveMainMenuFields ""
 	[ ! -f "$MARK/cfg" ]
 }
 
-@test "mainmenu: the form output of MainMenu is saved" {
-	STUB_YAD_RC=16
-	mm_build
-	mm_output USEPROTON=GE-Proton11-12 USEGAMEMODERUN=TRUE >"$BATS_TEST_TMPDIR/out"
-	export STUB_YAD_OUT="$BATS_TEST_TMPDIR/out"
-	run MainMenu "12345"
-	[ "$status" -eq 0 ]
-	[ -f "$MARK/startSteamGame" ]
-	grep -qx 'USEPROTON=GE-Proton11-12' "$MARK/cfg"
-	grep -qx 'USEGAMEMODERUN=TRUE' "$MARK/cfg"
-}
-
 @test "mainmenu: turning ReShade on shows the hotkey note once" {
-	mm_build
+	setMainMenuContent
 	saveMainMenuFields "$(mm_output USERESHADE=TRUE)"
 	[ "$(cat "$MARK/noti")" = "RESHADE NOTE" ]
 	[ "$USERESHADE" = "1" ]
@@ -341,103 +497,7 @@ mm_build() {
 	[ "$(wc -l < "$MARK/noti")" -eq 1 ]
 }
 
-@test "mainMenuSectionHelp: explains every entry of the section" {
-	run mainMenuSectionHelp 2
-	[ "$status" -eq 0 ]
-	local help
-	help="$(grep '^form:' "$STUB_YAD_LOG")"
-	[[ "$help" == *"--title=Fix problems"* ]]
-	[[ "$help" == *'<b>RESET PFX</b>\nStart over with a fresh prefix.'* ]]
-	[[ "$help" == *'<b>GAME FILES</b>'* ]]
-	[[ "$help" == *"--button=DONE:0"* ]]
-
-	: >"$STUB_YAD_LOG"
-	run mainMenuSectionHelp 3
-	[[ "$(grep '^form:' "$STUB_YAD_LOG")" == *"Look &amp; performance</span>"* ]]
-}
-
-@test "mainMenuSectionHelp: invalid sections open nothing" {
-	local sec
-	for sec in 0 9 abc ""; do
-		run mainMenuSectionHelp "$sec"
-		[ "$status" -eq 0 ]
-	done
-	[ "$(grep -c '^form:' "$STUB_YAD_LOG")" -eq 0 ]
-}
-
-# test sections: sizes with title 4, 4, 4, 3, 5, 6 (sections 1..6)
-mm_sections() {
-	MM_G1=(a 1 b 2 c 3) MM_G2=(a 1 b 2 c 3) MM_G3=(a 1 b 2 c 3)
-	MM_G4=(a 1 b 2) MM_G5=(a 1 b 2 c 3 d 4) MM_G6=(a 1 b 2 c 3 d 4 e 5)
-	MM_TITLES=(T1 T2 T3 T4 T5 T6)
-	MM_ORDER=( 6 5 2 3 1 4 )
-}
-
-# row index of every section title, keyed by title, for the current MMFORM
-# laid out in MMCOLUMNS columns (yad fills columns top to bottom)
-mm_title_rows() {
-	local cells rows i f t
-	cells=$(( ${#MMFORM[@]} / 2 ))
-	rows=$(( cells / MMCOLUMNS ))
-	for (( i = 0; i < cells; i++ )); do
-		f="${MMFORM[$(( i * 2 ))]}"
-		if [[ "$f" == *"</span>:LBL" ]]; then
-			t="${f%</span>:LBL}"; t="${t##*>}"
-			printf '%s %d %d\n' "$t" $(( i % rows )) $(( i / rows ))
-		fi
-	done
-}
-
-@test "mainmenu: every column holds the same number of cells" {
-	mm_sections
-	for cols in 1 2 3 4 5 6 9; do
-		COLCOUNT="$cols"
-		buildMainMenuForm
-		[ $(( ${#MMFORM[@]} / 2 % MMCOLUMNS )) -eq 0 ]
-	done
-}
-
-@test "mainmenu: columns are the largest divisor of the section count up to COLCOUNT" {
-	mm_sections
-	for pair in 1:1 2:2 3:3 4:3 5:3 6:6 9:6; do
-		COLCOUNT="${pair%:*}"
-		buildMainMenuForm
-		[ "$MMCOLUMNS" -eq "${pair#*:}" ]
-	done
-}
-
-@test "mainmenu: section titles of a band share one row across the columns" {
-	mm_sections
-	COLCOUNT=4
-	buildMainMenuForm
-	[ "$MMCOLUMNS" -eq 3 ]
-	# band 1: T6 (6), T5 (5), T2 (4) -> 6 rows; band 2: T3, T1, T4 -> 4 rows
-	[ "$(( ${#MMFORM[@]} / 2 ))" -eq 30 ]
-	run mm_title_rows
-	[ "$(sort <<< "$output" | tr '\n' '|')" = "T1 6 1|T2 0 2|T3 6 0|T4 6 2|T5 0 1|T6 0 0|" ]
-
-	COLCOUNT=2
-	buildMainMenuForm
-	# bands: T6 T5 (6), T2 T3 (4), T1 T4 (4) -> 14 rows per column
-	[ "$(( ${#MMFORM[@]} / 2 ))" -eq 28 ]
-	run mm_title_rows
-	[ "$(sort <<< "$output" | tr '\n' '|')" = "T1 10 0|T2 6 0|T3 6 1|T4 10 1|T5 0 1|T6 0 0|" ]
-}
-
-@test "mainmenu: invalid COLCOUNT falls back to one column" {
-	COLCOUNT="abc"
-	MM_G1=(a 1) MM_G2=(a 1) MM_G3=(a 1) MM_G4=(a 1) MM_G5=(a 1) MM_G6=(a 1)
-	MM_TITLES=(T1 T2 T3 T4 T5 T6)
-	MM_ORDER=( 1 2 3 4 5 6 )
-	buildMainMenuForm
-	[ "$MMCOLUMNS" -eq 1 ]
-	[ "${#MMFORM[@]}" -eq 24 ]
-	[ "$(printf '%s\n' "${MMFORM[@]}" | grep -c -- '^--field= :LBL$')" -eq 0 ]
-}
-
 @test "mainmenu: header shows the game title, the version and no empty config line" {
-	SGNAID="Test Game (12345)"
-	fixShowGnAid() { :; }
 	PROGVERS="v9.9.9"
 	run MainMenu "12345"
 	[ "$status" -eq 0 ]
@@ -456,11 +516,11 @@ mm_title_rows() {
 	grep -qF -- '3 editable config files found' "$STUB_YAD_LOG"
 }
 
-@test "mainmenu: sized to content off the Steam Deck, fixed geometry with scrolling on it" {
+@test "mainmenu: a fixed size off the Steam Deck, screen geometry with scrolling on it" {
 	GEOM="--geometry=1280x800+0+0"
 	run MainMenu "12345"
+	grep -qF -- '--width=640 --height=560' "$STUB_YAD_LOG"
 	[ "$(grep -cF -- '--geometry=' "$STUB_YAD_LOG")" -eq 0 ]
-	[ "$(grep -cF -- '--scroll' "$STUB_YAD_LOG")" -eq 0 ]
 
 	: >"$STUB_YAD_LOG"
 	ONSTEAMDECK=1
@@ -471,57 +531,12 @@ mm_title_rows() {
 @test "mainmenu: the Main Menu stylesheet is passed only with the default CSS" {
 	TGMAINCSS="/usr/share/tinkergame/misc/tg-one-main.css"
 	run MainMenu "12345"
-	grep -qF -- "form:--css=$TGMAINCSS " "$STUB_YAD_LOG"
+	grep -qF -- "notebook:--css=$TGMAINCSS --notebook" "$STUB_YAD_LOG"
 
 	: >"$STUB_YAD_LOG"
 	TGMAINCSS=""
 	run MainMenu "12345"
 	[ "$(grep -cF -- '--css=' "$STUB_YAD_LOG")" -eq 0 ]
-}
-
-@test "mainmenu: rc=16 dispatches to the game" {
-	STUB_YAD_RC=16
-	run MainMenu "12345"
-	[ "$status" -eq 0 ]
-	[ -f "$MARK/startSteamGame" ]
-	[ ! -f "$MARK/openGameMenu" ]
-}
-
-@test "mainmenu: rc=18 dispatches to the settings search" {
-	STUB_YAD_RC=18
-	run MainMenu "12345"
-	[ "$status" -eq 0 ]
-	[ -f "$MARK/openSearchMenu" ]
-}
-
-@test "mainmenu: rc=0 exits through closeSTL" {
-	STUB_YAD_RC=0
-	run MainMenu "12345"
-	[ "$status" -eq 0 ]
-	[ -f "$MARK/closeSTL" ]
-	[ ! -f "$MARK/goBack" ]
-}
-
-@test "mainmenu: ESC (252) falls through without dispatching" {
-	STUB_YAD_RC=252
-	run MainMenu "12345"
-	[ "$status" -eq 0 ]
-	[ -f "$MARK/goBack" ]
-	[ ! -f "$MARK/openGameMenu" ]
-	[ ! -f "$MARK/startSteamGame" ]
-}
-
-@test "mainmenu: USETABBEDMENU=0 and no DISPLAY open the same single form" {
-	USETABBEDMENU=0
-	run MainMenu "12345"
-	[ "$(grep -c '^form:' "$STUB_YAD_LOG")" -eq 1 ]
-	: >"$STUB_YAD_LOG"
-	USETABBEDMENU=1
-	unset DISPLAY
-	STUB_YAD_RC=16
-	run MainMenu "12345"
-	[ "$(grep -c '^form:' "$STUB_YAD_LOG")" -eq 1 ]
-	[ -f "$MARK/startSteamGame" ]
 }
 
 @test "fixShowGnAid: a failed title lookup falls back to the game name, not its error text" {
