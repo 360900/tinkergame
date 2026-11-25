@@ -107,7 +107,7 @@
 	border-radius: 999px;
 }
 
-/* Notebook (tabbed settings menus): pill tabs, selection as accent container */
+/* Notebook (tabbed settings menus): pill tabs, selection as filled accent */
 
 #yad-dialog-window notebook,
 #yad-dialog-window notebook > header {
@@ -136,9 +136,13 @@
 }
 
 #yad-dialog-window notebook > header tab:checked {
-	background-color: @tg_accent_container;
-	color: @theme_fg_color;
+	background-color: @tg_accent;
+	color: @tg_on_accent;
 	font-weight: bold;
+}
+
+#yad-dialog-window notebook > header tab:checked label {
+	color: @tg_on_accent;
 }
 
 #yad-dialog-window notebook > stack {
