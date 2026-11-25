@@ -115,14 +115,29 @@ function favoritesMenu {
 	fi
 }
 
-# Hardware the entries tagged with '#REQ_<NAME>' need, as 'name=0|1' lines.
-# Entries for missing hardware are left out of the caches, so the GUI never offers them
+# Hardware and programs the entries tagged with '#REQ_<NAME>' need, as 'name=0|1' lines.
+# Entries with a missing requirement are left out of the caches, so the GUI never offers them
 function getSettingsEntriesReqs {
 	if haveDgpu; then
 		echo "dgpu=1"
 	else
 		echo "dgpu=0"
 	fi
+	if haveMako; then
+		echo "mako=1"
+	else
+		echo "mako=0"
+	fi
+}
+
+# true if ENTRY has a '#REQ_<NAME>' tag whose requirement is missing in REQS
+function entryReqMissing {
+	local ENTRY="$1" REQS="$2" REQ
+	while read -r REQ; do
+		[ -z "$REQ" ] && continue
+		grep -qx "${REQ,,}=1" <<< "$REQS" || return 0
+	done <<< "$(grep -oP '`#REQ_\K[A-Z0-9]+(?=`)' <<< "$ENTRY")"
+	return 1
 }
 
 function listAllSettingsEntries {
@@ -139,7 +154,7 @@ function listAllSettingsEntries {
 		if [ "$TGSRC_SETENTRIES" -nt "$STLSETENTRIES" ]; then
 			STALE="'$TGSRC_SETENTRIES' changed"
 		elif [ "$(cat "$STLSETENTRIESREQ" 2>/dev/null)" != "$REQS" ]; then
-			STALE="Available hardware changed"
+			STALE="Available hardware or programs changed"
 		fi
 	fi
 
@@ -156,7 +171,7 @@ function listAllSettingsEntries {
 		writelog "INFO" "${FUNCNAME[0]} - Creating '$STLSETENTRIES'"
 		echo "$REQS" > "$STLSETENTRIESREQ"
 		while read -r ENTRY; do
-			if [[ "$ENTRY" == *'`#REQ_DGPU`'* ]] && ! grep -qx "dgpu=1" <<< "$REQS"; then
+			if entryReqMissing "$ENTRY" "$REQS"; then
 				continue
 			fi
 			echo "$ENTRY" | tee -a "$STLRAWENTRIES" >/dev/null
@@ -404,7 +419,7 @@ function AllSettingsEntriesDummyFunction {
 --field="     $GUI_USEGAMESCOPE!$DESC_USEGAMESCOPE ('USEGAMESCOPE')":CHK "${USEGAMESCOPE/#-/ -}" `#CAT_Tools` `#SUB_Checkbox` `#MENU_GAME` \
 --field="     $GUI_GAMESCOPE_ARGS!$DESC_GAMESCOPE_ARGS ('GAMESCOPE_ARGS')" "${GAMESCOPE_ARGS/#-/ -}" `#CAT_Tools` `#MENU_GAME` \
 --field="     $GUI_USEOBSCAP!$DESC_USEOBSCAP ('USEOBSCAP')":CHK "${USEOBSCAP/#-/ -}" `#CAT_Tools` `#SUB_Checkbox` `#MENU_GAME` \
---field="     $GUI_USEMAKO!$DESC_USEMAKO ('USEMAKO')":CHK "${USEMAKO/#-/ -}" `#CAT_Tools` `#SUB_Checkbox` `#MENU_GAME` \
+--field="     $GUI_USEMAKO!$DESC_USEMAKO ('USEMAKO')":CHK "${USEMAKO/#-/ -}" `#CAT_Tools` `#SUB_Checkbox` `#MENU_GAME` `#REQ_MAKO` \
 --field="     $GUI_USEZINK!$DESC_USEZINK ('USEZINK')":CHK "${USEZINK/#-/ -}" `#CAT_Tools` `#SUB_Checkbox` `#MENU_GAME` \
 --field="     $GUI_USEPRIMERUN!$DESC_USEPRIMERUN ('USEPRIMERUN')":CHK "${USEPRIMERUN/#-/ -}" `#CAT_Tools` `#SUB_Checkbox` `#MENU_GAME` `#REQ_DGPU` \
 --field="     $GUI_RUN_NYRNA!$DESC_RUN_NYRNA ('RUN_NYRNA')":CHK "${RUN_NYRNA/#-/ -}" `#CAT_Tools` `#SUB_Checkbox` `#MENU_GAME` \

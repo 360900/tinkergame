@@ -770,13 +770,24 @@ function checkPrimerun {
 
 # MAKO (frame generation and scaling Vulkan layer) is enabled per game by wrapping the game with its 'mako-launch' command.
 # The standalone installer puts it into ~/.local/bin, which is often not in PATH for Steam, so check there as well
+function findMakoLaunch {
+	if command -v "$MAKOLAUNCH" 2>/dev/null; then
+		return 0
+	elif [ -x "$HOME/.local/bin/$MAKOLAUNCH" ]; then
+		echo "$HOME/.local/bin/$MAKOLAUNCH"
+	else
+		return 1
+	fi
+}
+
+function haveMako {
+	findMakoLaunch >/dev/null
+}
+
 function setMakoCmd {
 	MAKOC=""
 	if [ "$USEMAKO" -eq 1 ]; then
-		MAKOC="$(command -v "$MAKOLAUNCH" || true)"
-		if [ -z "$MAKOC" ] && [ -x "$HOME/.local/bin/$MAKOLAUNCH" ]; then
-			MAKOC="$HOME/.local/bin/$MAKOLAUNCH"
-		fi
+		MAKOC="$(findMakoLaunch || true)"
 
 		if [ -z "$MAKOC" ]; then
 			writelog "WARN" "${FUNCNAME[0]} - Disabling 'USEMAKO' because '$MAKOLAUNCH' was not found"

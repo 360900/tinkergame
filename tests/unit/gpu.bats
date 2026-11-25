@@ -175,6 +175,38 @@ EOF
 	grep "('USEPRIMERUN')" "$TG_ROOT/lib/gui/settings-entries.sh" | grep -q '`#REQ_DGPU`'
 }
 
+@test "MAKO settings entry exists only when mako-launch is installed" {
+	STLRAWENTRIES="$STLSHM/rawentries.txt"
+	STLSETENTRIES="$STLSHM/setentries.txt"
+	STLSETENTRIESREQ="$STLSHM/setentries-req.txt"
+	MTEMP="$STLSHM/menutemp"
+	TGSRC_SETENTRIES="$BATS_TEST_TMPDIR/srcentries.sh"
+	cat > "$TGSRC_SETENTRIES" <<'EOF'
+#STARTSETENTRIES
+	--field="     $GUI_A!$DESC_A ('USEA')":CHK "${USEA/#-/ -}" `#CAT_Tools` `#SUB_Checkbox` `#MENU_GAME` \
+	--field="     $GUI_USEMAKO!$DESC_USEMAKO ('USEMAKO')":CHK "${USEMAKO/#-/ -}" `#CAT_Tools` `#SUB_Checkbox` `#MENU_GAME` `#REQ_MAKO` \
+#ENDSETENTRIES
+EOF
+	touch -d '2020-01-01 00:00:00' "$TGSRC_SETENTRIES"
+	addCards 1
+	HOME="$BATS_TEST_TMPDIR/home"
+	MAKOLAUNCH="mako-launch-hidden-test"
+	listAllSettingsEntries
+	grep -qx "USEA" "$STLSETENTRIES"
+	run ! grep -q "USEMAKO" "$STLSETENTRIES" "$STLRAWENTRIES"
+
+	mkdir -p "$HOME/.local/bin"
+	printf '#!/bin/sh\nexec "$@"\n' > "$HOME/.local/bin/$MAKOLAUNCH"
+	chmod +x "$HOME/.local/bin/$MAKOLAUNCH"
+	listAllSettingsEntries
+	grep -qx "USEMAKO" "$STLSETENTRIES"
+	grep -q "('USEMAKO')" "$STLRAWENTRIES"
+}
+
+@test "real settings entries tag the MAKO toggle" {
+	grep "('USEMAKO')" "$TG_ROOT/lib/gui/settings-entries.sh" | grep -q '`#REQ_MAKO`'
+}
+
 @test "MAKO is found in ~/.local/bin when not in PATH" {
 	HOME="$BATS_TEST_TMPDIR/home"
 	mkdir -p "$HOME/.local/bin"
