@@ -58,7 +58,14 @@ function getDefaultProton {
 	if [ -n "$INPROTV" ]; then
 		echo "$INPROTV"
 	else
-		getNOP "v"
+		# prefer Proton Experimental, fall back to the newest official Proton
+		createProtonList
+		DEFEXPPROT="$(printProtonArr | grep -i "^experimental" | head -n1 | cut -d ';' -f1)"
+		if [ -n "$DEFEXPPROT" ]; then
+			echo "$DEFEXPPROT"
+		else
+			getNOP "v"
+		fi
 	fi
 }
 
