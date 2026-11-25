@@ -28,7 +28,8 @@ wiki page with the F1 key.
 ## What It Provides
 
 - Per-game environment variables, launch commands, executables, and scripts.
-- Proton and Wine selection, downloads, and prefix tools.
+- Proton and Wine selection, downloads, and prefix tools, with GE-Proton and
+  CachyOS Proton kept up to date automatically.
 - Gamescope, MangoHud, GameMode, DXVK, VKD3D, FSR, and related options.
 - Mod Organizer 2, Vortex, ReShade, Special K, Hedge Mod Manager, and other
   integrations.
@@ -96,6 +97,10 @@ generation and scaling for any Vulkan game. It is not in the distribution
 repositories: install it from its
 [releases](https://github.com/eugeniosegala/MAKO/releases), or on Arch from the
 AUR packages `mako-render` and `lib32-mako-render`.
+
+[Protontricks](https://github.com/Matoking/protontricks) is optional. The
+Install Windows components tool uses it to open Winetricks with the game's
+Proton version, and falls back to plain Winetricks without it.
 
 When installed for the current user, make sure `~/.local/bin` is in `PATH`.
 
