@@ -17,6 +17,7 @@ Custom-Command
 Custom-Game-Artwork
 DLSS
 Default-Menu
+Dedicated-GPU
 Dependencies-Program
 Depressurizer
 Depth3D
@@ -82,7 +83,6 @@ PEV-PE32-file-analysis
 Paths
 Pause-Unpause
 Playtime
-PrimeRun
 Proton
 Proton-Autoupdate
 Proton-KillSwitch

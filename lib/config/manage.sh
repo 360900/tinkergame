@@ -441,6 +441,23 @@ function updateConfigEntry {
 	CFGFILE=""
 }
 
+# Print the config file for the Steam collection '$2' in directory '$1'.
+# Renamed collection configs are still found under their old collection name
+function findCollectionConf {
+	local CONF NEWNAME
+
+	CONF="$(find "$1" -type f -iname "$2.conf" 2>/dev/null)"
+	if [ -z "$CONF" ]; then
+		case "${2,,}" in
+			primerun) NEWNAME="DedicatedGPU" ;;
+		esac
+		if [ -n "$NEWNAME" ]; then
+			CONF="$(find "$1" -type f -iname "$NEWNAME.conf" 2>/dev/null)"
+		fi
+	fi
+	echo "$CONF"
+}
+
 # autoapply configuration settings based on the steam collections the game is in:
 function autoCollectionSettings {
 	if [ "$CHECKCOLLECTIONS" -eq 1 ] && [ "$STLPLAY" -eq 0 ]; then
@@ -455,7 +472,7 @@ function autoCollectionSettings {
 			else
 				writelog "INFO" "${FUNCNAME[0]} - Searching collections for game '$AID' in '$SC'"
 				while read -r SCAT; do
-					GLOBALSCATCONF="$(find "$GLOBALCOLLECTIONDIR" -type f -iname "$SCAT.conf")"
+					GLOBALSCATCONF="$(findCollectionConf "$GLOBALCOLLECTIONDIR" "$SCAT")"
 
 					# Should we break after a file to load is found? Is there benefit to loading another file?
 					if [ -f "$GLOBALSCATCONF" ]; then
@@ -465,7 +482,7 @@ function autoCollectionSettings {
 						writelog "SKIP" "${FUNCNAME[0]} - Global Config '$GLOBALSCATCONF' not found - skipping"
 					fi
 
-					SCATCONF="$(find "$STLCOLLECTIONDIR" -type f -iname "$SCAT.conf")"
+					SCATCONF="$(findCollectionConf "$STLCOLLECTIONDIR" "$SCAT")"
 
 					if [ -f "$SCATCONF" ]; then
 						writelog "INFO" "${FUNCNAME[0]} - Collections Directory Config '$SCATCONF' found - loading its settings"

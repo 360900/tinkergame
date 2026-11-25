@@ -194,3 +194,18 @@ EOF
 	[ -z "$MAKOC" ]
 	[ "$USEMAKO" -eq 0 ]
 }
+
+@test "old PrimeRun collection still loads the renamed DedicatedGPU config" {
+	mkdir -p "$BATS_TEST_TMPDIR/coll"
+	cp "$TG_ROOT/collections/DedicatedGPU.conf" "$BATS_TEST_TMPDIR/coll/"
+	[ "$(findCollectionConf "$BATS_TEST_TMPDIR/coll" "PrimeRun")" = "$BATS_TEST_TMPDIR/coll/DedicatedGPU.conf" ]
+	[ "$(findCollectionConf "$BATS_TEST_TMPDIR/coll" "dedicatedgpu")" = "$BATS_TEST_TMPDIR/coll/DedicatedGPU.conf" ]
+	grep -qx 'USEPRIMERUN="1"' "$BATS_TEST_TMPDIR/coll/DedicatedGPU.conf"
+}
+
+@test "a user's own PrimeRun.conf wins over the renamed config" {
+	mkdir -p "$BATS_TEST_TMPDIR/coll"
+	touch "$BATS_TEST_TMPDIR/coll/PrimeRun.conf" "$BATS_TEST_TMPDIR/coll/DedicatedGPU.conf"
+	[ "$(findCollectionConf "$BATS_TEST_TMPDIR/coll" "PrimeRun")" = "$BATS_TEST_TMPDIR/coll/PrimeRun.conf" ]
+	[ -z "$(findCollectionConf "$BATS_TEST_TMPDIR/coll" "Other")" ]
+}
