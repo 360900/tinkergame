@@ -298,7 +298,7 @@ function reCreateCompatdata {
 
 					if [ -d "$DESTCODA" ]; then
 						if [ "$3" == "s" ]; then
-							RCSEL="$(confirmReq "Ask_Recreate_Compatdata" "$(strFix "$GUI_RECRECODA" "$EUNID" "${EUNID}_${PROGNAME,,}")")"
+							RCSEL="$(confirmReq "Ask_Recreate_Compatdata" "$(strFix "$GUI_RECRECODA" "$DESTCODA" "${DESTCODA}_${PROGNAME,,}")")"
 							if [ "$RCSEL" -eq 0 ]; then
 							{
 								writelog "INFO" "${FUNCNAME[0]} - Confirmed recreating the wineprefix"
