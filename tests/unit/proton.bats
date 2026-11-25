@@ -56,3 +56,27 @@ setup() {
 
 	[ "$(getProtonInternalName "Boxtron;$tooldir/run-dosbox")" = "Boxtron" ]
 }
+
+@test "getProtonDisplayName: reads display_name from compatibilitytool.vdf" {
+	local tooldir="$BATS_TEST_TMPDIR/tools/GE-Proton9-20"
+	mkdir -p "$tooldir"
+	cp "$TG_FIXTURES/vdf/compatibilitytool.vdf" "$tooldir/"
+
+	[ "$(getProtonDisplayName "$tooldir/proton")" = "GE-Proton9-20" ]
+}
+
+@test "getProtonDisplayName: Valve builds resolve to the appmanifest name" {
+	local apps="$BATS_TEST_TMPDIR/steamapps"
+	mkdir -p "$apps/common/Proton - Experimental"
+	printf '"AppState"\n{\n\t"appid"\t\t"1493710"\n\t"name"\t\t"Proton Experimental"\n\t"installdir"\t\t"Proton - Experimental"\n}\n' >"$apps/appmanifest_1493710.acf"
+	printf '"AppState"\n{\n\t"name"\t\t"Other"\n\t"installdir"\t\t"Other"\n}\n' >"$apps/appmanifest_1.acf"
+
+	[ "$(getProtonDisplayName "$apps/common/Proton - Experimental/proton")" = "Proton Experimental" ]
+}
+
+@test "getProtonDisplayName: prints nothing for an unknown Proton" {
+	local tooldir="$BATS_TEST_TMPDIR/somewhere/proton-x"
+	mkdir -p "$tooldir"
+
+	[ -z "$(getProtonDisplayName "$tooldir/proton")" ]
+}

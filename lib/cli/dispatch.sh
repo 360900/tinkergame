@@ -499,6 +499,10 @@ function tgCmdWine {
 		FUSEID "$1"
 		SetWineDebugChannels "$USEID"
 	;;
+	"components")
+		FUSEID "$1"
+		openProtontricks "$USEID"
+	;;
 	"dotnet")
 		if [ -n "$2" ]; then
 			installDotNet "$1" "$2" "$3"

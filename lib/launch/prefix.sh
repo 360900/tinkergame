@@ -1993,3 +1993,56 @@ function updateWineRegistryKey {
 	WINEPREFIX="$WINEPFX" "$WINERUNCMD" reg "${REGOP}" "${REGPATH}" "/v" "${REGVAL}" "/f"
 }
 
+
+# Name Protontricks knows a Proton installation by: the display name from
+# compatibilitytool.vdf for custom builds, the app name from the Steam
+# appmanifest for Valve builds. Prints nothing when it can't be found.
+function getProtonDisplayName {
+	local PROTDIR CTVDFFILE ACF
+	PROTDIR="$(dirname "$1")"
+	CTVDFFILE="$PROTDIR/compatibilitytool.vdf"
+	if [ -f "$CTVDFFILE" ]; then
+		grep -v "^[[:space:]]*//" "$CTVDFFILE" | grep -m1 "\"display_name\"" | awk -F '"' '{print $4}'
+		return
+	fi
+	for ACF in "$(dirname "$(dirname "$PROTDIR")")"/appmanifest_*.acf; do
+		if [ -f "$ACF" ] && grep -q "\"installdir\"[[:space:]]*\"$(basename "$PROTDIR")\"" "$ACF"; then
+			grep -m1 "\"name\"" "$ACF" | awk -F '"' '{print $4}'
+			return
+		fi
+	done
+}
+
+# Install Windows components into the game prefix with Protontricks, using
+# the Proton version TinkerGame runs the game with. Falls back to the
+# Winetricks dialog when Protontricks is missing or the Proton is unknown to it.
+function openProtontricks {
+	local PTPROTPATH PTPROTNAME PTRC=0
+	if [ -n "$1" ]; then
+		AID="$1"
+		setAIDCfgs
+	fi
+	if [ -f "$STLGAMECFG" ]; then
+		loadCfg "$STLGAMECFG"
+	fi
+
+	if [ -x "$(command -v protontricks)" ] && [ -n "$USEPROTON" ]; then
+		PTPROTPATH="$(getProtPathFromCSV "$USEPROTON")"
+		if [ -n "$PTPROTPATH" ]; then
+			PTPROTNAME="$(getProtonDisplayName "$PTPROTPATH")"
+		fi
+	fi
+
+	if [ -z "$PTPROTNAME" ]; then
+		writelog "INFO" "${FUNCNAME[0]} - Protontricks or the name of '$USEPROTON' not found - opening the Winetricks dialog"
+		chooseWinetricksPrefix "$AID"
+		return
+	fi
+
+	writelog "INFO" "${FUNCNAME[0]} - Starting Protontricks for '$AID' with '$PTPROTNAME'"
+	PROTON_VERSION="$PTPROTNAME" PROTONTRICKS_GUI=yad protontricks "$AID" --gui || PTRC=$?
+	if [ "$PTRC" -ne 0 ]; then
+		writelog "ERROR" "${FUNCNAME[0]} - Protontricks exited with '$PTRC'"
+		notiShow "$(strFix "$NOTY_PROTONTRICKSFAIL" "$PTRC")"
+	fi
+}

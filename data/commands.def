@@ -70,6 +70,7 @@ proton	start	<title> [X]	Start and/or create title with proton without using ste
 wine	download	<url|latest|l>	Download/install Wine archive from filerequester, url or latest version
 wine	winecfg	[gameid]	Run Winecfg once in a game's prefix
 wine	winetricks	<gameid>	Launch Winetricks for a game's prefix
+wine	components	<gameid>	Install Windows components into a game's prefix with Protontricks
 wine	onetime-winetricks	[gameid]	Run Winetricks once in a game's prefix
 wine	debug-channels	<gameid>	Set Wine debug channels for game
 wine	dotnet	<pfx> <wine> [arg]	Install dotnet into a Wineprefix
