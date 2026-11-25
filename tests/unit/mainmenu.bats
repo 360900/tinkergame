@@ -147,7 +147,7 @@ STUB
 	export BUT_EXIT="EXIT" BUT_GUISET_CATMENUSHORT="CATEGORIES" BUT_GM="GAME MENU"
 	export BUT_GLM="GLOBAL MENU" BUT_FAV="FAVORITES" BUT_EDITORMENU="EDITOR"
 	export BUT_SEARCH="SEARCH" BUT_PLAY="PLAY" BUT_EXTRAS="EXTRAS" BUT_BACK="BACK" BUT_RUN="RUN"
-	export GUI_MMSEC_PLAY="Play" GUI_MMSEC_FIX="Fix problems"
+	export GUI_MMSEC_PLAY="Quick settings" GUI_MMSEC_FIX="Fix problems"
 	export GUI_MMSEC_LOOK="Look & performance" GUI_MMSEC_MODS="Mods"
 	export GUI_MM_PROTON="PROTON" GUI_MM_ARGS="ARGS" GUI_MM_FPSLIMIT="FPS LIMIT"
 	export GUI_MM_FPSCOUNTER="FPS COUNTER" GUI_MM_GAMEMODE="GAMEMODE"
@@ -232,7 +232,7 @@ tab_keys() {
 	[ "$(grep -c '^plug:' "$STUB_YAD_LOG")" -eq 5 ]
 	[ "$(grep -c '^form:' "$STUB_YAD_LOG")" -eq 0 ]
 	# tab labels, markup escaped
-	grep -qF -- '--tab=Play --tab=Fix problems --tab=Look &amp; performance --tab=Mods --tab=EXTRAS' "$STUB_YAD_LOG"
+	grep -qF -- '--tab=Quick settings --tab=Fix problems --tab=Look &amp; performance --tab=Mods --tab=EXTRAS' "$STUB_YAD_LOG"
 	# the Play tab is a form of the game settings
 	local play
 	play="$(plug_of 1)"
