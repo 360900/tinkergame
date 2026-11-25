@@ -1234,6 +1234,7 @@ function setSLRReap {
 	# This function has gotten a bit messy with all the override options, but these are used to allow setSLRReap to be re-used outside of regular game launches such as for Vortex.
 
 	# These variables are only passed for Non-Game SLR launches i.e. Vortex, they are ignored for game launches and use fallback values
+	SLRREQUESTED=0
 	OVERRIDESLR="$1"  # Always get SLR, ignoring other vars that specify otherwise
 	SLRFORCETYPE="${2:-0}"  # Force fetch the Proton SLR (1), or native SLR (2), ignoring value of ISGAME
 	SLRPROTONVER="$3"  # Proton version to fetch the SLR version from (where to find the toolmanifest.vdf from) -- Optional, will fall back to RUNPROTON set by game
@@ -1345,8 +1346,11 @@ function setSLRReap {
 					SLRVERB="--verb=$WFEAR"
 					PROTON_SLRCMD=("$SLRENTRYPOINT" "$SLRVERB" "--")
 				else
-					writelog "WARN" "${FUNCNAME[0]} - Could not get path to Steam Linux Runtime - This will need to be installed manually!"
+					writelog "WARN" "${FUNCNAME[0]} - Could not get path to Steam Linux Runtime"
 					writelog "WARN" "${FUNCNAME[0]} - Ignoring USESLR option since valid Steam Linux Runtime could not be found"
+					if [[ ! ( "$ISGAME" -eq 3 && "$SLRFORCETYPE" -eq 0 ) && "$SLRFORCETYPE" -ne 2 ]]; then
+						requestMissingSLR "$( dirname "$SLRPROTONVER" )" && SLRREQUESTED=1
+					fi
 				fi
 
 				# Passing even a blank `NATIVE_SLRCMD[@]` prevents games from launching, so we need this check
@@ -1390,7 +1394,9 @@ function setSLRReap {
 		if [ -n "${SLRCMD[*]}" ]; then
 			writelog "INFO" "${FUNCNAME[0]} - Adding SLR '${SLRCMD[*]}' to the launch command"
 		else
-			if [ "$USESLR" -eq 1 ]; then
+			if [ "$SLRREQUESTED" -eq 1 ]; then
+				writelog "INFO" "${FUNCNAME[0]} - Asked Steam to install the missing Steam Linux Runtime"
+			elif [ "$USESLR" -eq 1 ]; then
 				notiShow "$NOTY_SLRMISSING" "X"
 			else
 				writelog "INFO" "${FUNCNAME[0]} - SLRCMD is not defined, but USESLR is disabled, so this should be safe to ignore"
@@ -1399,6 +1405,27 @@ function setSLRReap {
 	else
 		writelog "INFO" "${FUNCNAME[0]} - USESLR and HAVESLR not defined -- Probably shouldn't happen?"
 	fi
+}
+
+# Ask Steam to install the Steam Linux Runtime a Proton build needs when it is
+# missing, so the game works on the next launch without a manual step.
+# Returns 0 when Steam was asked.
+function requestMissingSLR {
+	local RMTOMAPATH="$1/$TOMA" RMSLRID
+	if [ ! -f "$RMTOMAPATH" ]; then
+		return 1
+	fi
+	RMSLRID="$( getValueFromAppManifest "require_tool_appid" "$RMTOMAPATH" )"
+	if [ -z "$RMSLRID" ] || [ -d "$( getGameDir "$RMSLRID" "only" )" ]; then
+		return 1
+	fi
+	if [ ! -x "$(command -v steam)" ]; then
+		writelog "WARN" "${FUNCNAME[0]} - Steam Linux Runtime '$RMSLRID' is missing and the 'steam' command was not found to request it"
+		return 1
+	fi
+	writelog "INFO" "${FUNCNAME[0]} - Steam Linux Runtime '$RMSLRID' required by '$1' is missing - asking Steam to install it"
+	steam "steam://install/$RMSLRID" >/dev/null 2>&1 &
+	notiShow "$NOTY_SLRREQUESTED" "X"
 }
 
 function fetchGameSLRGui {

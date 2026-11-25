@@ -1329,3 +1329,4 @@ DESC_VORTEXDISABLEGPU="Run Vortex with Chromium software rendering (--disable-gp
 NOTY_SGDBUNDECIDED="XXX Non-Steam entry/entries are still missing artwork"
 GUI_SGDBRESOLVENOW="Match now"
 NOTY_PROTONTRICKSFAIL="Protontricks wurde mit Fehler XXX beendet. Details stehen im Log."
+NOTY_SLRREQUESTED="Diese Proton-Version braucht die Steam Linux Runtime. Steam installiert sie, starte das Spiel danach erneut."

@@ -1327,3 +1327,4 @@ GUI_EMPTYDLIST="Download list is empty - make sure internet access and jq are av
 NOTY_SGDBUNDECIDED="XXX Non-Steam entry/entries are still missing artwork"
 GUI_SGDBRESOLVENOW="Match now"
 NOTY_PROTONTRICKSFAIL="Protontricks stopped with error XXX. See the log for details."
+NOTY_SLRREQUESTED="This Proton version needs the Steam Linux Runtime. Steam is installing it, start the game again when it is done."
