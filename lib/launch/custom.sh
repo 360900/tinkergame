@@ -733,6 +733,24 @@ function checkPrimerun {
 	fi
 }
 
+# MAKO (frame generation and scaling Vulkan layer) is enabled per game by wrapping the game with its 'mako-launch' command.
+# The standalone installer puts it into ~/.local/bin, which is often not in PATH for Steam, so check there as well
+function setMakoCmd {
+	MAKOC=""
+	if [ "$USEMAKO" -eq 1 ]; then
+		MAKOC="$(command -v "$MAKOLAUNCH" || true)"
+		if [ -z "$MAKOC" ] && [ -x "$HOME/.local/bin/$MAKOLAUNCH" ]; then
+			MAKOC="$HOME/.local/bin/$MAKOLAUNCH"
+		fi
+
+		if [ -z "$MAKOC" ]; then
+			writelog "WARN" "${FUNCNAME[0]} - Disabling 'USEMAKO' because '$MAKOLAUNCH' was not found"
+			notiShow "$(strFix "$NOTY_PROGRAMMISSING" "USEMAKO" "$MAKOLAUNCH")"
+			USEMAKO=0
+		fi
+	fi
+}
+
 function checkZink {
 	if [ "$USEZINK" -eq 1 ]; then
 		writelog "INFO" "${FUNCNAME[0]} - Enabling Zink variables because 'USEZINK' is '$USEZINK'"
@@ -750,6 +768,8 @@ function setCommandLaunchVars {
 	if [ "$USEOBSCAP" -eq 1 ]; then
 		OBSC="$(command -v "$OBSCAP")"
 	fi
+
+	setMakoCmd
 
 	if [ "$USEGAMESCOPE" -eq 1 ]; then
 		if [ "$USEMANGOAPP" -eq 1 ]; then
@@ -831,6 +851,12 @@ function buildCustomCmdLaunch {
 		else
 			FINALOUTCMD=("$OBSC")
 		fi
+	fi
+
+	# MAKO has to go inside GameScope, so its layer applies to the game and not to GameScope
+	if [ -n "$MAKOC" ]; then
+		writelog "INFO" "${FUNCNAME[0]} - USEMAKO is enabled - preparing '$MAKOC' command"
+		FINALOUTCMD=("${FINALOUTCMD[@]}" "$MAKOC")
 	fi
 
 	# MangoHud has to go inside GameScope

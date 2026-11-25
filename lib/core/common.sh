@@ -71,6 +71,7 @@ XDGMIME="xdg-mime"
 XDGO="xdg-open"
 SYSTEMCTL="systemctl"
 OBSCAP="obs-gamecapture"
+MAKOLAUNCH="mako-launch"
 
 CHECKHMD=1
 X32D="x32dbg"

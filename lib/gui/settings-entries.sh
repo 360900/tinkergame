@@ -376,6 +376,7 @@ function AllSettingsEntriesDummyFunction {
 --field="     $GUI_USEGAMESCOPE!$DESC_USEGAMESCOPE ('USEGAMESCOPE')":CHK "${USEGAMESCOPE/#-/ -}" `#CAT_Tools` `#SUB_Checkbox` `#MENU_GAME` \
 --field="     $GUI_GAMESCOPE_ARGS!$DESC_GAMESCOPE_ARGS ('GAMESCOPE_ARGS')" "${GAMESCOPE_ARGS/#-/ -}" `#CAT_Tools` `#MENU_GAME` \
 --field="     $GUI_USEOBSCAP!$DESC_USEOBSCAP ('USEOBSCAP')":CHK "${USEOBSCAP/#-/ -}" `#CAT_Tools` `#SUB_Checkbox` `#MENU_GAME` \
+--field="     $GUI_USEMAKO!$DESC_USEMAKO ('USEMAKO')":CHK "${USEMAKO/#-/ -}" `#CAT_Tools` `#SUB_Checkbox` `#MENU_GAME` \
 --field="     $GUI_USEZINK!$DESC_USEZINK ('USEZINK')":CHK "${USEZINK/#-/ -}" `#CAT_Tools` `#SUB_Checkbox` `#MENU_GAME` \
 --field="     $GUI_USEPRIMERUN!$DESC_USEPRIMERUN ('USEPRIMERUN')":CHK "${USEPRIMERUN/#-/ -}" `#CAT_Tools` `#SUB_Checkbox` `#MENU_GAME` \
 --field="     $GUI_RUN_NYRNA!$DESC_RUN_NYRNA ('RUN_NYRNA')":CHK "${RUN_NYRNA/#-/ -}" `#CAT_Tools` `#SUB_Checkbox` `#MENU_GAME` \

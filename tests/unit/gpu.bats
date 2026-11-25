@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Tests for the vendor-neutral dGPU offload (checkPrimerun / findOffloadGpu)
-# against a fake /sys/class/drm tree.
+# against a fake /sys/class/drm tree, and for the MAKO launch wrapper.
 
 load helpers
 
@@ -81,4 +81,24 @@ addGpu() {
 	addGpu card1 0000:01:00.0 nvidia 0
 	checkPrimerun
 	[ -z "${__NV_PRIME_RENDER_OFFLOAD:-}" ]
+}
+
+@test "MAKO is found in ~/.local/bin when not in PATH" {
+	HOME="$BATS_TEST_TMPDIR/home"
+	mkdir -p "$HOME/.local/bin"
+	printf '#!/bin/sh\nexec "$@"\n' > "$HOME/.local/bin/mako-launch"
+	chmod +x "$HOME/.local/bin/mako-launch"
+	USEMAKO=1
+	setMakoCmd
+	[ "$MAKOC" = "$HOME/.local/bin/mako-launch" ]
+}
+
+@test "missing MAKO disables the option" {
+	HOME="$BATS_TEST_TMPDIR/nohome"
+	MAKOLAUNCH="mako-launch-missing-test"
+	USEMAKO=1
+	notiShow() { :; }
+	setMakoCmd
+	[ -z "$MAKOC" ]
+	[ "$USEMAKO" -eq 0 ]
 }

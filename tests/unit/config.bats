@@ -62,10 +62,10 @@ setup() {
 	grep -q '^## ReShade Project URL$' "$f"   # desc expands ${RESH}
 }
 
-@test "saveCfg: creates default_template.conf with all 189 keys" {
+@test "saveCfg: creates default_template.conf with all 190 keys" {
 	local f="$BATS_TEST_TMPDIR/default_template.conf"
 	saveCfg "$f" X
-	[ "$(grep -cE '^[A-Z0-9_]+=' "$f")" -eq 189 ]
+	[ "$(grep -cE '^[A-Z0-9_]+=' "$f")" -eq 190 ]
 }
 
 @test "saveCfg: default_template.conf writes the fixed MO2SILENTMODEEXEOVERRIDE key" {
@@ -207,8 +207,8 @@ setup() {
 	printf '## config Version: v0.0.1\nKEEPSTLOPEN="0"\n' >"$f"
 	updateConfigFile "$f" "default_template"
 	[ "$(grep -c '^KEEPSTLOPEN=' "$f")" -eq 1 ]
-	# all 189 schema keys present afterwards:
-	[ "$(grep -cE '^[A-Z0-9_]+=' "$f")" -eq 189 ]
+	# all 190 schema keys present afterwards:
+	[ "$(grep -cE '^[A-Z0-9_]+=' "$f")" -eq 190 ]
 }
 
 @test "updateConfigFile: missing per-game keys inherit values from the default template" {

@@ -222,6 +222,7 @@ function setDefaultCfgValues {
 		if [ -z "$USEGAMESCOPE" ]; then		USEGAMESCOPE="0"; fi
 		if [ -z "$GAMESCOPE_ARGS" ]; then		GAMESCOPE_ARGS="--"; fi
 		if [ -z "$USEOBSCAP" ]; then		USEOBSCAP="0"; fi
+		if [ -z "$USEMAKO" ]; then		USEMAKO="0"; fi
 		if [ -z "$USEZINK" ]; then		USEZINK="0"; fi
 		if [ -z "$USEPRIMERUN" ]; then		USEPRIMERUN="0"; fi
 		if [ -z "$TOGSTEAMWEBHELPER" ]; then		TOGSTEAMWEBHELPER="0"; fi
