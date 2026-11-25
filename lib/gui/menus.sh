@@ -577,7 +577,7 @@ function MainMenu {
 function mmAddData {
 	# VAR TYPE LABEL TOOLTIP VALUE: appends one setting of the game config to
 	# the Play tab; saveMainMenuFields writes it back to VAR
-	MM_FIELDVARS[$(( ${#MM_PLAYFORM[@]} / 2 ))]="$1"
+	MM_FIELDVARS[${#MM_PLAYFORM[@]} / 2]="$1"
 	MM_PLAYFORM+=( "--field=${3}!${4}:${2}" "$5" )
 }
 
@@ -677,14 +677,14 @@ function mmPickCmd {
 
 function mmListArgs {
 	# yad --list arguments showing the rows of tool tab $1
-	local -n MMKEYS="MM_ROWKEYS_$1"
-	local -n MMTEXT="MM_ROWTEXT_$1"
-	local -n MMTIPS="MM_ROWTIP_$1"
+	local -n MMLKEYS="MM_ROWKEYS_$1"
+	local -n MMLTEXT="MM_ROWTEXT_$1"
+	local -n MMLTIPS="MM_ROWTIP_$1"
 	local MMI
 	MMLISTARGS=( --list --no-headers --column=key:HD --column=text --column=tip:HD \
 		--hide-column=1 --tooltip-column=3 )
-	for MMI in "${!MMKEYS[@]}"; do
-		MMLISTARGS+=( "${MMKEYS[$MMI]}" "${MMTEXT[$MMI]}" "${MMTIPS[$MMI]}" )
+	for MMI in "${!MMLKEYS[@]}"; do
+		MMLISTARGS+=( "${MMLKEYS[$MMI]}" "${MMLTEXT[$MMI]}" "${MMLTIPS[$MMI]}" )
 	done
 }
 

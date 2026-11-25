@@ -133,6 +133,7 @@ function getSettingsEntriesReqs {
 # true if ENTRY has a '#REQ_<NAME>' tag whose requirement is missing in REQS
 function entryReqMissing {
 	local ENTRY="$1" REQS="$2" REQ
+	# shellcheck disable=SC2016 # literal backticks around the tag
 	while read -r REQ; do
 		[ -z "$REQ" ] && continue
 		grep -qx "${REQ,,}=1" <<< "$REQS" || return 0
