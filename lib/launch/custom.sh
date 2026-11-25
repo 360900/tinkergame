@@ -671,13 +671,65 @@ function checkWinesync {
 	fi
 }
 
+# Print '<driver> <pci slot>' of the GPU to offload games to, i.e. the first PCI GPU
+# which is not the boot (primary) GPU - prints nothing if there is no such GPU
+function findOffloadGpu {
+	local CARD DEV SLOT DRV
+	local -i GPUCOUNT=0
+
+	for CARD in "${DRMSYSDIR:-/sys/class/drm}"/card*; do
+		[[ "${CARD##*/}" =~ ^card[0-9]+$ ]] || continue  # skip connectors like card0-HDMI-A-1
+		DEV="$CARD/device"
+		SLOT="$(readlink -f "$DEV")"
+		SLOT="${SLOT##*/}"
+		[[ "$SLOT" =~ ^[0-9a-f]{4}:[0-9a-f]{2}:[0-9a-f]{2}\.[0-9a-f]$ ]] || continue  # PCI GPUs only (skips simpledrm etc)
+		GPUCOUNT+=1
+
+		if [ -f "$DEV/boot_vga" ] && [ "$(< "$DEV/boot_vga")" = "1" ]; then
+			continue
+		fi
+
+		DRV="$(readlink -f "$DEV/driver")"
+		DRV="${DRV##*/}"
+		# Intel integrated graphics always sit at 00:02.0, so never offload to them
+		if [[ "$DRV" =~ ^(i915|xe)$ ]] && [[ "$SLOT" == *":00:02.0" ]]; then
+			continue
+		fi
+
+		if [ -n "$DRV" ]; then
+			printf '%s %s\n' "$DRV" "$SLOT"
+			return
+		fi
+	done
+
+	writelog "INFO" "${FUNCNAME[0]} - No secondary GPU found among $GPUCOUNT PCI GPU(s)"
+}
+
+# Run the game on the dedicated GPU, for any vendor: NVIDIA proprietary uses its PRIME render offload variables,
+# every Mesa driver (amdgpu, radeon, nouveau, i915, xe) uses DRI_PRIME, which covers OpenGL and Vulkan (via Mesa's device-select layer)
 function checkPrimerun {
+	local OFFGPU OFFDRV OFFSLOT
+
 	if [ "$USEPRIMERUN" -eq 1 ]; then
-		writelog "INFO" "${FUNCNAME[0]} - Enabling Primerun variables because 'USEPRIMERUN' is '$USEPRIMERUN'"
-		export __NV_PRIME_RENDER_OFFLOAD=1
-		export __VK_LAYER_NV_optimus=NVIDIA_only
-		export __GLX_VENDOR_LIBRARY_NAME=nvidia
-		export VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/nvidia_icd.json
+		OFFGPU="$(findOffloadGpu)"
+		if [ -z "$OFFGPU" ]; then
+			writelog "SKIP" "${FUNCNAME[0]} - 'USEPRIMERUN' is enabled, but no dedicated GPU to offload to was found - the game already runs on the only or primary GPU"
+			return
+		fi
+
+		OFFDRV="${OFFGPU%% *}"
+		OFFSLOT="${OFFGPU#* }"
+
+		if [ "$OFFDRV" = "nvidia" ]; then
+			writelog "INFO" "${FUNCNAME[0]} - Offloading to NVIDIA GPU '$OFFSLOT' with PRIME render offload variables"
+			export __NV_PRIME_RENDER_OFFLOAD=1
+			export __VK_LAYER_NV_optimus=NVIDIA_only
+			export __GLX_VENDOR_LIBRARY_NAME=nvidia
+		else
+			OFFSLOT="${OFFSLOT//[:.]/_}"
+			writelog "INFO" "${FUNCNAME[0]} - Offloading to '$OFFDRV' GPU with 'DRI_PRIME=pci-$OFFSLOT'"
+			export DRI_PRIME="pci-$OFFSLOT"
+		fi
 	fi
 }
 
